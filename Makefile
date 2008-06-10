@@ -7,29 +7,35 @@ ML_SYSTEM_FILES = $(shell ls ML-Systems/*.ML)
 
 
 POLYML=poly
-POLYML_SYSTEM_HEAP=heaps/polyml-5.2.polyml-heap
-POLYML_ISA_HEAP=heaps/isalib.polyml-heap
-POLYML_ISAP_HEAP=heaps/isaplib.polyml-heap
+POLYML_SYSTEM_HEAP=polyml-5.2.polyml-heap
+POLYML_ISA_HEAP=isalib.polyml-heap
+POLYML_ISAP_HEAP=isaplib.polyml-heap
 
-default: $(POLYML_ISAP_HEAP)
+default: heaps/$(POLYML_ISAP_HEAP)
 
 ################
 
 # make polyml heap
 
 heaps/polyml-5.2.polyml-heap: $(ML_SYSTEM_FILES)
-	echo 'use "ML-Systems/polyml.ML"; SaveState.saveState "$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
+	echo 'use "ML-Systems/polyml.ML"; SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
 
 heaps/polyml-5.1.polyml-heap: $(ML_SYSTEM_FILES)
-	echo 'use "ML-Systems/polyml-5.1.ML"; SaveState.saveState "$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
+	echo 'use "ML-Systems/polyml-5.1.ML"; SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
 
-$(POLYML_ISA_HEAP): $(POLYML_SYSTEM_HEAP) $(ML_ISA_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "$(POLYML_SYSTEM_HEAP)"; use "isa_src/ROOT.ML"; PolyML.SaveState.saveState "$(POLYML_ISA_HEAP)"; quit();' | $(POLYML)
+heaps/$(POLYML_ISA_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_ISA_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; use "isa_src/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISA_HEAP)"; quit();' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISA_HEAP)"
 
-$(POLYML_ISAP_HEAP): $(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "$(POLYML_ISA_HEAP)"; use "isap_src/ROOT.ML"; PolyML.SaveState.saveState "$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
+heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; use "isap_src/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
+
+run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISAP_HEAP)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISAP_HEAP)";' > heaps/run-$(POLYML_ISAP_HEAP).ML
+	cat heaps/run-$(POLYML_ISAP_HEAP).ML - | poly
+
+run-isap: run-$(POLYML_ISAP_HEAP)
 
 clean: 
 	rm -f heaps/*.polyml-heap
