@@ -2,6 +2,7 @@
 
 ML_ISA_SRC_FILES = $(shell ls isa_src/*.ML)
 ML_ISAP_SRC_FILES = $(shell ls isap_src/*.ML)
+ML_PARSER_SRC_FILES = $(shell ls parser/*.ML)
 ML_SYSTEM_FILES = $(shell ls ML-Systems/*.ML)
 
 
@@ -27,8 +28,8 @@ heaps/$(POLYML_ISA_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_ISA_SRC_FILES)
 	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; use "isa_src/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISA_HEAP)"; quit();' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISA_HEAP)"
 
-heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; use "isap_src/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
+heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES) $(ML_PARSER_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; use "isap_src/ROOT.ML"; use "parser/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
 
 run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISAP_HEAP)
