@@ -4,17 +4,34 @@ ML_ISA_SRC_FILES = $(shell ls isa_src/*.ML)
 ML_ISAP_SRC_FILES = $(shell ls isap_src/*.ML)
 ML_SYSTEM_FILES = $(shell ls ML-Systems/*.ML)
 
-POLYML=poly
-POLYML_HEAP=heaps/isalib.polyml-heap
 
-default: polyml
+
+POLYML=poly
+POLYML_SYSTEM_HEAP=heaps/polyml-5.2.polyml-heap
+POLYML_ISA_HEAP=heaps/isalib.polyml-heap
+POLYML_ISAP_HEAP=heaps/isaplib.polyml-heap
+
+default: $(POLYML_ISAP_HEAP)
 
 ################
 
 # make polyml heap
-polyml: $(ML_ISA_SRC_FILES) $(ML_ISAP_SRC_FILES) $(ML_SYSTEM_FILES)
-	echo 'use "ML-Systems/polyml.ML"; use "isa_src/ROOT.ML"; use "isap_src/ROOT.ML"; SaveState.saveState "$(POLYML_HEAP)"; quit();' | $(POLYML)
-	@echo "Built polyml heap: $(POLYML_HEAP)"
+
+heaps/polyml-5.2.polyml-heap: $(ML_SYSTEM_FILES)
+	echo 'use "ML-Systems/polyml.ML"; SaveState.saveState "$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
+
+heaps/polyml-5.1.polyml-heap: $(ML_SYSTEM_FILES)
+	echo 'use "ML-Systems/polyml-5.1.ML"; SaveState.saveState "$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
+
+$(POLYML_ISA_HEAP): $(POLYML_SYSTEM_HEAP) $(ML_ISA_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "$(POLYML_SYSTEM_HEAP)"; use "isa_src/ROOT.ML"; PolyML.SaveState.saveState "$(POLYML_ISA_HEAP)"; quit();' | $(POLYML)
+	@echo "Built polyml heap: $(POLYML_ISA_HEAP)"
+
+$(POLYML_ISAP_HEAP): $(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "$(POLYML_ISA_HEAP)"; use "isap_src/ROOT.ML"; PolyML.SaveState.saveState "$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
+	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
 
 clean: 
-	@if test -e $(POLYML_HEAP); then rm -f $(POLYML_HEAP); echo "Removed heaps, now clean."; else echo "No heaps to remove, already clean."; fi
+	rm -f heaps/*.polyml-heap
+
+#	@if test -e heaps/*.polyml-heap; then rm -f heaps/*.polyml-heap; echo "Removed heaps, now clean."; else echo "No heaps to remove, already clean."; fi
