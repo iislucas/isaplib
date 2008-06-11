@@ -33,10 +33,10 @@ heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES) $(ML_PA
 	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
 
 run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISAP_HEAP)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISAP_HEAP)";' > heaps/run-$(POLYML_ISAP_HEAP).ML
-	cat heaps/run-$(POLYML_ISAP_HEAP).ML - | poly
+	./bin/polyml-isaplib
 
 run-isap: run-$(POLYML_ISAP_HEAP)
+run: run-$(POLYML_ISAP_HEAP)
 
 clean: 
 	rm -f heaps/*.polyml-heap
