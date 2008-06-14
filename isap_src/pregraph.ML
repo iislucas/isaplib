@@ -51,6 +51,7 @@ structure StrVertex
 :> VERTEX where type name = string and type data = string
 = struct
 open StrName;
+val default_name = "Va";
 open StrData;
 end;
 
@@ -58,6 +59,7 @@ structure UnitVertex
 :> VERTEX where type name = string and type data = unit
 = struct
 open StrName;
+val default_name = "Va";
 open UnitData;
 end;
 
@@ -66,6 +68,7 @@ structure UnitEdge
 :> EDGE where type name = string and type data = unit
 = struct
 open StrName;
+val default_name = "Ea";
 open UnitData;
 end;
 
@@ -73,5 +76,6 @@ structure StrEdge
 :> EDGE where type name = string and type data = string
 = struct
 open StrName;
+val default_name = "Ea";
 open StrData;
 end;
