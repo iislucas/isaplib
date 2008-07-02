@@ -147,6 +147,12 @@ datatype T
   val delete : N.name -> T -> T
   val delete1 : N.name -> T -> T (* for debgging only *)
 
+  val contains_range : T -> (N.name * N.name) -> bool
+  val contains_range_exactly : T -> (N.name * N.name) -> bool
+  (* contains exactly the same ranges *)
+  val eq : T -> T -> bool
+
+  (* more set-like ops *)
   val union_merge : T -> T -> T (* union *)
   val subtract : T -> T -> T (* subtraction = (fst - snd) *)
   val remove_set : T -> T -> T (* subtraction = (snd - fst) *)
@@ -676,6 +682,42 @@ fun sub_set Empty tr = true
                  | _ => false)
             | GREATER => sub_set n1 r2));    
 
+(* assumes b < t *)
+fun contains_range tr (r as (b,t)) = 
+    let fun recf Empty = false
+          | recf (tr as Br(d1,(b1,t1),l1,r1)) = 
+            (case N.ord (t,b1) of 
+               LESS => recf l1 
+             | EQUAL => (case N.ord (b, b1) of EQUAL => true 
+                         (* r has value in gap between t1 and l1 *)
+                                             | _ => false) 
+             | GREATER => (case N.ord (b,t1) of GREATER => recf r1
+                           | EQUAL => (case N.ord (t,t1) of EQUAL => true
+                                        (* r has value in gap between t1 and r1 *)
+                                                          | _ => false)
+                           | LESS => ((* r has value in gap between t1 and r1 *)
+                                      case N.ord (t,t1) of GREATER => false
+                                                          | _ => true)))
+    in recf tr end;
+
+(* assumes b < t *)
+fun contains_range_exactly tr (r as (b,t)) = 
+    let fun recf Empty = false
+          | recf (tr as Br(d1,(b1,t1),l1,r1)) = 
+            (case N.ord (t,t1) of 
+               LESS => 
+               (case N.ord (t, b1) of LESS => recf l1 
+                                    | _ => false)
+             | EQUAL => (case N.ord (b, b1) of EQUAL => true 
+                         (* r has value in gap between t1 and l1 *)
+                                             | _ => false)
+             | GREATER => (case N.ord (b, t1) of GREATER => recf r1
+                                               | _ => false))
+    in recf tr end;
+
+
+
+
 (* delete - consider cases: 1. s is in the middle of a range, then we
 need to split the range and insert the appropriate half into the
 shorter branch of the tree. 2. s is the end of some range, then we
@@ -757,7 +799,7 @@ fun powerset_geq a tr =
          let val bsets = powerset_geq b (delete a tr)
          in (map (add a) bsets) @ bsets end);
 
-(* returns powerset of tr *)
+(* returns powerset of tr as a list *)
 fun powerset tr = 
     (case get_first tr of 
        NONE => []
@@ -776,6 +818,16 @@ fun fold_ranges_rev f Empty a = a
     a |> fold_ranges_rev f r
       |> f (b,t)
       |> fold_ranges_rev f l;
+
+(* IMPROVE: write nice optimal version based on top-level rotatability, should be: log(tr1), 
+   currently: tr1 * lg(tr2) *)
+exception stop_exp;
+fun eq tr1 tr2 = 
+    ((fold_ranges (fn r => fn () => 
+                              if contains_range_exactly tr2 r then () 
+                              else raise stop_exp) tr1 ()); 
+     true)
+    handle stop_exp => false;
 
 (* IMPROVE: THIS IS NOT EFFICIENT! *)
 (* subtract 1st from 2nd = fromthis - subtractthis *)
