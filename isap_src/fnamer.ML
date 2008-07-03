@@ -819,8 +819,8 @@ fun fold_ranges_rev f Empty a = a
       |> f (b,t)
       |> fold_ranges_rev f l;
 
-(* IMPROVE: write nice optimal version based on top-level rotatability, should be: log(tr1), 
-   currently: tr1 * lg(tr2) *)
+(* IMPROVE: write nice optimal version based on top-level rotatability, 
+   should be: log(tr1), currently: tr1 * lg(tr2) *)
 exception stop_exp;
 fun eq tr1 tr2 = 
     ((fold_ranges (fn r => fn () => 
