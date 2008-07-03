@@ -41,3 +41,16 @@ structure StrName :> NAMES where type name = string
   val avoids_of_renaming = Renaming.get_avoids;
   val nmap_of_renaming = Renaming.get_nmap;
 end;
+
+(* strings as names *)
+structure StrIntName :> NAMES where type name = string * int
+= struct
+  open BasicStrIntName
+  structure Renaming = RenamingFun(BasicStrIntName);
+  type renaming = Renaming.T
+  val init_renaming = Renaming.init;
+  val rename1 = Renaming.rename1;
+  val ignored_of_renaming = Renaming.get_ignored;
+  val avoids_of_renaming = Renaming.get_avoids;
+  val nmap_of_renaming = Renaming.get_nmap;
+end;

@@ -36,3 +36,16 @@ structure BasicStrName : BASIC_NAMES where type name = string
   val name_ord = String.compare;
   fun name_eq (ab as (a,b)) = case (name_ord ab) of EQUAL => true | _ => false;
 end;
+
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+structure BasicStrIntName : BASIC_NAMES where type name = (string * int)
+  = struct
+  type name = string * int
+  structure NTab = StrIntNameTab;
+  structure NSet = NTab.N;
+  val default_name = ("a",0);
+  val pretty_name = StrIntNameTab.pretty_name;
+  val print_name = Pretty.writeln o pretty_name;
+  val name_ord = StrIntNameTab.ord;;
+  fun name_eq (ab as (a,b)) = case (name_ord ab) of EQUAL => true | _ => false;
+end;
