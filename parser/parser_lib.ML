@@ -1,11 +1,3 @@
-(* structure ITab :> FNAME_TAB where type name = int = IntNameTab; *)
-
-structure ITab = IntNameTab;
-install_pp (make_pp ["ITab", "N", "T"] 
-                    (Pretty.pprint o ITab.N.pretty));
-
-
-
 structure ParserLib = 
 struct
 

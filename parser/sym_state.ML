@@ -19,8 +19,8 @@ signature SYM_STATE
   exception nothing_under_intype_exp of string
   exception not_mergeable_exp of T * T;
 
-  val mk_leaf : DnTab.name * ITab.name * AdjNds.T * AdjNds.T -> T
-  val mk_parent : Data.dcontext -> ITab.name * intype -> Data.andpos -> T
+  val mk_leaf : DnTab.name * AnTab.name * AdjNds.T * AdjNds.T -> T
+  val mk_parent : Data.dcontext -> AnTab.name * intype -> Data.andpos -> T
   val mk_merged : T -> T -> T
 
   val is_top : T -> bool;
@@ -36,49 +36,49 @@ signature SYM_STATE
   val empty_right_agenda : T -> bool;
 
   (* for consturcting the bottom nds, simply adds node to right agenda *)
-  val add1_awakened_right : ITab.name -> T -> T
+  val add1_awakened_right : AnTab.name -> T -> T
 
   (* agenda management *)
-  val subst_left_sleeping_to_awake : ITab.name -> ITab.N.T -> T -> T
-  val subst_right_sleeping_to_awake : ITab.name -> ITab.N.T -> T -> T
+  val subst_left_sleeping_to_awake : AnTab.name -> An.NSet.T -> T -> T
+  val subst_right_sleeping_to_awake : AnTab.name -> An.NSet.T -> T -> T
 
-  val subst_left_ddelay_to_delayed : ITab.name -> ITab.N.T -> T -> T
-  val subst_right_ddelay_to_delayed : ITab.name -> ITab.N.T -> T -> T
+  val subst_left_ddelay_to_delayed : AnTab.name -> An.NSet.T -> T -> T
+  val subst_right_ddelay_to_delayed : AnTab.name -> An.NSet.T -> T -> T
 
   (* delays *)
-  val move1_left_to_delayed : ITab.name -> T -> T
-  val move1_right_to_delayed : ITab.name -> T -> T
-  val move1_left_to_ddelayed : ITab.name -> T -> T
-  val move1_right_to_ddelayed : ITab.name -> T -> T
+  val move1_left_to_delayed : AnTab.name -> T -> T
+  val move1_right_to_delayed : AnTab.name -> T -> T
+  val move1_left_to_ddelayed : AnTab.name -> T -> T
+  val move1_right_to_ddelayed : AnTab.name -> T -> T
 
 
 (*
-  val move1_left_ddelay_to_sleeping : ITab.name -> T -> T
-  val move1_right_ddelay_to_sleeping : ITab.name -> T -> T
+  val move1_left_ddelay_to_sleeping : AnTab.name -> T -> T
+  val move1_right_ddelay_to_sleeping : AnTab.name -> T -> T
 
-  val move1_left_to_sleeping : ITab.name -> T -> T
-  val move1_right_to_sleeping : ITab.name -> T -> T
+  val move1_left_to_sleeping : AnTab.name -> T -> T
+  val move1_right_to_sleeping : AnTab.name -> T -> T
 
 *)
-  val copy_right_link : ITab.name -> ITab.name -> T -> T
-  val copy_left_link : ITab.name -> ITab.name -> T -> T
+  val copy_right_link : AnTab.name -> AnTab.name -> T -> T
+  val copy_left_link : AnTab.name -> AnTab.name -> T -> T
 
   val drop_all_links : T -> T
 
   val lr_order : T * T -> General.order
 
   (* gets *)
-  val get_left_awakened : T -> ITab.N.T
-  val get_right_awakened : T -> ITab.N.T
-  val get_left_delayed : T -> ITab.N.T
-  val get_right_delayed : T -> ITab.N.T
-  val get_left_sleeping : T -> ITab.N.T
-  val get_right_sleeping : T -> ITab.N.T
-  val get_left_ddelayed : T -> ITab.N.T
-  val get_right_ddelayed : T -> ITab.N.T
+  val get_left_awakened : T -> An.NSet.T
+  val get_right_awakened : T -> An.NSet.T
+  val get_left_delayed : T -> An.NSet.T
+  val get_right_delayed : T -> An.NSet.T
+  val get_left_sleeping : T -> An.NSet.T
+  val get_right_sleeping : T -> An.NSet.T
+  val get_left_ddelayed : T -> An.NSet.T
+  val get_right_ddelayed : T -> An.NSet.T
 
-  val get_maxlnd : T -> ITab.name
-  val get_maxrnd : T -> ITab.name
+  val get_maxlnd : T -> AnTab.name
+  val get_maxrnd : T -> AnTab.name
 
   val get_max_left_elem : T -> EnTab.name
   val get_max_right_elem : T -> EnTab.name
@@ -86,23 +86,23 @@ signature SYM_STATE
   val get_next_relem : T -> EnTab.name * DnTab.name
 
   (* internal manipulation stuff *)
-  val get_elems : T -> EnTab.N.T
+  val get_elems : T -> En.NSet.T
   val get_parent_dname : T -> DnTab.name
   val get_lnds : T -> AdjNds.T
   val get_rnds : T -> AdjNds.T
-  val get_undernds : T -> ITab.name UnderData.EnTab.T
+  val get_undernds : T -> AnTab.name EnTab.T
 
-  val update_elems : (EnTab.N.T -> EnTab.N.T) -> T -> T
+  val update_elems : (En.NSet.T -> En.NSet.T) -> T -> T
   val update_parent_dname : (DnTab.name -> DnTab.name) -> T -> T
   val update_lnds : (AdjNds.T -> AdjNds.T) -> T -> T
   val update_rnds : (AdjNds.T -> AdjNds.T) -> T -> T
-  val update_undernds :  (ITab.name EnTab.T -> ITab.name EnTab.T) -> T -> T
+  val update_undernds :  (AnTab.name EnTab.T -> AnTab.name EnTab.T) -> T -> T
 
-  val set_elems : EnTab.N.T -> T -> T
+  val set_elems : En.NSet.T -> T -> T
   val set_parent_dname : DnTab.name -> T -> T
   val set_lnds : AdjNds.T -> T -> T
   val set_rnds : AdjNds.T -> T -> T
-  val set_undernds : ITab.name EnTab.T -> T -> T
+  val set_undernds : AnTab.name EnTab.T -> T -> T
 
   (* pretty printing *)
   val pretty : T -> Pretty.T
@@ -121,26 +121,26 @@ structure SnTab :> FNAME_TAB where type name = string = StrNameTab;
 (* intype hold infor for being inside a type - consturcting it from
    bottom up, uding parsing. *)
 datatype intype = InAndType of 
-         { parent : UnderData.dname, (* parent an and-type being made *)
-           elems: UnderData.EnTab.N.T, (* all and-elems *)
-           undernds : ITab.name UnderData.EnTab.T, (* link to known and-elems *)
+         { parent : Dn.name, (* parent an and-type being made *)
+           elems: En.NSet.T, (* all and-elems *)
+           undernds : AnTab.name EnTab.T, (* link to known and-elems *)
            lnds : AdjNds.T, (* or-choices of left node ids *)
            rnds : AdjNds.T, (* or-choics of right node ids *)
-           maxlnd : ITab.name, (* most-left id on bottom level *)
-           maxrnd : ITab.name (* most-right id on bottom level *)
+           maxlnd : AnTab.name, (* most-left id on bottom level *)
+           maxrnd : AnTab.name (* most-right id on bottom level *)
          };
 
 (* status at left or right end of a dname, more stuff needed only on 1 side *)
 datatype endstatus = EndStatus of
          { intype : intype,
-           nextelem : (UnderData.ename * UnderData.dname)
+           nextelem : (En.name * Dn.name)
          };
          
 (* status when we have more elems needed for the dname to the right and left *) 
 datatype midstatus = MidStatus of
          { intype : intype,
-           nextlelem : (UnderData.ename * UnderData.dname),
-           nextrelem : (UnderData.ename  * UnderData.dname)
+           nextlelem : (En.name * Dn.name),
+           nextrelem : (En.name  * Dn.name)
          };
 
 (* state of a collection of adjacent symbols *)
@@ -156,8 +156,8 @@ fun is_top (Top _) = true
 (* make a node which has no children *)
 fun mk_leaf (dname, thisnd, left, right) = 
     Top (InAndType {parent = dname, 
-                    elems = UnderData.EnTab.N.empty,
-                    undernds = UnderData.EnTab.empty,
+                    elems = En.NSet.empty,
+                    undernds = EnTab.empty,
                     lnds = left, 
                     rnds = right,
                     maxlnd = thisnd,
@@ -260,10 +260,10 @@ val get_maxrnd = maxrnd_of_intype o get_intype;
 
 (* left-to-right order: left-most first, then biggest *)
 fun lr_order (s1,s2) = 
-    case ITab.ord (get_maxlnd s1, get_maxlnd s2)
+    case AnTab.ord (get_maxlnd s1, get_maxlnd s2)
      of LESS => LESS
       | MORE => MORE
-      | EQUAL => ITab.ord (get_maxrnd s2, get_maxrnd s1);
+      | EQUAL => AnTab.ord (get_maxrnd s2, get_maxrnd s1);
 
 (* implicit f s *)
 val update_lnds = update_intype o upd_lnds_of_intype;
@@ -294,12 +294,12 @@ exception nothing_under_intype_exp of string;
 val get_max_right_elem_of_intype = 
     (fn NONE => raise nothing_under_intype_exp "get_max_right_elem_of_intype" 
       | SOME x => x) 
-    o UnderData.EnTab.N.get_last o UnderData.EnTab.get_names 
+    o En.NSet.get_last o EnTab.get_names 
     o undernds_of_intype;
 val get_max_left_elem_of_intype = 
     (fn NONE => raise nothing_under_intype_exp "get_max_left_elem_of_intype" 
       | SOME x => x) 
-    o UnderData.EnTab.N.get_first o UnderData.EnTab.get_names 
+    o En.NSet.get_first o EnTab.get_names 
     o undernds_of_intype;
 
 (* implicit s *)
@@ -322,7 +322,7 @@ fun get_next_relem (s as Top _) = raise bad_symstate ("next_relem", s)
 
 (* Are two symstates left-to-right adjacent *)
 fun have_same_parent s1 s2 = 
-    UnderData.dname_eq (get_parent_dname s1) (get_parent_dname s2);
+    Dn.name_eq (get_parent_dname s1, get_parent_dname s2);
 
 fun are_adjacent (Top _) s2 = false
   | are_adjacent _ (Top _) = false
@@ -331,8 +331,7 @@ fun are_adjacent (Top _) s2 = false
   | are_adjacent s1 s2 = 
     (have_same_parent s1 s2)
     andalso 
-    (UnderData.ename_eq (fst (get_next_relem s1)) 
-                        (get_max_left_elem s2));
+    (En.name_eq (fst (get_next_relem s1), get_max_left_elem s2));
 
 (* for making the bottom nodes *)
 val add1_awakened_right = 
@@ -418,18 +417,18 @@ fun mk_parent dcx (sid, InAndType rep) andp =
         let 
           val parent_inandtype = 
               InAndType {parent=new_parent_dname,
-                         elems = UnderData.EnTab.get_names etab,
-                         undernds = UnderData.EnTab.update 
+                         elems = EnTab.get_names etab,
+                         undernds = EnTab.update 
                                       (sym_ename,sid)
-                                      UnderData.EnTab.empty,
+                                      EnTab.empty,
                          lnds = AdjNds.activate (#lnds rep),
                          rnds = AdjNds.activate (#rnds rep),
                          maxlnd = #maxlnd rep,
                          maxrnd = #maxrnd rep
                         };
         in
-          (case (UnderData.EnTab.next_smaller etab sym_ename, 
-								 UnderData.EnTab.next_bigger etab sym_ename) 
+          (case (EnTab.next_smaller etab sym_ename, 
+								 EnTab.next_bigger etab sym_ename) 
             of (SOME (l as (le,ldn)), SOME (r as (re,rdn))) => 
                Middle (MidStatus 
 												 { intype = parent_inandtype,
@@ -492,11 +491,11 @@ fun pretty_intype (InAndType rep) =
       [Pretty.block 
          [Pretty.block 
             ([Pretty.str "@("]
-             @ (if ITab.name_eq (#maxlnd rep, #maxrnd rep) then [ITab.pretty_name (#maxlnd rep)]
-                else [ITab.pretty_name (#maxlnd rep), Pretty.str "-", 
-                      ITab.pretty_name (#maxrnd rep)])
+             @ (if AnTab.name_eq (#maxlnd rep, #maxrnd rep) then [AnTab.pretty_name (#maxlnd rep)]
+                else [AnTab.pretty_name (#maxlnd rep), Pretty.str "-", 
+                      AnTab.pretty_name (#maxrnd rep)])
              @ [Pretty.str ")"]),
-          Pretty.str " : ", UnderData.pretty_dname (#parent rep), Pretty.str " = ",
+          Pretty.str " : ", Dn.pretty_name (#parent rep), Pretty.str " = ",
           Pretty.list "[" "]" 
             (map 
                (fn e => 
@@ -504,8 +503,8 @@ fun pretty_intype (InAndType rep) =
                       [EnTab.pretty_name e, Pretty.str "=",
                        case EnTab.lookup (#undernds rep) e of 
                          NONE => Pretty.str "?"
-                       | SOME i => ITab.pretty_name i])
-               (EnTab.N.dest (#elems rep)))],
+                       | SOME i => AnTab.pretty_name i])
+               (En.NSet.dest (#elems rep)))],
        Pretty.block [Pretty.str "ls: ", AdjNds.pretty (#lnds rep)],
        Pretty.block [Pretty.str "rs: ", AdjNds.pretty (#rnds rep)]
       ];
@@ -516,23 +515,23 @@ fun pretty_intype_full (InAndType rep) =
       [Pretty.block [Pretty.str "Left nds: ", AdjNds.pretty (#lnds rep)],
        Pretty.block [Pretty.str "Right nds: ", AdjNds.pretty (#rnds rep)],
        Pretty.block [Pretty.str "MostLeft base nd: ",  
-                     ITab.pretty_name (#maxlnd rep)],
+                     AnTab.pretty_name (#maxlnd rep)],
        Pretty.block [Pretty.str "MostRight base nd: ",  
-                     ITab.pretty_name (#maxrnd rep)],
+                     AnTab.pretty_name (#maxrnd rep)],
        Pretty.block [Pretty.str "Parent dname: ",  
-                     UnderData.pretty_dname (#parent rep)],
+                     Dn.pretty_name (#parent rep)],
        Pretty.block [Pretty.str "All children elems: ", 
                      Pretty.list "[" "]" 
-                     (map UnderData.pretty_ename (UnderData.EnTab.N.dest 
+                     (map En.pretty_name (En.NSet.dest 
                                                     (#elems rep)))],
        Pretty.block [Pretty.str "Known children nds: ", 
                      Pretty.list "[" "]" 
                                  (map (fn (e,i) => 
                                           Pretty.block 
-                                            [(UnderData.pretty_ename e),
+                                            [(En.pretty_name e),
                                              Pretty.str ": ",
-                                             (ITab.pretty_name i)])
-                                      (UnderData.EnTab.dest (#undernds rep)))]
+                                             (AnTab.pretty_name i)])
+                                      (EnTab.dest (#undernds rep)))]
       ];
 
 
@@ -541,9 +540,9 @@ fun pretty_endstatus (EndStatus rep) =
     Pretty.chunks [
       Pretty.block [pretty_intype (#intype rep)],
       Pretty.block [Pretty.str "Next: ", 
-                    UnderData.pretty_ename (fst (#nextelem rep)),
+                    En.pretty_name (fst (#nextelem rep)),
 										Pretty.str " -> ",
-										UnderData.pretty_dname (snd (#nextelem rep))
+										Dn.pretty_name (snd (#nextelem rep))
 									 ]
     ];
 
@@ -551,13 +550,13 @@ fun pretty_midstatus (MidStatus rep) =
     Pretty.chunks [
     Pretty.block [pretty_intype (#intype rep)],
     Pretty.block [Pretty.str "Next Left: ", 
-                  UnderData.pretty_ename (fst (#nextlelem rep)),
+                  En.pretty_name (fst (#nextlelem rep)),
 									Pretty.str " -> ",
-									UnderData.pretty_dname (snd (#nextlelem rep)),
+									Dn.pretty_name (snd (#nextlelem rep)),
 								  Pretty.str ";   Next Right: ", 
-                  UnderData.pretty_ename (fst (#nextrelem rep)),
+                  En.pretty_name (fst (#nextrelem rep)),
 									Pretty.str " -> ",
-									UnderData.pretty_dname (snd (#nextrelem rep))
+									Dn.pretty_name (snd (#nextrelem rep))
 								 ]
     ];
 

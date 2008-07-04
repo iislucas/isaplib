@@ -7,8 +7,8 @@ System.use "tools/collection.ML"; (* collections of things  *)
 *)
 cd "parser";
 use "parser_lib.ML";
+use "base_names.ML";
 use "base_data.ML";
-use "under_data.ML";
 use "data_pos.ML"; (* possible positions in a data type *)
 (* use "dataloc.ML"; *) (* possible locations in a data context *)
 (* use "dsubs.ML"; *) (* direct subtypes of data (by or) *)
@@ -18,6 +18,7 @@ use "adj_nds.ML";
 use "sym_state.ML";
 use "parse_state.ML";
 use "parser.ML";
+use "bnf_morpisms.ML";
 cd "..";
 (* 
 use "ex_data2.ML";

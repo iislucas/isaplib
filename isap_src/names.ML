@@ -28,6 +28,18 @@ signature NAMES
   val nmap_of_renaming : renaming -> name NTab.T
 end;
 
+(* Safe String Names; isomorphic strings, named hidden under a
+constructor so the underlying string type is not normally revealed,
+thus harder to confuse name types. *)
+
+signature SNAMES
+= sig
+include NAMES
+type external_name
+val mk : external_name -> name
+val dest : name -> external_name
+end;
+
 
 (* strings as names *)
 structure StrName :> NAMES where type name = string
@@ -42,6 +54,17 @@ structure StrName :> NAMES where type name = string
   val nmap_of_renaming = Renaming.get_nmap;
 end;
 
+
+(* safe strings as names *)
+structure SStrName :> SNAMES where type external_name = string
+= struct
+open StrName;
+type external_name = string;
+val mk = I;
+val dest = I;
+end;
+
+
 (* strings as names *)
 structure StrIntName :> NAMES where type name = string * int
 = struct
@@ -53,4 +76,39 @@ structure StrIntName :> NAMES where type name = string * int
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;
   val nmap_of_renaming = Renaming.get_nmap;
+end;
+
+
+(* safe (string * int) names *)
+structure SStrIntName :> SNAMES where type external_name = string * int
+= struct
+open StrIntName;
+type external_name = string * int;
+val mk = I;
+val dest = I;
+end;
+
+
+
+(* ints as names *)
+structure IntName :> NAMES where type name = int
+= struct
+  open BasicIntName
+  structure Renaming = RenamingFun(BasicIntName);
+  type renaming = Renaming.T
+  val init_renaming = Renaming.init;
+  val rename1 = Renaming.rename1;
+  val ignored_of_renaming = Renaming.get_ignored;
+  val avoids_of_renaming = Renaming.get_avoids;
+  val nmap_of_renaming = Renaming.get_nmap;
+end;
+
+
+(* safe (string * int) names *)
+structure SIntName :> SNAMES where type external_name = int
+= struct
+open IntName;
+type external_name = int;
+val mk = I;
+val dest = I;
 end;

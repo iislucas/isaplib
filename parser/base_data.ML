@@ -12,7 +12,25 @@ signature BASE_DATA
   val print : basetype -> unit
 end;
 
-(* unit, int, string as base data *)
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+(* Charcters are the basic data: foundations of a parser *)
+structure ParserBaseData 
+= struct
+  type basetype = Char.char;
+  val basetype_names = (ParserLib.base_char_ids ~~ ParserLib.base_chars);
+  val pretty = Pretty.str o Char.toString;
+  val print = Pretty.writeln o pretty;
+end;
+
+structure BaseData :> BASE_DATA = ParserBaseData;
+
+install_pp (make_pp ["BaseData", "basetype"] 
+                    (Pretty.pprint o BaseData.pretty));
+
+
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+(*  Another idea for base data (currently unused):
+    unit, int, string = as base data *)
 structure BasicBaseData :> BASE_DATA
 = struct
 
@@ -29,17 +47,3 @@ fun pretty UnitTy = Pretty.str "unit"
 val print = Pretty.writeln o pretty;
 end;
 
-
-(* Charcters are the basic data: foundations of a parser *)
-structure ParserBaseData 
-= struct
-  type basetype = Char.char;
-  val basetype_names = (ParserLib.base_char_ids ~~ ParserLib.base_chars);
-  val pretty = Pretty.str o Char.toString;
-  val print = Pretty.writeln o pretty;
-end;
-
-structure BaseData :> BASE_DATA = ParserBaseData;
-
-install_pp (make_pp ["BaseData", "basetype"] 
-                    (Pretty.pprint o BaseData.pretty));

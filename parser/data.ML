@@ -5,9 +5,10 @@ signature DATA =
 sig
 
 type basetype (* basic datatypes *)
-type dname = UnderData.dname (* names of data *)
-type cname = UnderData.cname (* names of constructors *)
-type ename = UnderData.ename (* names of record elements labels *)
+
+type dname = Dn.name; (* datatype names *)
+type cname = Cn.name; (* constructors names *)
+type ename = En.name; (* record element names *)
 
 (* should have unique constructors, one non-looping
 branch, and has been check w.r.t. context (certified). *) 
@@ -15,8 +16,8 @@ branch, and has been check w.r.t. context (certified). *)
 (* Ands [] = succeed, Ors [] = fail / invalid *)
 datatype datatyp = 
          BType of basetype
-       | Ands of dname UnderData.EnTab.T (* (ename => sub dname) *)
-       | Ors of dname UnderData.CnTab.T; (* (cname => sub dname) *)
+       | Ands of dname EnTab.T (* (ename => sub dname) *)
+       | Ors of dname CnTab.T; (* (cname => sub dname) *)
 
 (* helper functions - do not gaurentee correctness of datatype *)
 val mk_ors_dtyp : (string * string) list -> datatyp
@@ -59,11 +60,11 @@ val del_data : dname -> dcontext -> dcontext
 
 
 (* parents of dnames *)
-val parents_of_data : data -> UnderData.DnTab.N.T
+val parents_of_data : data -> Dn.NSet.T
 val add_dname_subposes_to_ptab : dcontext -> dname 
-                                 -> DataPos.Set.T UnderData.DnTab.T
-                                 -> DataPos.Set.T UnderData.DnTab.T
-val mk_ptab : dcontext -> DataPos.Set.T UnderData.DnTab.T
+                                 -> DataPos.Set.T DnTab.T
+                                 -> DataPos.Set.T DnTab.T
+val mk_ptab : dcontext -> DataPos.Set.T DnTab.T
 
 (* super-types based on or-types *)
 type suppos;
@@ -101,15 +102,15 @@ val field_of_andpos : andpos -> ename;
 val optsubpos_of_andpos : andpos -> subpos option;
 val add_dname_subposes_to_andptab 
     : dcontext -> dname 
-      -> AndSet.T UnderData.DnTab.T
-      -> AndSet.T UnderData.DnTab.T;
-val add_andpos_to_andptab : dname -> andpos -> AndSet.T UnderData.DnTab.T 
-                            -> AndSet.T UnderData.DnTab.T
-val mk_andptab : dcontext -> AndSet.T UnderData.DnTab.T
+      -> AndSet.T DnTab.T
+      -> AndSet.T DnTab.T;
+val add_andpos_to_andptab : dname -> andpos -> AndSet.T DnTab.T 
+                            -> AndSet.T DnTab.T
+val mk_andptab : dcontext -> AndSet.T DnTab.T
 val pretty_andpos : andpos -> Pretty.T
 val print_andpos : andpos -> unit
-val pretty_andptab : AndSet.T UnderData.DnTab.T -> Pretty.T
-val print_andptab : AndSet.T UnderData.DnTab.T -> unit
+val pretty_andptab : AndSet.T DnTab.T -> Pretty.T
+val print_andptab : AndSet.T DnTab.T -> unit
 
 (* pretty stuff *)
 val pretty_dtyp : datatyp -> Pretty.T
@@ -143,13 +144,6 @@ structure DB_Data
 (* basic primitive types that exist in an empty context *)
 type basetype = BaseData.basetype
 
-(* Tables of datatypes *)
-structure DnTab = UnderData.DnTab;
-(* Element tables - for constructors in a datatype *)
-structure CnTab = UnderData.CnTab; 
-(* Element tables - for elements in a datatype *)
-structure EnTab = UnderData.EnTab; 
-
 (* handy quantifiers over CnTab and EnTab values *)
 fun forall_in_cntab n = 
     List.all n o CnTab.values;
@@ -161,23 +155,23 @@ fun exists_in_entab n =
     List.exists n o EnTab.values;
 
 (* names *)
-type dname = UnderData.dname; (* datatype names *)
-type cname = UnderData.cname; (* constructors names *)
-type ename = UnderData.ename; (* record element names *)
+type dname = Dn.name; (* datatype names *)
+type cname = Cn.name; (* constructors names *)
+type ename = En.name; (* record element names *)
 
-val dname_ord = UnderData.dname_ord;
-val cname_ord = UnderData.cname_ord;
-val ename_ord = UnderData.ename_ord;
+val dname_ord = Dn.name_ord;
+val cname_ord = Cn.name_ord;
+val ename_ord = En.name_ord;
 
 (* make names from strings *)
-val dname = UnderData.dname;
-val cname = UnderData.cname;
-val ename = UnderData.ename;
+val dname = Dn.mk;
+val cname = Cn.mk;
+val ename = En.mk;
 
 (* equality of names *)
-val dname_eq = UnderData.dname_eq;
-val cname_eq = UnderData.cname_eq;
-val ename_eq = UnderData.ename_eq;
+val dname_eq = Dn.name_eq;
+val cname_eq = Cn.name_eq;
+val ename_eq = En.name_eq;
 
 (* datatypes *)
 
@@ -205,16 +199,16 @@ fun children_of_dtyp (BType _) = []
 (* we keep tha path so that we know the consturctor trace to get to
 the child type from the parent *)
 datatype suppos = SupTyPos of 
-         (UnderData.dname * (* name of a super type of us *)
+         (dname * (* name of a super type of us *)
           (* constructor choices to get from super-type to us *) 
-          UnderData.cname list);
+          cname list);
 fun parentn_of_suppos (SupTyPos (n, cL)) = n;
 fun constr_list_of_suppos (SupTyPos (n, cL)) = cL;
 fun inc_suppos c (SupTyPos (d,cL)) = (SupTyPos (d,c::cL));
 
 fun suppos_ord (SupTyPos p, SupTyPos p2) = 
-    Library.prod_ord UnderData.dname_ord 
-                     (Library.list_ord UnderData.cname_ord)
+    Library.prod_ord Dn.name_ord 
+                     (Library.list_ord Cn.name_ord)
                      (p,p2);
 (* an SupTySet is used to hold the set of super types of a type *)
 structure SupTySet :> COLLECTION where type obj = suppos
@@ -225,9 +219,9 @@ fun inc1_suppos_set c =
 (* pretty printing for suppos, supsets and suptabs *)
 fun pretty_suppos (SupTyPos (n, cL)) = 
     Pretty.block 
-      [Pretty.str "+(", UnderData.pretty_dname n,
+      [Pretty.str "+(", Dn.pretty_name n,
        Pretty.str ", ", 
-       Pretty.list "[" "]" (map UnderData.pretty_cname cL),
+       Pretty.list "[" "]" (map Cn.pretty_name cL),
        Pretty.str ")"];
 fun pretty_supset supset = 
     Pretty.list "{" "}" (map pretty_suppos (SupTySet.dest supset));
@@ -237,17 +231,17 @@ val print_supset = Pretty.writeln o pretty_supset;
 (* we keep tha path so that we know the consturctor trace to get to
 the sub type from us *)
 datatype subpos = SubTyPos of 
-         (UnderData.dname * (* subtype name *)
+         (dname * (* subtype name *)
           (* constructor choices to get from us to sub-type *) 
-          UnderData.cname list);
+          cname list);
 (* Note: we don't allow the list of constructors to be empty *)
 fun childn_of_subpos (SubTyPos (n, cL)) = n;
 fun constr_list_of_subpos (SubTyPos (n, cL)) = cL;
 fun inc_subpos c (SubTyPos (d,cL)) = (SubTyPos (d,c::cL));
 
 fun subpos_ord (SubTyPos s, SubTyPos s2) = 
-    Library.prod_ord UnderData.dname_ord 
-                     (Library.list_ord UnderData.cname_ord)
+    Library.prod_ord Dn.name_ord 
+                     (Library.list_ord Cn.name_ord)
                      (s,s2);
 (* SubSet is used to hold the set of sub types of a type *)
 structure SubTySet :> COLLECTION where type obj = subpos
@@ -260,9 +254,9 @@ fun inc_subpos_set cL2 =
 (* pretty printing for subpos, supsets and suptabs *)
 fun pretty_subpos (SubTyPos (n, cL)) = 
     Pretty.block 
-      [Pretty.str "-(", UnderData.pretty_dname n,
+      [Pretty.str "-(", Dn.pretty_name n,
        Pretty.str ", ", 
-       Pretty.list "[" "]" (map UnderData.pretty_cname cL),
+       Pretty.list "[" "]" (map Cn.pretty_name cL),
        Pretty.str ")"];
 fun pretty_subset sbset = 
     Pretty.list "{" "}" (map pretty_subpos (SubTySet.dest sbset));
@@ -278,12 +272,12 @@ fun subpos_of_suppos pn (SupTyPos (dn,l)) = SubTyPos (pn, rev l);
 datatype datatrm = 
          DataVar 
        | DataTyp of {dtyp: datatyp, 
-                     vardeps : DnTab.N.T, (* vars we refer to *)
+                     vardeps : Dn.NSet.T, (* vars we refer to *)
                      subs : SubTySet.T (* subtypes of us *)
                     };
 datatype data = 
          Data of {dtrm: datatrm, 
-                  parents: DnTab.N.T, (* everything we occur in *)
+                  parents: Dn.NSet.T, (* everything we occur in *)
                   supers: SupTySet.T (* we are a subtype(rec) of these *)
                  };
 
@@ -313,7 +307,7 @@ fun children_of_data d =
 fun data_has_vardep d = 
     (case dtrm_of_data d 
       of DataVar => false
-       | DataTyp rep => DnTab.N.is_empty (#vardeps rep));
+       | DataTyp rep => Dn.NSet.is_empty (#vardeps rep));
 
 fun update_vardeps_in_dtrm f DataVar = 
     raise data_is_var_exp "update_vardeps_in_dtrm"
@@ -329,14 +323,14 @@ fun update_dtrm_in_data f (Data rep) =
 val update_vardeps_in_data = 
     update_dtrm_in_data o update_vardeps_in_dtrm;
 val remove_vardep_in_data = 
-    update_vardeps_in_data o DnTab.N.delete;
+    update_vardeps_in_data o Dn.NSet.delete;
 
 val set_dtrm_in_data = update_dtrm_in_data o K;
 
 fun update_parents_in_data f (Data rep) =
     Data {dtrm = #dtrm rep, parents = f (#parents rep), supers = #supers rep};
 (* implicit n and data *)
-val add_parent_in_data = update_parents_in_data o DnTab.N.add
+val add_parent_in_data = update_parents_in_data o Dn.NSet.add
 
 fun update_supers_in_data f (Data rep) =
     Data {dtrm = #dtrm rep, parents = #parents rep, supers = f (#supers rep)};
@@ -344,7 +338,7 @@ fun update_supers_in_data f (Data rep) =
 (* only add supers if we are not an and-type *)
 fun add_parent_and_supers_in_data (n,supers) (d as Data rep) = 
     Data {dtrm = #dtrm rep, 
-          parents = DnTab.N.add n (#parents rep), 
+          parents = Dn.NSet.add n (#parents rep), 
           supers = SupTySet.union_set supers (#supers rep)};
 
 (* only add subs if we are not an and-type *)
@@ -357,8 +351,8 @@ fun add_subs_in_data subs2 d =
 (* contains only certified datatype with unique constructors, and one
 non-looping case, and where names in the datatype are within the
 context they are certified for. *)
-(* invars: (vars = DnTab.N.empty) <=> forall data, isvar is false *)
-datatype dcontext = DCx of {data: data DnTab.T, vars: DnTab.N.T};
+(* invars: (vars = Dn.NSet.empty) <=> forall data, isvar is false *)
+datatype dcontext = DCx of {data: data DnTab.T, vars: Dn.NSet.T};
 
 fun datas_of_dcx (DCx rep) = #data rep;
 fun vars_of_dcx (DCx rep) = #vars rep;
@@ -396,8 +390,8 @@ fun get_subs dcx n =
 (* also updates supers -- unused
 fun add_parent_in_dcx pn n dcx = 
     update_dcx_data_entry
-      (update_parents_in_data (DnTab.N.add pn) 
-       o update_supers_in_data (DnTab.N.union_merge (get_supers dcx pn)))
+      (update_parents_in_data (Dn.NSet.add pn) 
+       o update_supers_in_data (Dn.NSet.union_merge (get_supers dcx pn)))
       n dcx;
 *)
 
@@ -419,16 +413,16 @@ fun is_ground dc n =  not (is_var dc n);
 (* add base data and unit data to context *)
 fun mk_basedata (s,dtyp) = 
     (dname s, Data{dtrm = DataTyp {dtyp = BType dtyp, 
-                                   vardeps = DnTab.N.empty,
+                                   vardeps = Dn.NSet.empty,
                                    subs = SubTySet.empty},
-                   parents = DnTab.N.empty,
+                   parents = Dn.NSet.empty,
                    supers = SupTySet.empty});
 val unit_data = 
     Data{dtrm = DataTyp {dtyp = Ands EnTab.empty, 
-                         vardeps = DnTab.N.empty,
+                         vardeps = Dn.NSet.empty,
                          subs = SubTySet.empty
                         },
-         parents = DnTab.N.empty,
+         parents = Dn.NSet.empty,
          supers = SupTySet.empty
         };
 
@@ -437,7 +431,7 @@ val base_dcx =
                   |> DnTab.update (dname "unit", unit_data)
                   |> (fold (DnTab.update o mk_basedata)
                            BaseData.basetype_names),
-         vars = DnTab.N.empty};
+         vars = Dn.NSet.empty};
 
 
 (* n has at least one var child *)
@@ -451,11 +445,11 @@ val has_var_dep = data_has_vardep oo get;
 (* make new a data entry *)
 fun new_data_var dcx = 
     Data{dtrm = DataVar, 
-         parents = DnTab.N.empty, 
+         parents = Dn.NSet.empty, 
          supers = SupTySet.empty
         };
-(*          (DnTab.N.fold (fn pn => DnTab.N.union_merge (get_supers dcx pn))
-               parents DnTab.N.empty)
+(*          (Dn.NSet.fold (fn pn => Dn.NSet.union_merge (get_supers dcx pn))
+               parents Dn.NSet.empty)
 *)
 
 (* some sub-branch in "qn" has "n" *)
@@ -490,11 +484,11 @@ fun data_loopy_in dcx n seenset d =
        | (Ors tb) => forall_in_cntab (dname_loopy_in dcx n seenset) tb
        | (BType _) => false)
 and dname_loopy_in dcx n seenset qn = 
-    (dname_eq n qn)
+    (Dn.name_eq (n, qn))
      orelse 
-     (not (DnTab.N.contains seenset qn) (* avoid stuff seen before *)
+     (not (Dn.NSet.contains seenset qn) (* avoid stuff seen before *)
       andalso
-      data_loopy_in dcx n (DnTab.N.add qn seenset) (get dcx qn));
+      data_loopy_in dcx n (Dn.NSet.add qn seenset) (get dcx qn));
 
 
 (* at least one non-looping in n case: well-founded *)
@@ -509,7 +503,7 @@ fun dnames_of_dtyp (BType _) = []
 fun is_loopy dc n = 
     let val data = (get dc n) in
       if data_has_vardep data then false
-      else data_loopy_in dc n DnTab.N.empty data
+      else data_loopy_in dc n Dn.NSet.empty data
     end;
 
 exception bad_datatype_exp of string;
@@ -519,21 +513,21 @@ fun assert_is_not_loopy dc n =
     if is_loopy dc n then 
       raise bad_datatype_exp 
               ("The datatype: " 
-               ^ (Pretty.string_of (UnderData.pretty_dname n)) 
+               ^ (Pretty.string_of (Dn.pretty_name n)) 
                ^ " is loopy.")
     else ();
 (* recursively check ansectors are not loopy, 
    building a table of the checked data to avoid ancestor checking loops *)
 fun assert_has_no_loopy_ancestor dc n checked0 = 
     let 
-      val parents_list = DnTab.N.dest (parents_of_data (get dc n))
+      val parents_list = Dn.NSet.dest (parents_of_data (get dc n))
     in 
       fold (fn pn => fn checked => 
-            if DnTab.N.contains checked pn then 
+            if Dn.NSet.contains checked pn then 
               checked
             else 
               (let val () = assert_is_not_loopy dc pn; in 
-                 assert_has_no_loopy_ancestor dc pn (DnTab.N.add pn checked)
+                 assert_has_no_loopy_ancestor dc pn (Dn.NSet.add pn checked)
                end))
            parents_list
            checked0
@@ -546,7 +540,7 @@ exception bug_exp of dname * datatyp * dcontext;
 names not in the context dc will be made into new variable-types. *)
 fun add_datatyp (n,md) dcx = 
     let 
-      val _ = writeln ("making " ^ (Pretty.string_of (UnderData.pretty_dname n)))
+      val _ = writeln ("making " ^ (Pretty.string_of (Dn.pretty_name n)))
 
       (* lookup if an undef entry exists and get the names of typs
       this is used by in order to check that any finished types are
@@ -558,8 +552,8 @@ fun add_datatyp (n,md) dcx =
             then (supers_of_data d, parents_of_data d, true)
             else raise bad_datatype_exp 
                       ("A defined datatype with that name already exists:" 
-                       ^ Pretty.string_of (UnderData.pretty_dname n))
-          | NONE => (SupTySet.empty, DnTab.N.empty, false));
+                       ^ Pretty.string_of (Dn.pretty_name n))
+          | NONE => (SupTySet.empty, Dn.NSet.empty, false));
 
       (* get children dnames and make sure the type is not empty
       THINK/FIXME: I think we may need to disallow/manage specially
@@ -583,7 +577,7 @@ fun add_datatyp (n,md) dcx =
       (* figure out new (variable) and old children *)
       val (new_cdnames,old_cdnames) = 
           List.partition (fn n2 => not (contains dcx n2)
-                                   andalso not (dname_eq n n2))
+                                   andalso not (Dn.name_eq (n, n2)))
                          childdnames;
           
 
@@ -603,7 +597,7 @@ fun add_datatyp (n,md) dcx =
                    | Ors ctab => 
                      (CnTab.fold 
                         (fn (c,n2) => fn (subs, dcx') => 
-                         if (dname_eq n n2) then (subs, dcx')
+                         if (Dn.name_eq (n,n2)) then (subs, dcx')
                          else
                            (subs |> SubTySet.union1 (SubTyPos (n2,[c]))
                                  |> SubTySet.union_set 
@@ -619,7 +613,7 @@ fun add_datatyp (n,md) dcx =
 
       (* make the new data object *)
       val data = Data{dtrm = DataTyp {dtyp = dtyp, 
-                                      vardeps = DnTab.N.of_list new_cdnames,
+                                      vardeps = Dn.NSet.of_list new_cdnames,
                                       subs = subs},
                       parents = parents,
                       supers = supers
@@ -638,20 +632,20 @@ fun add_datatyp (n,md) dcx =
 
       (* remove any var-deps from parents *)
       val dcx5 = if wasvar then 
-                  DnTab.N.fold (remove_vardep_in_dcx n) parents dcx4
+                  Dn.NSet.fold (remove_vardep_in_dcx n) parents dcx4
                 else dcx4;
 
       (* check no loops are introduced: will raise exception on 
          creation of loopy data *)
       val _ = assert_is_not_loopy dcx5 n;
-      val _ = assert_has_no_loopy_ancestor dcx5 n (DnTab.N.of_list [n]);
+      val _ = assert_has_no_loopy_ancestor dcx5 n (Dn.NSet.of_list [n]);
     in dcx5 end
     handle bad_datatype_exp s => raise bad_datatype_exp s
          | _ => raise bug_exp (n,md,dcx);
 
 
 fun addfresh_datatyp (n,md) dcx = 
-    let val n2 = DnTab.N.new n (DnTab.get_names (datas_of_dcx dcx))
+    let val n2 = Dn.NSet.new n (DnTab.get_names (datas_of_dcx dcx))
     in (n2, add_datatyp (n2, md) dcx) end
 
 
@@ -674,7 +668,7 @@ fun del_data n dcx =
                                                   (suppos_of_subpos n subpos)
                                                   (childn_of_subpos subpos))
                     (#subs rep)
-(*                  |> (if DnTab.N.is_empty supers then 
+(*                  |> (if Dn.NSet.is_empty supers then 
                        update_dcx_data_entry (set_dtrm_of_data DataVar) n
                      else update_dcx_data (DnTab.delete n)) *)
            end
@@ -724,9 +718,9 @@ fun mk_ptab dcx =
 (* position in an and datatype *)
 datatype andpos = AndPos of 
          ( (* parent name *) 
-           (UnderData.dname *  
+           (dname *  
            (* field to get form parent to child *) 
-           UnderData.ename) * 
+           ename) * 
            (* optionally, we are a subtype in andposition of supertype *)
            subpos option 
          );
@@ -737,9 +731,9 @@ fun optsubpos_of_andpos (AndPos ((n, e), s)) = s;
 fun pretty_andpos (AndPos ((parent_dname, ename), subpos)) = 
     Pretty.block 
       ([Pretty.str "p_dname:",
-        UnderData.pretty_dname parent_dname, 
+        Dn.pretty_name parent_dname, 
         Pretty.str "; ename: ",
-        UnderData.pretty_ename ename]
+        En.pretty_name ename]
        @ (case subpos 
            of NONE => []
             | SOME p => 
@@ -754,7 +748,7 @@ name and path and constructor: if these are the same, then the path
 must also be the same. *)
 fun andpos_ord (AndPos p, AndPos p2) = 
     Library.prod_ord
-      (Library.prod_ord UnderData.dname_ord UnderData.ename_ord)
+      (Library.prod_ord Dn.name_ord En.name_ord)
       (Library.option_ord subpos_ord)
       (p,p2);
 
@@ -808,17 +802,17 @@ fun mk_andptab dcx =
 (* pretty printing for andpos, andsets and andptabs *)
 fun pretty_andpos (AndPos ((parentn, e),NONE)) = 
     Pretty.block 
-      [Pretty.str "*(", UnderData.pretty_dname parentn,
+      [Pretty.str "*(", Dn.pretty_name parentn,
        Pretty.str ", ", 
-       UnderData.pretty_ename e,
+       En.pretty_name e,
        Pretty.str ")"]
   | pretty_andpos (AndPos ((parentn, e),SOME subpos)) = 
     Pretty.block 
-      [Pretty.str "*(", UnderData.pretty_dname parentn,
+      [Pretty.str "*(", Dn.pretty_name parentn,
        Pretty.str ", ", 
-       UnderData.pretty_ename e,
+       En.pretty_name e,
        Pretty.str " : ",
-       UnderData.pretty_dname (childn_of_subpos subpos),
+       Dn.pretty_name (childn_of_subpos subpos),
        Pretty.str ")"];
 
 fun pretty_andset andset = 
@@ -828,7 +822,7 @@ fun pretty_andptab andptab =
     Pretty.chunks 
       (map (fn (n,andset) => 
                Pretty.block
-                 [UnderData.pretty_dname n,
+                 [Dn.pretty_name n,
                   Pretty.str " <= ",
                   pretty_andset andset]) 
            (DnTab.dest andptab));
@@ -854,18 +848,18 @@ fun pretty_dtyp (BType btype) =
                      (fn p => Pretty.block [Pretty.str " = ", p])
                      (fn p => Pretty.block [Pretty.str " * ", p])
                      (map (fn (e,d) => Pretty.block 
-                                         [UnderData.pretty_ename e,
+                                         [En.pretty_name e,
                                           Pretty.str " : ", 
-                                          UnderData.pretty_dname d])
+                                          Dn.pretty_name d])
                           (rev (EnTab.dest tb))))
   | pretty_dtyp (Ors tb) = 
     Pretty.chunks (apfst_mapfromsnd 
                      (fn p => Pretty.block [Pretty.str " = ", p])
                      (fn p => Pretty.block [Pretty.str " | ", p])
                      (map (fn (e,d) => Pretty.block 
-                                         [UnderData.pretty_cname e,
+                                         [Cn.pretty_name e,
                                           Pretty.str " of ", 
-                                          UnderData.pretty_dname d])  
+                                          Dn.pretty_name d])  
                          (rev (CnTab.dest tb))));
 
 val print_dtyp = Pretty.writeln o pretty_dtyp;
@@ -884,14 +878,14 @@ fun pretty_full_data d =
             @ [Pretty.block 
                  [Pretty.str "vardeps: ",
                   Pretty.list 
-                    "[" "]" (map UnderData.pretty_dname 
-                                 (DnTab.N.dest 
+                    "[" "]" (map Dn.pretty_name 
+                                 (Dn.NSet.dest 
                                     (vardeps_of_data d)))]])
          @ [Pretty.block 
               [Pretty.str "parents: ",
                Pretty.list 
-                 "[" "]" (map UnderData.pretty_dname 
-                              (DnTab.N.dest parents))]]
+                 "[" "]" (map Dn.pretty_name 
+                              (Dn.NSet.dest parents))]]
          @ [Pretty.block 
                  [Pretty.str "supers: ",
                   pretty_supset supers]]
@@ -914,14 +908,14 @@ fun pretty_data d =
             @ [Pretty.block 
                  [Pretty.str "vardeps: ",
                   Pretty.list 
-                    "[" "]" (map UnderData.pretty_dname 
-                                 (DnTab.N.dest 
+                    "[" "]" (map Dn.pretty_name 
+                                 (Dn.NSet.dest 
                                     (vardeps_of_data d)))]])
          @ [Pretty.block 
               [Pretty.str "parents: ",
                Pretty.list 
-                 "[" "]" (map UnderData.pretty_dname 
-                              (DnTab.N.dest parents))]]
+                 "[" "]" (map Dn.pretty_name 
+                              (Dn.NSet.dest parents))]]
         )
     end;
     
@@ -930,7 +924,7 @@ val print_full_data = Pretty.writeln o pretty_full_data;
 
 fun pretty_dname_in_dcx dc n = 
     Pretty.chunks 
-      [UnderData.pretty_dname n,
+      [Dn.pretty_name n,
        Pretty.block [Pretty.str "  ", pretty_data (get dc n)]];
 
 val print_dname_in_dcx = Pretty.writeln oo pretty_dname_in_dcx;

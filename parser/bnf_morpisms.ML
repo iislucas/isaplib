@@ -2,6 +2,13 @@
 signature BNF_Morphisms
 = sig
 
+val elim_epsilon : Data.dcontext -> Data.dcontext
+
+(* internal *)
+val unit_dname : Data.dname
+val remove_all_etab_dnames : Data.dname -> 'a EnTab.T -> 'a EnTab.T 
+val remove_all_ctab_dnames : Data.dname -> 'a CnTab.T -> 'a CnTab.T 
+
 end;
 
 
@@ -11,13 +18,13 @@ structure BNFMorphisms
 
 exception bad_dcx_exp of string * Data.dname * Data.dcontext;
 
-val unit_dname = UnderData.dname "unit";
+val unit_dname = Dn.mk "unit";
 
 (* remove every drop_dn from elem table *)
 fun remove_all_etab_dnames drop_dn etab = 
     EnTab.fold 
       (fn (en,dn) => fn etab2 =>
-          if DnTab.name_eq (dn, drop_dn) then 
+          if Dn.name_eq (dn, drop_dn) then 
             EnTab.delete en etab2
           else etab2)
       etab
@@ -27,7 +34,7 @@ fun remove_all_etab_dnames drop_dn etab =
 fun remove_all_ctab_dnames drop_dn ctab = 
     CnTab.fold 
       (fn (cn,dn) => 
-          if DnTab.name_eq (dn, drop_dn) then 
+          if Dn.name_eq (dn, drop_dn) then 
             CnTab.delete cn
           else I)
       ctab
@@ -39,14 +46,14 @@ fun mk_optional_in_etab optdn etab =
     let 
       val positions_of_dn = 
           EnTab.fold 
-            (fn (en,dn) => if DnTab.name_eq (dn,optdn) then
-                             EnTab.N.add en else I)
+            (fn (en,dn) => if Dn.name_eq (dn,optdn) then
+                             En.NSet.add en else I)
             etab
-            EnTab.N.empty
+            En.NSet.empty
       fun drop_poses etab drop_poses = 
-          EnTab.N.fold EnTab.delete drop_poses etab;
+          En.NSet.fold EnTab.delete drop_poses etab;
     in
-      map (drop_poses etab) (EnTab.N.powerset positions_of_dn)
+      map (drop_poses etab) (En.NSet.powerset positions_of_dn)
     end;
 
 (* make optdn optional in dn; if dn is and-type this explodes into all
@@ -64,14 +71,13 @@ fun mk_optional_in_dn optdn dn (more_opts, dcx : Data.dcontext) =
                 (fn etab => fn (or_dns,dcx2) => 
                     let val (newdn, dcx3) = 
                             Data.addfresh_datatyp (dn, Data.Ands etab) dcx2
-                    in (DnTab.N.add newdn or_dns, dcx3) end)
+                    in (Dn.NSet.add newdn or_dns, dcx3) end)
                 etabl
-                (DnTab.N.empty, dcx)
+                (Dn.NSet.empty, dcx)
 
           val ctab = 
-              DnTab.N.fold
-                (fn ctab => fn newdn => CnTab.doadd (UnderData.cname "1", 
-                                                     newdn) ctab)
+              Dn.NSet.fold
+                (fn newdn => fn ctab => CnTab.doadd (Cn.mk "1",newdn) ctab)
                 or_dns
                 CnTab.empty
       in 
@@ -87,15 +93,16 @@ type everywhere it is used.
    {A ::= B | ... ; B ::= A | ... })
 *)
 fun mk_optional_everywhere optdn (done_dns,dcx) = 
-    if DnTab.N.contains done_dns optdn 
-    then dcx else 
+    if Dn.NSet.contains done_dns optdn 
+    then (done_dns, dcx) else 
     let 
       val parents = Data.parents_of_data (Data.get dcx optdn)
-      val (more_otps, done_dns2, dcx2) = 
-          DnTab.N.fold 
-            mk_optional_in_dn
+      val done_dns2 = Dn.NSet.add optdn done_dns
+      val (more_otps, dcx2) = 
+          Dn.NSet.fold 
+            (mk_optional_in_dn optdn)
             parents
-            ([], DnTab.N.add optdn done_dns, dcx)
+            ([], dcx)
     in
       fold mk_optional_everywhere more_otps (done_dns2, dcx2)
     end;
@@ -109,9 +116,9 @@ fun elim_1epsilon n dcx =
         Data.BType _ => raise bad_dcx_exp ("elim_1epsilon", n, dcx)
       | Data.Ors ctab => 
         let val ctab2 = remove_all_ctab_dnames unit_dname ctab
-        in dcx |> mk_optional_everywhere n
-               |> Data.del_data n
-               |> Data.add_datatyp (n,Data.Ors ctab2)
+            val (donedns, dcx2) = mk_optional_everywhere n (Dn.NSet.empty, dcx)
+        in dcx2 |> Data.del_data n
+                |> Data.add_datatyp (n,Data.Ors ctab2)
         end
       | Data.Ands etab => 
         let val etab2 = remove_all_etab_dnames unit_dname etab
@@ -122,7 +129,7 @@ fun elim_1epsilon n dcx =
 
 (* eliminate/expand-out all unit/epsilon references *)
 fun elim_epsilon dcx = 
-    DnTab.N.fold 
+    Dn.NSet.fold 
       elim_1epsilon
       (Data.parents_of_data (Data.get dcx unit_dname))
       dcx;

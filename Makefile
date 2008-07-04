@@ -35,7 +35,11 @@ heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES) $(ML_PA
 run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISAP_HEAP)
 	./bin/polyml-isaplib
 
+run-$(POLYML_ISA_HEAP): heaps/$(POLYML_ISA_HEAP)
+	./bin/polyml-isalib
+
 run-isap: run-$(POLYML_ISAP_HEAP)
+run-isa: run-$(POLYML_ISA_HEAP)
 run: run-$(POLYML_ISAP_HEAP)
 
 clean: 
