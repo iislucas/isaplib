@@ -37,6 +37,9 @@ signature NAMES
   val ignored_of_renaming : renaming -> NSet.T
   val avoids_of_renaming : renaming -> NSet.T
   val nmap_of_renaming : renaming -> name NTab.T
+
+  val pretty_renaming : renaming -> Pretty.T
+  val print_renaming : renaming -> unit
 end;
 
 (* Safe String Names; isomorphic strings, named hidden under a
@@ -64,6 +67,8 @@ structure StrName :> NAMES where type name = string
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;
   val nmap_of_renaming = Renaming.get_nmap;
+  val pretty_renaming = Renaming.pretty;
+  val print_renaming = Renaming.print;
 end;
 
 
@@ -89,6 +94,8 @@ structure StrIntName :> NAMES where type name = string * int
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;
   val nmap_of_renaming = Renaming.get_nmap;
+  val pretty_renaming = Renaming.pretty;
+  val print_renaming = Renaming.print;
 end;
 
 
@@ -115,6 +122,8 @@ structure IntName :> NAMES where type name = int
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;
   val nmap_of_renaming = Renaming.get_nmap;
+  val pretty_renaming = Renaming.pretty;
+  val print_renaming = Renaming.print;
 end;
 
 

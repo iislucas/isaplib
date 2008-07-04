@@ -34,6 +34,9 @@ val get_ignored : T -> N.NSet.T
 val get_avoids : T -> N.NSet.T
 val get_nmap : T -> N.name N.NTab.T
 
+val pretty : T -> Pretty.T
+val print : T -> unit;
+
 end;
 
 
@@ -93,5 +96,15 @@ fun rename1 oldn (rn as Renaming rep) =
            | SOME n2 => (SOME n2, rn))
         end
     end;
+
+
+fun pretty (Renaming rep) = 
+    Pretty.chunks 
+      [Pretty.str "Renaming:",
+       Pretty.block [Pretty.str "ignore: ", N.NSet.pretty (#ignore rep)],
+       Pretty.block [Pretty.str "avoids: ", N.NSet.pretty (#avoids rep)],
+       Pretty.block [Pretty.str "NMap: ", N.NTab.pretty N.pretty_name (#nmap rep)]];
+
+val print = Pretty.writeln o pretty;
 
 end;
