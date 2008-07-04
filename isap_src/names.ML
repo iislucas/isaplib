@@ -2,11 +2,18 @@
 (*  Title:      names.ML
     Author:     Lucas Dixon
                 lucas.dixon@ed.ac.uk
-                30 May 2008   *)
+                30 May 2008                                            *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
 Names + renaming for them
+
+Avoids very common error: see "n" is not in avoid set, so you don't
+change it. But! you also don't want another renaming, call it "m"
+*not* to result in renaming "m" to "n". So you need both an avoid set
+as well as a ignore set. "n" gets added to the ignore set as well as
+the avoid set, thus "m" doesn't clobber "n" and all future occurances
+of "n" are ignored. 
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
@@ -16,6 +23,10 @@ signature NAMES
 = sig
   include BASIC_NAMES
   type renaming  
+  val mk_renaming : NSet.T  (* ignore these *)
+                    -> NSet.T (* avoid these names *) 
+                    -> name NTab.T (* Use this renaming map *)
+                    -> renaming
   val init_renaming : NSet.T (* avoid these names *)
                       -> renaming
   val rename1 : name (* old name *)
@@ -47,7 +58,8 @@ structure StrName :> NAMES where type name = string
   open BasicStrName
   structure Renaming = RenamingFun(BasicStrName);
   type renaming = Renaming.T
-  val init_renaming = Renaming.init;
+  val mk_renaming = Renaming.mk;
+  val init_renaming = Renaming.init_with_avoids;
   val rename1 = Renaming.rename1;
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;
@@ -71,7 +83,8 @@ structure StrIntName :> NAMES where type name = string * int
   open BasicStrIntName
   structure Renaming = RenamingFun(BasicStrIntName);
   type renaming = Renaming.T
-  val init_renaming = Renaming.init;
+  val mk_renaming = Renaming.mk;
+  val init_renaming = Renaming.init_with_avoids;
   val rename1 = Renaming.rename1;
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;
@@ -96,7 +109,8 @@ structure IntName :> NAMES where type name = int
   open BasicIntName
   structure Renaming = RenamingFun(BasicIntName);
   type renaming = Renaming.T
-  val init_renaming = Renaming.init;
+  val mk_renaming = Renaming.mk;
+  val init_renaming = Renaming.init_with_avoids;
   val rename1 = Renaming.rename1;
   val ignored_of_renaming = Renaming.get_ignored;
   val avoids_of_renaming = Renaming.get_avoids;

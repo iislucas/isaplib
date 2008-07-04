@@ -18,8 +18,13 @@ structure N : BASIC_NAMES
 
 type T
 
-val init : N.NSet.T (* avoid these *)
-           -> T
+val mk : N.NSet.T (* avoid these *)
+         -> N.NSet.T (* avoid these *)
+         -> N.name N.NTab.T (* use this renaming map *)
+         -> T
+
+val init_with_avoids : N.NSet.T (* avoid these *)
+                       -> T
 
 val rename1 : N.name (* old name *)
              -> T (* renaming so far *)
@@ -48,8 +53,14 @@ datatype T = Renaming of
           avoids : N.NSet.T, (* Nothing is allowed to be renamed to these *)
           nmap : N.name N.NTab.T}; (* mapping from old to new names *)
 
+
+fun mk ignore avoids nmap =
+    Renaming {ignore = ignore,
+              avoids = avoids,
+              nmap = nmap};
+
 (* make a renaming *)
-fun init avoids =
+fun init_with_avoids avoids =
     Renaming {ignore = N.NSet.empty,
               avoids = avoids,
               nmap = N.NTab.empty};
