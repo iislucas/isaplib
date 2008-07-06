@@ -23,6 +23,9 @@ signature NAMES
 = sig
   include BASIC_NAMES
   type renaming  
+  structure Rnm : RENAMING
+  sharing type Rnm.T = renaming
+
   val mk_renaming : NSet.T  (* ignore these *)
                     -> NSet.T (* avoid these names *) 
                     -> name NTab.T (* Use this renaming map *)
@@ -60,6 +63,7 @@ structure StrName :> NAMES where type name = string
 = struct
   open BasicStrName
   structure Renaming = RenamingFun(BasicStrName);
+  structure Rnm = Renaming;
   type renaming = Renaming.T
   val mk_renaming = Renaming.mk;
   val init_renaming = Renaming.init_with_avoids;
@@ -87,6 +91,7 @@ structure StrIntName :> NAMES where type name = string * int
 = struct
   open BasicStrIntName
   structure Renaming = RenamingFun(BasicStrIntName);
+  structure Rnm = Renaming;
   type renaming = Renaming.T
   val mk_renaming = Renaming.mk;
   val init_renaming = Renaming.init_with_avoids;
@@ -115,6 +120,7 @@ structure IntName :> NAMES where type name = int
 = struct
   open BasicIntName
   structure Renaming = RenamingFun(BasicIntName);
+  structure Rnm = Renaming;
   type renaming = Renaming.T
   val mk_renaming = Renaming.mk;
   val init_renaming = Renaming.init_with_avoids;
