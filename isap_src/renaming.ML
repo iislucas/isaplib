@@ -30,10 +30,15 @@ val rename1 : N.name (* old name *)
              -> T (* renaming so far *)
              -> (N.name option) * T (* new name and extended renaming *)
 
+(* compose 2 renamings *)
+(* val compose : T -> T -> T *)
+
+(* info about renaming *)
 val get_ignored : T -> N.NSet.T
 val get_avoids : T -> N.NSet.T
 val get_nmap : T -> N.name N.NTab.T
 
+(* pretty *)
 val pretty : T -> Pretty.T
 val print : T -> unit;
 
@@ -98,6 +103,18 @@ fun rename1 oldn (rn as Renaming rep) =
     end;
 
 
+(* composition of two renamings; equivalent of do rn1 then do rn2 *)
+(* fun compose rn1 rn2 = 
+    let val ignore = 
+            N.NSet.union_merge (get_ignored rn1, get_ignored rn2)
+        val avoids = 
+            
+    in
+      
+    end;
+*)
+
+(* pretty *)
 fun pretty (Renaming rep) = 
     Pretty.chunks 
       [Pretty.str "Renaming:",
