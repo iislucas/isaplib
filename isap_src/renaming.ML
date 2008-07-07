@@ -18,7 +18,7 @@ structure N : BASIC_NAMES
 
 type T
 
-val mk : N.NSet.T (* avoid these *)
+val mk : N.NSet.T (* ignore these *)
          -> N.NSet.T (* avoid these *)
          -> N.name N.NTab.T (* use this renaming map *)
          -> T
