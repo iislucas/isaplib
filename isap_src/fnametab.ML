@@ -54,8 +54,8 @@ sig
   val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T
   val map_all : ('a -> 'b) -> 'a T -> 'b T
   val fold : ((name * 'a) -> 'b -> 'b) -> 'a T -> 'b -> 'b
-  val update : (name * 'a) -> 'a T -> 'a T  (* insert, replacing old name *)
-  val update_new : (name * 'a) -> 'a T -> 'a T 
+  val update : (name * 'a) -> 'a T -> 'a T  (* no exp, replaces old name *)
+  val update_new : (name * 'a) -> 'a T -> 'a T (* exp if not fresh for table *)
 
   val delete : name -> 'a T -> 'a T
 
