@@ -837,7 +837,7 @@ val subtract = assert_correct oo subtract;
 (* same as above but swaped arguments for curried folding *)
 fun remove_set subtractthis fromthis =  
     fold delete (dest subtractthis) fromthis;
-val remove_set = assert_correct oo subtract;
+val remove_set = assert_correct oo remove_set;
 
 (* IMPROVE: this is the inefficient version; write the efficien one ! *)
 fun intersect A B = 
