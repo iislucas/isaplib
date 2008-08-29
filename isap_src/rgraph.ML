@@ -427,23 +427,20 @@ where type Vertex.name = string
   and type Edge.data = string
 = DB_StrRGraph;
 
-
-open StrRGraph;
-
 val g = StrRGraph.empty;
 val g = g |> StrRGraph.new_named_vertex ("a") ("");
 val g = g |> StrRGraph.new_named_vertex ("b") ("");
 val g = g |> StrRGraph.new_named_vertex ("c") ("");
-StrRGraph.print g; 
+val _ = StrRGraph.print g; 
 val g = g |> StrRGraph.new_named_edge ("R0") ("") 
         (StrRGraph.Vertex.NSet.of_list (["a","b"]));
 val g = g |> StrRGraph.new_named_edge ("R1") ("")
         (StrRGraph.Vertex.NSet.of_list (["b","c"]));;
 
-StrRGraph.print g; 
-StrRGraph.shortest_path g ("a") ("c"); 
+val _ = StrRGraph.print g; 
+val _ = StrRGraph.shortest_path g ("a") ("c"); 
 
-StrRGraph.get_connected_vertices g ("a");
+val _ = StrRGraph.get_connected_vertices g ("a");
 
 
 structure DB_ParamRGraph = BasicRGraphFun(
@@ -458,17 +455,15 @@ where type Vertex.name = string
   and type Edge.data = unit
 = DB_ParamRGraph;
 
-
 val g = ParamRGraph.empty;
 val g = g |> ParamRGraph.new_named_vertex ("a") ();
 val g = g |> ParamRGraph.new_named_vertex ("b") ();
 val g = g |> ParamRGraph.new_named_vertex ("c") ();
-ParamRGraph.print g; 
+val _ = ParamRGraph.print g; 
 val g = g |> ParamRGraph.new_named_edge ("R0") () 
         (ParamRGraph.Vertex.NSet.of_list (["a","b"]));
 val g = g |> ParamRGraph.new_named_edge ("R1") ()
         (ParamRGraph.Vertex.NSet.of_list (["b","c"]));;
-ParamRGraph.print g; 
-ParamRGraph.shortest_path g ("a") ("c"); 
-
-ParamRGraph.get_connected_vertices g ("a");
+val _ = ParamRGraph.print g; 
+val _ = ParamRGraph.shortest_path g ("a") ("c"); 
+val _ = ParamRGraph.get_connected_vertices g ("a");
