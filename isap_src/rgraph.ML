@@ -132,17 +132,18 @@ fun get_connected_vertices g n =
     let 
       val vertices = get_vertices g
       val edges = get_edges g
-      val (nd,ens) = Vertex.NTab.get vertices n
-    in 
-      Edge.NSet.fold (fn e => 
-                      let val (ed,ns) = Edge.NTab.get edges e
-                      in Vertex.NSet.fold (fn n' => 
-                                       fn nes => 
-                                          if Vertex.NTab.name_eq (n', n) then nes
-                                          else (e,n')::nes)
-                                     ns end)
-                  ens
-                  []
+    in
+      case Vertex.NTab.lookup vertices n of 
+        SOME (nd,ens) =>
+        Edge.NSet.fold (fn e => 
+                           let val (ed,ns) = Edge.NTab.get edges e
+                           in Vertex.NSet.fold 
+                                (fn n' => 
+                                 fn nes => 
+                                    if Vertex.NTab.name_eq (n', n) then nes
+                                    else (e,n')::nes)
+                                ns end) ens []
+      | NONE => []
     end;
 
 exception no_such_vname_exp of string * Vertex.name * T;
