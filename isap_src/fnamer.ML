@@ -839,7 +839,7 @@ fun remove_set subtractthis fromthis =
     fold delete (dest subtractthis) fromthis;
 val remove_set = assert_correct oo remove_set;
 
-(* IMPROVE: this is the inefficient version; write the efficien one ! *)
+(* IMPROVE: this is the inefficient version; write the efficient one ! *)
 fun intersect A B = 
     fold (fn a => if contains B a then I else delete a) (dest A) A;
 
