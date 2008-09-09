@@ -2,10 +2,24 @@
 signature BNF_Morphisms
 = sig
 
+(* transform a bnf to remove epsilons *)
 val elim_epsilon : Data.dcontext -> Data.dcontext
 
-(* internal *)
+(* epsilon is called "unit" *)
+val unit_strname : string
 val unit_dname : Data.dname
+
+(* Compressor/Make Efficient *)
+(* IDEA: add grammar compression: move non-deturminism to leaves,
+e.g. consider case insensitive morphism, make sure non-deturminism is
+at letter-level, not every case-combo for whole string. *)
+
+(* Add whitespace *)
+(* IDEA: transforms a grammar to allow white space between all token
+types - checks that white space is not "needed" in some places. Maybe
+need to say which tokens you can separate with whitespace. *)
+
+(* internal *)
 val remove_all_etab_dnames : Data.dname -> 'a EnTab.T -> 'a EnTab.T 
 val remove_all_ctab_dnames : Data.dname -> 'a CnTab.T -> 'a CnTab.T 
 
@@ -18,7 +32,8 @@ structure BNFMorphisms
 
 exception bad_dcx_exp of string * Data.dname * Data.dcontext;
 
-val unit_dname = Dn.mk "unit";
+val unit_strname = "unit";
+val unit_dname = Dn.mk unit_strname;
 
 (* remove every drop_dn from elem table *)
 fun remove_all_etab_dnames drop_dn etab = 

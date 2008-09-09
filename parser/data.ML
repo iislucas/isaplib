@@ -47,7 +47,8 @@ val get : dcontext -> dname -> data
 val lookup_datatyp : dcontext -> dname -> datatyp option
 val get_datatyp : dcontext -> dname -> datatyp
 val datatyp_of_data : data -> datatyp
-  
+val vars_of_dcx : dcontext -> Dn.NSet.T
+
 (* checking and adding new data *)
 exception bug_exp of dname * datatyp * dcontext;
 exception bad_datatype_exp of string;
@@ -272,13 +273,13 @@ fun subpos_of_suppos pn (SupTyPos (dn,l)) = SubTyPos (pn, rev l);
 datatype datatrm = 
          DataVar 
        | DataTyp of {dtyp: datatyp, 
-                     vardeps : Dn.NSet.T, (* vars we refer to *)
-                     subs : SubTySet.T (* subtypes of us *)
+                     vardeps : Dn.NSet.T, (* (cached) vars we refer to *)
+                     subs : SubTySet.T (* (recursive/cached) sub-types of us *)
                     };
 datatype data = 
          Data of {dtrm: datatrm, 
-                  parents: Dn.NSet.T, (* everything we occur in *)
-                  supers: SupTySet.T (* we are a subtype(rec) of these *)
+                  parents: Dn.NSet.T, (* (cached) everything we occur in *)
+                  supers: SupTySet.T (* (recursive/cached) super-types of us *)
                  };
 
 fun dtrm_of_data (Data rep) = #dtrm rep;
@@ -334,6 +335,7 @@ val add_parent_in_data = update_parents_in_data o Dn.NSet.add
 
 fun update_supers_in_data f (Data rep) =
     Data {dtrm = #dtrm rep, parents = #parents rep, supers = f (#supers rep)};
+val set_supers_in_data = update_supers_in_data o K;
 
 (* only add supers if we are not an and-type *)
 fun add_parent_and_supers_in_data (n,supers) (d as Data rep) = 
@@ -351,6 +353,7 @@ fun add_subs_in_data subs2 d =
 (* contains only certified datatype with unique constructors, and one
 non-looping case, and where names in the datatype are within the
 context they are certified for. *)
+(* FIXME/IMPROVE: vars should be table to all data that references them *) 
 (* invars: (vars = Dn.NSet.empty) <=> forall data, isvar is false *)
 datatype dcontext = DCx of {data: data DnTab.T, vars: Dn.NSet.T};
 
@@ -378,6 +381,16 @@ fun lookup_datatyp dcx n =
 
 fun update_dcx_data_entry f n (DCx rep) = 
     DCx {data = DnTab.map_entry f n (#data rep), vars = #vars rep};
+
+fun del_dcx_data_entry n (DCx rep) = 
+    DCx {data = DnTab.delete n (#data rep), vars = #vars rep};
+
+fun data_is_var d = 
+    (case dtrm_of_data d of DataVar => true | DataTyp rep => false);
+
+fun del_dcx_data_entry n (DCx rep) = 
+    DCx {data = DnTab.delete n (#data rep), vars = #vars rep};
+
 
 fun get_supers dcx n =
     (case lookup dcx n of NONE => SupTySet.empty
@@ -649,31 +662,71 @@ fun addfresh_datatyp (n,md) dcx =
     in (n2, add_datatyp (n2, md) dcx) end
 
 
-(* remove all entries to supn from superset of data entry for n *)
-fun remove_from_supset suppos n dcx = 
-    update_dcx_data_entry (update_supers_in_data (SupTySet.delete suppos))
-                          n
-                          dcx;
-
-(* delete a data entry; make it a var if it's referenced from other places. *)
-(* NEEDS TESTING W.R.T. sub super pos inversion *)
-fun del_data n dcx = 
+(* remove all entries to suppos's from superset of data entry for n,
+   if n is var and no longer has any supers, it is removed. *)
+(* fun remove_from_supset_refs suppos n dcx = 
     let val d = get dcx n
+        val supers2 = SupTySet.delete suppos (supers_of_data d)
+        val d2 = set_supers_in_data supers2 d
+    in 
+      case dtrm_of_data d2 of 
+       of DataVar => 
+          (if SupTySet.is_empty supers2 then )
+
+      set_dcx_data_entry 
+           
+           
+    get dcx n 
+
+
+
+
+datatype datatrm = 
+         DataVar 
+       | DataTyp of {dtyp: datatyp, 
+                     vardeps : Dn.NSet.T, (* vars we refer to *)
+                     subs : SubTySet.T (* subtypes of us *)
+                    };
+datatype data = 
+         Data of {dtrm: datatrm, 
+                  parents: Dn.NSet.T, (* everything we occur in *)
+                  supers: SupTySet.T (* we are a subtype(rec) of these *)
+                 };
+*)
+
+
+(* delete a data entry; make it a var if it's referenced from other
+   places, if not remove it and any vars that become unreferenced to. *)
+(* NEEDS TESTING *)
+fun del_data n dcx = dcx
+(* 
+    let val d = get dcx n
+        val supers = supers_of_data d
+        val parents = parents_of_data d
+
     in case dtrm_of_data d 
         of DataVar => dcx (* already deleted, exception? *)
          | DataTyp rep => 
-           let val supers = supers_of_data d
+           let 
+             val subs = (#subs rep)
+             val vardeps = (#vardeps rep) 
            in
-             dcx |> SubTySet.fold (fn subpos => remove_from_supset 
+             dcx 
+               (* remove any children's references to n as a parent,
+               if the child is a var and no refs remain, it's removed
+               too *)
+               |> (SubTySet.fold (fn subpos => remove_from_supset_refs 
                                                   (suppos_of_subpos n subpos)
                                                   (childn_of_subpos subpos))
-                    (#subs rep)
-(*                  |> (if Dn.NSet.is_empty supers then 
-                       update_dcx_data_entry (set_dtrm_of_data DataVar) n
-                     else update_dcx_data (DnTab.delete n)) *)
+                                   )
+               (* if no one has us as a child, we can be removed. *)
+               |> (if Dn.NSet.is_empty supers then 
+                     update_dcx_data (DnTab.delete n)
+                   else (* else, make us a var *)
+                     update_dcx_data_entry (set_dtrm_of_data DataVar) n)
            end
     end;
-
+*)
 
 fun certify_datatyp dc md = 
     (add_datatyp md dc; true) handle bad_datatype_exp _ => false;
