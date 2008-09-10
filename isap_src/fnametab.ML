@@ -46,6 +46,8 @@ sig
   val contains : 'a T -> name -> bool
   val contains_name : 'a T -> name -> bool (* some names may be used 
                                               without having entries *)
+  val forall : ((name * 'a) -> bool) -> 'a T -> bool
+  val exists : ((name * 'a) -> bool) -> 'a T -> bool
 
   val get : 'a T -> name -> 'a (* raises ATab.UNDEF *)
   val next_smaller : 'a T -> name -> (name * 'a) option
@@ -153,6 +155,17 @@ functor FNameTabFun(N : FNAMER)
 
   fun fold f (Tab rep) = 
       ATab.fold f (#tab rep);
+
+  exception found_exp 
+  fun exists f ns = 
+      (fold (fn n => fn () => if (f n) then raise found_exp else ()) ns (); 
+       false)
+      handle found_exp => true;
+  fun forall f ns = 
+      (fold (fn n => fn () => if (f n) then () else raise found_exp) ns (); 
+       true)
+      handle found_exp => false;
+
 
   fun update (x as (n,a)) (Tab rep) = 
       Tab{ names = N.add n (#names rep),

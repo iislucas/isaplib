@@ -158,6 +158,10 @@ datatype T
   val remove_set : T -> T -> T (* subtraction = (snd - fst) *)
   val intersect : T -> T -> T (* intersection *)
 
+  (* checking properties of all names *)
+  val forall : (N.name -> bool) -> T -> bool
+  val exists : (N.name -> bool) -> T -> bool
+
   (* pull out the biggest and smallest range elements (log time),
      raises empty_exp is empty *)
   val pop_biggest : T -> (N.name * N.name) * T;
@@ -881,10 +885,21 @@ val print = Pretty.writeln o pretty;
 val print_struct = Pretty.writeln o pretty_struct;
 val print_full = Pretty.writeln o pretty_full;
 
-
 (* fold over all elements *)
 fun fold f = fold_ranges (Basics.fold f o dest_range);
 fun fold_rev f = fold_ranges_rev (Basics.fold_rev f o dest_range);
+
+
+exception found_exp 
+fun exists f ns = 
+    (fold (fn n => fn () => if (f n) then raise found_exp else ()) ns (); 
+     false)
+    handle found_exp => true;
+fun forall f ns = 
+    (fold (fn n => fn () => if (f n) then () else raise found_exp) ns (); 
+     true)
+    handle found_exp => false;
+
 
 (* {a,b,c,d} => [(a, {b,c,d}), (b, {a,c,d}), (c,{a,b,d}), ... ] *)
 fun pull_each nset = fold (fn n => fn l => (n,delete n nset)::l) nset [];
