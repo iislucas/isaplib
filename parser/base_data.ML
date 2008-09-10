@@ -22,7 +22,7 @@ structure ParserBaseData
   val print = Pretty.writeln o pretty;
 end;
 
-structure BaseData :> BASE_DATA = ParserBaseData;
+structure BaseData : BASE_DATA = ParserBaseData;
 
 install_pp (make_pp ["BaseData", "basetype"] 
                     (Pretty.pprint o BaseData.pretty));
