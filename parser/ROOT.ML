@@ -5,22 +5,22 @@ System.use "tools/namers.ML"; (* some things to choose names *)
 System.use "tools/fnametab.ML"; (* name tables which provide fresh names *)
 System.use "tools/collection.ML"; (* collections of things  *)
 *)
-cd "parser";
+(* basic tools for datatypes and parsing *)
 use "parser_lib.ML";
+
+(* basic datatypes *)
 use "base_names.ML";
 use "base_data.ML";
 use "data_pos.ML"; (* possible positions in a data type *)
-(* use "dataloc.ML"; *) (* possible locations in a data context *)
-(* use "dsubs.ML"; *) (* direct subtypes of data (by or) *)
-(* use "moves.ML"; *) 
 use "data.ML";
+(* parsing *)
 use "adj_nds.ML";
 use "sym_state.ML";
 use "parse_state.ML";
 use "parser.ML";
 use "bnf_morpisms.ML";
+
+(* testing/examples... *)
+cd "examples";
+use "ROOT.ML";
 cd "..";
-(* 
-use "ex_data2.ML";
-use "ex_parser.ML"; 
-*)

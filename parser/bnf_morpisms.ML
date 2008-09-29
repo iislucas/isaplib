@@ -32,8 +32,8 @@ structure BNFMorphisms
 
 exception bad_dcx_exp of string * Data.dname * Data.dcontext;
 
-val unit_strname = "unit";
-val unit_dname = Dn.mk unit_strname;
+val unit_strname = Data.unit_strname;
+val unit_dname = Data.unit_dname;
 
 (* remove every drop_dn from elem table *)
 fun remove_all_etab_dnames drop_dn etab = 

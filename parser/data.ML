@@ -31,7 +31,9 @@ type dcontext;
 
 (* context with only basic types *)
 val mk_base_dcx : (string * basetype) list -> dcontext
-val base_dcx : dcontext
+val base_dcx : dcontext;
+val unit_strname : string;
+val unit_dname : dname;
 
 (* make from string *)
 val dname : string -> dname
@@ -394,10 +396,6 @@ fun del_dcx_data_entry n (DCx rep) =
 fun data_is_var d = 
     (case dtrm_of_data d of DataVar => true | DataTyp rep => false);
 
-fun del_dcx_data_entry n (DCx rep) = 
-    DCx {data = DnTab.delete n (#data rep), vars = #vars rep};
-
-
 fun get_supers dcx n =
     (case lookup dcx n of NONE => SupTySet.empty
                         | SOME d => supers_of_data d);
@@ -406,15 +404,10 @@ fun get_subs dcx n =
     (case lookup dcx n of NONE => SubTySet.empty
                         | SOME d => subs_of_data d);
 
-(* also updates supers -- unused
-fun add_parent_in_dcx pn n dcx = 
-    update_dcx_data_entry
-      (update_parents_in_data (Dn.NSet.add pn) 
-       o update_supers_in_data (Dn.NSet.union_merge (get_supers dcx pn)))
-      n dcx;
-*)
 
 (* add more parents and supers *)
+val add_parent_in_dcx = update_dcx_data_entry o add_parent_in_data;
+
 fun add_parent_and_supers_in_dcx pn_supers n dcx = 
     update_dcx_data_entry (add_parent_and_supers_in_data (pn_supers))
                           n dcx;
@@ -436,6 +429,8 @@ fun mk_basedata (s,dtyp) =
                                    subs = SubTySet.empty},
                    parents = Dn.NSet.empty,
                    supers = SupTySet.empty});
+val unit_strname = "unit";
+val unit_dname = dname unit_strname;
 val unit_data = 
     Data{dtrm = DataTyp {dtyp = Ands EnTab.empty, 
                          vardeps = Dn.NSet.empty,
@@ -447,7 +442,7 @@ val unit_data =
 
 fun mk_base_dcx basetype_names = 
     DCx {data = DnTab.empty 
-                  |> DnTab.update (dname "unit", unit_data)
+                  |> DnTab.update (unit_dname, unit_data)
                   |> (fold (DnTab.update o mk_basedata)
                            basetype_names),
          vars = Dn.NSet.empty};
@@ -613,18 +608,19 @@ fun add_datatyp (n,md) dcx =
       (* make the dtyp and the subs (things this is a sub of) for it *)
       val ((subs, dcx3), dtyp) = 
           case md of Ands etab => 
-                     ((SubTySet.empty, dcx2), Ands etab)
+                     ((SubTySet.empty, 
+                       dcx2 |> (EnTab.fold (add_parent_in_dcx n o snd) etab)), 
+                      Ands etab)
                    | Ors ctab => 
                      (CnTab.fold 
                         (fn (c,n2) => fn (subs, dcx') => 
                          if (Dn.name_eq (n,n2)) then (subs, dcx')
                          else
                            (subs |> SubTySet.union1 (SubTyPos (n2,[c]))
-                                 |> SubTySet.union_set 
-                                 (inc1_subpos_set c (get_subs dcx' n2)), 
-                            dcx' 
-                              |> add_parent_and_supers_in_dcx
-                              (n, inc1_suppos_set c supers2) n2
+                                 |> (SubTySet.union_set 
+                                       (inc1_subpos_set c (get_subs dcx' n2))), 
+                            dcx' |> (add_parent_and_supers_in_dcx
+                                       (n, inc1_suppos_set c supers2) n2)
                         ))
                         ctab (SubTySet.empty, dcx2),
                       Ors ctab)
@@ -693,8 +689,8 @@ fun remove_from_supset_refs suppos n dcx =
    removal. if not references remove it.. *)
 (* NEEDS TESTING *)
 fun del_data n dcx =
-    let val d = get dcx n
-        val parents = parents_of_data d
+    let val d = get dcx n;
+        val parents = parents_of_data d;
     in case dtrm_of_data d 
         of DataVar => 
            if Dn.NSet.is_empty parents then 
@@ -702,15 +698,14 @@ fun del_data n dcx =
            else dcx (* nothing to do, already var (deleted) ignore *)
          | DataTyp rep => 
            let 
-             val subs = (#subs rep)
-             val vardeps = (#vardeps rep) 
+             val subs = (#subs rep);
+             val vardeps = (#vardeps rep);
            in
              dcx 
-               (* start by making it a var, no no further child deps *)
+               (* start by making it a var, no, so it has no further child deps *)
                |> update_dcx_data_entry (set_dtrm_in_data DataVar) n
-               (* remove any children's references to n as a parent,
-                if the child is a var and no refs remain, it's removed
-                                                               too *)
+               (* remove all subtypes (of or-types) who have n as a parent,
+                if the subtype is a var and has no other supertypes, it's also removed *)
                |> (SubTySet.fold (fn subpos => remove_from_supset_refs 
                                                   (suppos_of_subpos n subpos)
                                                   (childn_of_subpos subpos))

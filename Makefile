@@ -25,11 +25,11 @@ heaps/polyml-5.1.polyml-heap: $(ML_SYSTEM_FILES)
 	echo 'use "ML-Systems/polyml-5.1.ML"; SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; quit();' | $(POLYML)
 
 heaps/$(POLYML_ISA_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_ISA_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; use "isa_src/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISA_HEAP)"; quit();' | $(POLYML)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; cd "isa_src"; use "ROOT.ML"; cd ".."; PolyML.SaveState.saveState "heaps/$(POLYML_ISA_HEAP)"; quit();' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISA_HEAP)"
 
 heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES) $(ML_PARSER_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; use "isap_src/ROOT.ML"; use "parser/ROOT.ML"; PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; cd "isap_src"; use "ROOT.ML"; cd "../parser"; use "ROOT.ML"; cd ".."; PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"; quit();' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
 
 run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISAP_HEAP)

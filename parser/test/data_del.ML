@@ -31,9 +31,16 @@ val ((catlist_id, catlist_cons_id), dcx) = dcx |> mk_1list "cat";
 
 val _ = print_dcx dcx;
 
-val dcx = Data.del_data (Dn.mk (id_of_str "a")) dcx;
+val dcx2 = Data.del_data (Dn.mk (id_of_str "a")) dcx;
 
-val _ = print_dcx dcx;
+val _ = print_dcx dcx2;
 
 end; 
 end;
+
+(* 
+(* *)
+val n = dname (id_of_str "a");
+
+val DataTyp rep = dtrm_of_data d ;
+*)

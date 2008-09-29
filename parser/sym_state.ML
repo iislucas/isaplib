@@ -46,6 +46,8 @@ signature SYM_STATE
   val subst_right_ddelay_to_delayed : AnTab.name -> An.NSet.T -> T -> T
 
   (* delays *)
+  val move1_left_to_sleeping : AnTab.name -> T -> T
+  val move1_right_to_sleeping : AnTab.name -> T -> T
   val move1_left_to_delayed : AnTab.name -> T -> T
   val move1_right_to_delayed : AnTab.name -> T -> T
   val move1_left_to_ddelayed : AnTab.name -> T -> T
@@ -324,6 +326,7 @@ fun get_next_relem (s as Top _) = raise bad_symstate ("next_relem", s)
 fun have_same_parent s1 s2 = 
     Dn.name_eq (get_parent_dname s1, get_parent_dname s2);
 
+(* symbols states are adjacent w.r.t. underlying string. *)
 fun are_adjacent (Top _) s2 = false
   | are_adjacent _ (Top _) = false
   | are_adjacent (RightEdge _) _ = false
@@ -354,6 +357,10 @@ val move1_left_to_delayed =
     update_intype o upd_lnds_of_intype o AdjNds.move1_to_delayed;
 val move1_right_to_delayed = 
     update_intype o upd_rnds_of_intype o AdjNds.move1_to_delayed;
+val move1_left_to_sleeping = 
+    update_intype o upd_lnds_of_intype o AdjNds.move1_to_sleeping;
+val move1_right_to_sleeping = 
+    update_intype o upd_rnds_of_intype o AdjNds.move1_to_sleeping;
 val move1_left_to_ddelayed = 
     update_intype o upd_lnds_of_intype o AdjNds.move1_to_ddelayed;
 val move1_right_to_ddelayed = 
@@ -367,11 +374,6 @@ val move1_left_ddelay_to_sleeping =
     update_intype o upd_lnds_of_intype o AdjNds.move1_ddelay_to_sleeping;
 val move1_right_ddelay_to_sleeping = 
     update_intype o upd_rnds_of_intype o AdjNds.move1_ddelay_to_sleeping;
-
-val move1_left_to_sleeping = 
-    update_intype o upd_lnds_of_intype o AdjNds.move1_to_sleeping;
-val move1_right_to_sleeping = 
-    update_intype o upd_rnds_of_intype o AdjNds.move1_to_sleeping;
 *)
 
 

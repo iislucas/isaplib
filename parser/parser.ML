@@ -36,6 +36,7 @@ end;
 structure DB_Parser
 = struct
 
+
 (* SMALL IMPROVE: slight duplication of work: two calls to containment
 for left and right id, this is already done in do_pstep: could reuse
 the result(s) *)
@@ -76,6 +77,8 @@ datatype pstep = PStep of (An.NSet.T * An.NSet.T * ParseState.T)
                | PFinal of AnTab.name * (An.NSet.T * An.NSet.T * ParseState.T)
                | PFail of An.NSet.T * An.NSet.T * ParseState.T;
 
+val dbg_st = ref (PFail (An.NSet.empty,An.NSet.empty,ParseState.init_state Data.base_dcx));
+
 (* lset and rset are set of nodes touching the left and right edges of
 the text to be parsed. *)
 fun do_pstep (lset, rset, st) = 
@@ -87,7 +90,7 @@ fun do_pstep (lset, rset, st) =
         in
           if leftedge andalso rightedge andalso SymState.is_top s
           then PFinal (i, (lset, rset, ParseState.del1_from_open i st))
-          else 
+          else (* if we are impossibly stuck on left or right, remove this state *)
             if ((SymState.needs_more_right s andalso 
                  SymState.empty_right_agenda s)
                 orelse (SymState.needs_more_left s andalso 
@@ -96,7 +99,7 @@ fun do_pstep (lset, rset, st) =
                PStep (if leftedge then An.NSet.delete i lset else lset,
                       if rightedge then An.NSet.delete i rset else rset, 
                       ParseState.remove_sym is0 st)
-            else if SymState.is_top s then 
+            else if SymState.is_top s then (* if you are top... *)
               case (ParseState.consider_parents_of_top is0 st) of 
                 NONE => PStep (if leftedge then An.NSet.delete i lset 
                                else lset,
@@ -118,7 +121,7 @@ fun do_pstep (lset, rset, st) =
                     (An.NSet.empty, An.NSet.empty, An.NSet.empty, 
                      ParseState.del1_from_open i st)
                       |> (An.NSet.fold (check1_right lset rset is0) 
-                                      (AdjNds.get_awakened ragenda))
+                                       (AdjNds.get_awakened ragenda))
               in
                 PStep (An.NSet.union_merge addlset lset, 
                        An.NSet.union_merge addrset rset, 
@@ -131,7 +134,9 @@ fun pstep_of_dlist dcx l =
     let val ((i0,iK),st) = ParseState.mk_from_dname_list dcx l
         val lset = An.NSet.add i0 An.NSet.empty
         val rset = An.NSet.add iK An.NSet.empty
-    in (PStep (lset, rset, st)) end;
+    in (PStep (lset, rset, st)) end
+    handle ParseState.empty_parse_state_exp _ => 
+           PFail (An.NSet.empty,An.NSet.empty,ParseState.init_state dcx);
 
 fun pstep_of_string dcx s = 
     let val dname_of_char = (Data.dname o ParserLib.id_of_str o Char.toString);
@@ -140,7 +145,9 @@ fun pstep_of_string dcx s =
     in pstep_of_dlist dcx dlist end;
 
 (* sequence construction for iterating parse steps *)
-fun finite_parse_aux (p as PStep r) () = finite_parse_aux (do_pstep r) ()
+fun finite_parse_aux (p as PStep r) () = 
+    (ParseState.assert_agreeing_adjs (#3 r); (* for debugging *)
+     dbg_st := p; finite_parse_aux (do_pstep r) ())
   | finite_parse_aux (p as PFinal (i,r as (rset,lset,st))) () = 
     SOME ((i,st), Seq.make (finite_parse_aux (do_pstep r)))
   | finite_parse_aux (PFail _) () = NONE;

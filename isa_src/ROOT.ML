@@ -8,7 +8,6 @@ val version = "Isabelle Library - 2008";
 
 print_depth 10;
 
-cd "isa_src";
 use "basics.ML";
 use "library.ML";
 use "print_mode.ML";
@@ -40,4 +39,3 @@ use "history.ML";
 use "xml.ML";
 use "yxml.ML";
 use "pretty.ML";
-cd "..";

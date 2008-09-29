@@ -98,6 +98,9 @@ val set_sym : SymState.T -> AnTab.name -> T -> T
 val dcx_of_cx : cx -> Data.dcontext
 val andptab_of_cx : cx -> Data.AndSet.T DnTab.T
 
+(* invarient checks *)
+val assert_agreeing_adjs : T -> T;
+
 (* pretty printing *)
 val pretty_symst : T -> AnTab.name -> Pretty.T
 val print_symst : T -> AnTab.name -> unit
@@ -275,11 +278,13 @@ fun drop_adj_link (lid,s) (rid,s2) st =
        |> (update_sym (SymState.update_rnds (AdjNds.delete1 rid)) lid);
 
 (* delay i until i2 is top - when that happens i2 will activate i and
-   make them both open states again. *)
+   make them both open states again with active links. *)
 fun delay_until_right_tops (i,s) (i2,s2) st =
-    st |> update_sym (SymState.move1_left_to_delayed i) i2;
+    st |> update_sym (SymState.move1_left_to_delayed i) i2
+       |> update_sym (SymState.move1_right_to_sleeping i2) i;
 fun delay_until_left_tops (i,s) (i2,s2) st =
-    st |> update_sym (SymState.move1_right_to_delayed i2) i;
+    st |> update_sym (SymState.move1_right_to_delayed i2) i
+       |> update_sym (SymState.move1_left_to_sleeping i) i2;
 
 (* delay considering this adjacency until both are top. When one top
  this will make the other one delayed as normal. When it becomes top
@@ -406,6 +411,36 @@ fun consider (is1 as (i1, SymState.Top _)) is2 st =
   | consider (is1 as (_, SymState.Middle _)) 
              (is2 as (_, SymState.Middle _)) st = 
     Merged (drop_link_and_merge is1 is2 st);
+
+
+exception assert_agreeing_adjs_exp of An.name * An.name * T;
+fun assert_agreeing_adjs st = 
+    (An.NTab.forall
+         (fn (i1,s1) => 
+             let val lnds1 = (SymState.get_lnds s1)
+                 val rnds1 = (SymState.get_rnds s1)
+                 val assert_left_ok = 
+                     AdjNds.foldall
+                       (fn i2 => 
+                           if AdjNds.agreed_adj 
+                                (i1,lnds1) (i2,SymState.get_rnds 
+                                                 (get_sym st i2))
+                           then I else raise assert_agreeing_adjs_exp (i1,i2,st)
+                       ) lnds1 ()
+                 val assert_right_ok = 
+                     AdjNds.foldall
+                       (fn i2 => 
+                           if AdjNds.agreed_adj 
+                                (i1,rnds1) (i2,SymState.get_lnds 
+                                                 (get_sym st i2))
+                           then I else raise assert_agreeing_adjs_exp (i1,i2,st)
+                       ) rnds1 ()
+             in true end)
+         (get_sts st)
+   ; st);
+      
+    
+
 
 exception bad_data_ctxt_exp of string;
 

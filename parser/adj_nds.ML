@@ -16,7 +16,7 @@ signature ADJ_NDS
 = sig
   type T
 
-  exception id_missing_exp of string * AnTab.name * T
+  exception id_missing_exp of string * AnTab.name * AnTab.name * T
 
   val empty : T
   val is_empty : T -> bool
@@ -40,6 +40,7 @@ signature ADJ_NDS
   val activate : T -> T (* delayed become active, ddelayed become sleeping *)
 
   (* kinds of delay/sleep *)
+  val move1_to_sleeping : AnTab.name -> T -> T
   val move1_to_delayed : AnTab.name -> T -> T
   val move1_to_ddelayed : AnTab.name -> T -> T
 
@@ -63,6 +64,9 @@ signature ADJ_NDS
 
   val foldall : (AnTab.name -> 'a -> 'a) -> T -> 'a -> 'a
   val update_all : (An.NSet.T -> An.NSet.T) -> T -> T
+
+  (* relative correctness *)
+  val agreed_adj : (An.name * T) -> (An.name * T) -> bool
 
   (* pretty printing *)
   val pretty : T -> Pretty.T
@@ -180,9 +184,10 @@ fun subst_in_active_and_delayed oldid newids =
 fun delete1 id = 
     update_all (An.NSet.delete id)
 
-exception id_missing_exp of string * AnTab.name * T
-(* copy i to i2 *)
+exception id_missing_exp of string * AnTab.name * AnTab.name * T
 
+(* copy i to i2; assumes i is somewhere in the adj table, else exception. 
+   Adds i2 with the same adjacency relationship as i. *)
 fun copy i i2 (Adj rep) = 
     if An.NSet.contains (#nds rep) i  then 
       Adj {nds = An.NSet.add i2 (#nds rep),
@@ -208,7 +213,26 @@ fun copy i i2 (Adj rep) =
            dnds = #dnds rep,
            ddnds = An.NSet.add i2 (#ddnds rep)
           }
-    else raise id_missing_exp ("copy",i,(Adj rep))
+    else raise id_missing_exp ("copy",i,i2,(Adj rep))
+
+
+
+fun get_awakened (Adj rep) = #nds rep;
+fun get_sleeping (Adj rep) = #snds rep;
+fun get_delayed (Adj rep) = #dnds rep;
+fun get_ddelayed (Adj rep) = #ddnds rep;
+
+(* i and i2 agree they are adjacent in the same way.
+   Given the adjacency information. *)
+fun agreed_adj (i1,a1) (i2,a2) = 
+    (An.NSet.contains (get_awakened a1) i2 andalso  
+     An.NSet.contains (get_awakened a2) i1) orelse
+    (An.NSet.contains (get_sleeping a1) i2 andalso  
+     An.NSet.contains (get_delayed a2) i1) orelse
+    (An.NSet.contains (get_delayed a1) i2 andalso  
+     An.NSet.contains (get_sleeping a2) i1) orelse
+    (An.NSet.contains (get_ddelayed a1) i2 andalso  
+     An.NSet.contains (get_ddelayed a2) i1);
 
 
 (* when we become top, every ddelay adjacent node becomes delayed, our
@@ -247,6 +271,13 @@ fun move1_to_delayed i (Adj rep) =
          dnds = An.NSet.add i (#dnds rep),
          ddnds = #ddnds rep
         };
+(* when they become top in the future, they will tell us to become active again. *)
+fun move1_to_sleeping i (Adj rep) = 
+    Adj {nds = An.NSet.delete i (#nds rep),
+         snds = An.NSet.add i (#snds rep),
+         dnds = #dnds rep,
+         ddnds = #ddnds rep
+        };
 (* can't make progress with i until both them and us are top/different *)
 fun move1_to_ddelayed i (Adj rep) = 
     Adj {nds = An.NSet.delete i (#nds rep),
@@ -279,15 +310,6 @@ install_pp (make_pp ["AdjNds", "T"]
 
 
 (* 
-
-
-fun move1_to_sleeping i (Adj rep) = 
-    Adj {nds = An.NSet.delete i (#nds rep),
-         snds = An.NSet.add i (#snds rep),
-         dnds = #dnds rep,
-         ddnds = #ddnds rep
-        };
-
 (* not sure I need this. *)
 fun move1_ddelay_to_delayed i (Adj rep) = 
     Adj {nds = #nds rep,
