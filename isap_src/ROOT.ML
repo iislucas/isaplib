@@ -1,4 +1,3 @@
-cd "isap_src";
 (* Generic Tools for namers, fresh names tables, and collections *)
 (* for creating fresh names, has name suc and pred operation, 
    also nameset with ability to make fresh names. *)
@@ -22,4 +21,3 @@ use "rgraph.ML";
 use "gsearch.ML";
 use "msearch.ML";
 use "lsearch.ML";
-cd "..";

@@ -157,6 +157,7 @@ datatype T
   val subtract : T -> T -> T (* subtraction = (fst - snd) *)
   val remove_set : T -> T -> T (* subtraction = (snd - fst) *)
   val intersect : T -> T -> T (* intersection *)
+  val contrast : T -> T -> (T * T * T) (* in only left, in both, in only right*)
 
   (* checking properties of all names *)
   val forall : (N.name -> bool) -> T -> bool
@@ -640,7 +641,7 @@ fun add_range (v as (b,t)) Empty = Br (1,v,Empty,Empty)
                        let val (t',r') = grow_right t r
                        in (Br (1 + Int.max(depth_of l', depth_of r'),
                                (b',t'),l',r')) end
-                     | _ => Br (d,(b',t2),l',r))
+                     | _ => Br (1 + Int.max(depth_of l',depth_of r),(b',t2),l',r))
                 end)
          | _ => 
            (case N.ord (pred_or_same b,t2) 
@@ -662,6 +663,9 @@ fun union_merge Empty tr = tr
   | union_merge (Br(d,v,l,r)) tr = 
     union_merge r (union_merge l (add_range v tr));
 val union_merge = assert_correct oo union_merge;
+
+
+
 
 
 (* fast(est?) sub_set check arg1 is a subset of arg2 *)
@@ -846,6 +850,12 @@ val remove_set = assert_correct oo remove_set;
 (* IMPROVE: this is the inefficient version; write the efficient one ! *)
 fun intersect A B = 
     fold (fn a => if contains B a then I else delete a) (dest A) A;
+
+
+(* contrast: compute leftonly tree, intersection and
+   right-only tree. IMPROVE: make efficient version. *)
+fun contrast lt rt = 
+    (subtract lt rt, intersect lt rt, subtract rt lt);
 
 
 fun pretty_range (b,t) = 
