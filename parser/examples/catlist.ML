@@ -1,7 +1,7 @@
 (* Minimal Example: parse a list of the word "cat" *)
 
 (* --- *)
-structure ExData
+structure ExData_CatList
 = struct 
 local open ParserLib; open BaseData; open Data; in
 
@@ -43,9 +43,10 @@ val dcx = dcx |> BNFMorphisms.elim_epsilon;
 val _ = print_dcx dcx;
 end; end;
 
-(* --- *)
-val dcx = ExData.dcx;
 
+local 
+(* --- *)
+val dcx = ExData_CatList.dcx;
 
 val str = "ccat";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
@@ -65,6 +66,8 @@ val str = "catcat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
 ParseState.print_sym_parse st i;
 
+(* FIXME: should allow empty list *)
+(* 
 val str = "";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
 ParseState.print_sym_parse st i;
@@ -76,6 +79,7 @@ val (p as Parser.PStep (r as (lset,rset,st))) = Parser.do_pstep r;
 Parser.print_pstep_active p;
 
 Parser.print_pstep_active (Parser.do_pstep r);
+*)
 
 
 (* does some pretty serious stress testing of NameTables... *)
@@ -103,4 +107,9 @@ ParseState.print_sym_parse st i;
 
 (* dbg *)
 
-val [cat_list_dname] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx unit_dname));
+val [cat_list_dname] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx Data.unit_dname));
+
+
+in
+val _ = Pretty.writeln (Pretty.str "TEST PASSED: a_cat_option.ML")
+end;

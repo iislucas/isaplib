@@ -3,14 +3,14 @@ structure ExData
 
 local 
   open ParserLib;
-  open UnderData;
+  open BaseData;
   open Data;
 in
 
 (* context which we will build up *)
 val dcx = base_dcx;
 
-val unit_id = "unit";
+val unit_id = Data.unit_strname;
 
 (* boolean *)
 val bool_md = mk_ors_dtyp [("False", unit_id), ("True", unit_id)];

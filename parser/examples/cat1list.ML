@@ -1,8 +1,7 @@
 (* Minimal Example: parse a 1list of the word "cat" *)
 
 (* --- *)
-local 
-structure ExData_CatOneList
+structure ExData_Cat1List
 = struct 
 local open ParserLib; open BaseData; open Data; in
 val dcx = base_dcx;
@@ -29,10 +28,14 @@ end;
 val ((catlist_id, catlist_cons_id), dcx) = dcx |> mk_1list "cat";
 
 val _ = print_dcx dcx;
+
 end; 
 end;
 
-val dcx = ExData_CatOneList.dcx;
+
+(* --- TEST CASES --- *)
+local 
+val dcx = ExData_Cat1List.dcx;
 
 val str = "ccat";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
@@ -84,5 +87,5 @@ val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
 val _ = ParseState.print_sym_parse st i;
 
 in
-  val _ = Pretty.writeln (Pretty.str "cat1list tests passed.")
+  val _ = Pretty.writeln (Pretty.str "TEST PASSED: cat1list.ML")
 end;

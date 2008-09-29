@@ -1,9 +1,9 @@
 (* Small Example: a list of animal names "cat" "dog" "cow" "goat" *)
 
 (* --- *)
-structure ExData
+structure ExData_Animals
 = struct 
-local open ParserLib; open UnderData; open Data; in
+local open ParserLib; open BaseData; open Data; in
 val dcx = base_dcx;
 val cat_md = 
     mk_ands_dtyp [("1c", id_of_str "c"), 
@@ -38,12 +38,13 @@ val dcx = dcx |> add_datatyp (dname "animal", animal_md);
 
 
 val _ = print_dcx dcx;
+
 end; end;
 
+local 
+val dcx = ExData_Animals.dcx;
 
 (* --- *)
-val dcx = ExData.dcx;
-
 val str = "ccat";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
@@ -52,16 +53,22 @@ val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "cat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "dog";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "cow";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "goat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
+
+
+in
+val _ = Pretty.writeln (Pretty.str "TEST PASSED: animals.ML")
+end;
+
