@@ -12,33 +12,16 @@ val cat_md =
                   ("3t", id_of_str "t")];     
 val dcx = dcx |> add_datatyp (dname "cat", cat_md);
 
-val unit_strname = BNFMorphisms.unit_strname;
-val unit_dname = BNFMorphisms.unit_dname;
-
-(* make a list of s_id, possibly empty 
-        X_list(A) ::= unit | X_list.cons(A)  
-   X_list.cons(A) ::= A, X_listist(A) 
-*)
-fun mk_list s_id dcx = 
-    let 
-      val s_list_id = (s_id ^ "_list")
-      val s_list_cons_id = (s_list_id ^ ".cons")
-      val s_list_md = 
-          Data.mk_ors_dtyp [("1empty", unit_strname), 
-                            ("2cons", s_list_cons_id)];
-      val s_list_cons_md = 
-          Data.mk_ands_dtyp [("1hdC", s_id), ("2tlC", s_list_id)];     
-    in 
-      ((s_list_id, s_list_cons_id),
-       dcx |> add_datatyp (dname s_list_id, s_list_md)
-           |> add_datatyp (dname s_list_cons_id, s_list_cons_md))
-    end;
-
 (* lists of cats *)
-val ((catlist_id, catlist_cons_id), dcx) = dcx |> mk_list "cat";
+val ((catlist_id, catlist_cons_id), dcx) = dcx |> BNFFunction.mk_list "cat";
+
+val [cat_list_dname] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx Data.unit_dname));
 
 (* remove units to make standard bnf *)
 val dcx = dcx |> BNFMorphisms.elim_epsilon;
+
+(* unit has been removed! *)
+val [] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx Data.unit_dname));
 
 val _ = print_dcx dcx;
 end; end;
@@ -56,15 +39,15 @@ val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "cat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "catca";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "catcat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 (* FIXME: should allow empty list *)
 (* 
@@ -88,28 +71,21 @@ val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "catcatcat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str); 
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 
 val str = "catcatcatcatcat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str); 
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "catcatcatcatcatcatcatcatcatcatcatc";
 val [] = Seq.list_of (Parser.parse_of_string dcx str); 
 
 val str = "catcatcatcatcatcatcatcatcatcatcatcat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str); 
-ParseState.print_sym_parse st i;
-
-
-
-
-(* dbg *)
-
-val [cat_list_dname] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx Data.unit_dname));
+val _ = ParseState.print_sym_parse st i;
 
 
 in
-val _ = Pretty.writeln (Pretty.str "TEST PASSED: a_cat_option.ML")
+val _ = Pretty.writeln (Pretty.str "TEST PASSED: catlist.ML")
 end;

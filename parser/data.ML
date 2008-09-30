@@ -32,7 +32,7 @@ type dcontext;
 (* context with only basic types *)
 val mk_base_dcx : (string * basetype) list -> dcontext
 val base_dcx : dcontext;
-val unit_strname : string;
+val unit_id : string; (* id is an escaped string *) 
 val unit_dname : dname;
 
 (* make from string *)
@@ -115,6 +115,12 @@ val pretty_andpos : andpos -> Pretty.T
 val print_andpos : andpos -> unit
 val pretty_andptab : AndSet.T DnTab.T -> Pretty.T
 val print_andptab : AndSet.T DnTab.T -> unit
+
+(* internal use only: adding to set of chached variable names *)
+val add_varname : Dn.name -> dcontext -> dcontext;
+val add_varnames : Dn.NSet.T -> dcontext -> dcontext;
+val del_varname : Dn.name -> dcontext -> dcontext;
+
 
 (* pretty stuff *)
 val pretty_dtyp : datatyp -> Pretty.T
@@ -330,6 +336,8 @@ val update_vardeps_in_data =
     update_dtrm_in_data o update_vardeps_in_dtrm;
 val remove_vardep_in_data = 
     update_vardeps_in_data o Dn.NSet.delete;
+val add_vardep_in_data = 
+    update_vardeps_in_data o Dn.NSet.add;
 
 val set_dtrm_in_data = update_dtrm_in_data o K;
 
@@ -374,6 +382,10 @@ fun update_dcx_vars f (DCx rep) =
     DCx {data = #data rep, vars = f (#vars rep)};
 val set_dcx_data_entry = update_dcx_data o DnTab.update
 
+val add_varname = update_dcx_vars o Dn.NSet.add;
+val add_varnames = update_dcx_vars o Dn.NSet.union_merge;
+val del_varname = update_dcx_vars o Dn.NSet.delete;
+
 fun lookup dcx n = DnTab.lookup (datas_of_dcx dcx) n;
 fun contains dcx n = 
     (case lookup dcx n of NONE => false | SOME _ => true);
@@ -407,6 +419,7 @@ fun get_subs dcx n =
 
 (* add more parents and supers *)
 val add_parent_in_dcx = update_dcx_data_entry o add_parent_in_data;
+val del_parent_in_dcx = update_dcx_data_entry o del_parent_in_data;
 
 fun add_parent_and_supers_in_dcx pn_supers n dcx = 
     update_dcx_data_entry (add_parent_and_supers_in_data (pn_supers))
@@ -417,6 +430,10 @@ fun add_subs_in_dcx subs n dcx =
 
 fun remove_vardep_in_dcx varn n dcx = 
     update_dcx_data_entry (remove_vardep_in_data varn) n dcx;
+
+fun add_vardep_in_dcx varn n dcx = 
+    update_dcx_data_entry (add_vardep_in_data varn) n dcx;
+
 
 (* if not in dcx, raises exception from get *)
 fun is_var dc n = isvar_of_data (get dc n);
@@ -429,8 +446,8 @@ fun mk_basedata (s,dtyp) =
                                    subs = SubTySet.empty},
                    parents = Dn.NSet.empty,
                    supers = SupTySet.empty});
-val unit_strname = "unit";
-val unit_dname = dname unit_strname;
+val unit_id = "unit";
+val unit_dname = dname unit_id;
 val unit_data = 
     Data{dtrm = DataTyp {dtyp = Ands EnTab.empty, 
                          vardeps = Dn.NSet.empty,
@@ -550,9 +567,10 @@ fun assert_has_no_loopy_ancestor dc n checked0 =
 
 exception bug_exp of dname * datatyp * dcontext;
 
-(* raised when a bad datatype is given, or if the datatype name is already used *)
-(* Must have unique constructors, and one non-looping case, type
-names not in the context dc will be made into new variable-types. *)
+(* raised when a bad datatype is given, or if the datatype name is
+   already used. Must have unique constructors, and one non-looping
+   case, type names not in the context dc will be made into new
+   variable-types. *)
 fun add_datatyp (n,md) dcx = 
     let 
       val _ = writeln ("making " ^ (Pretty.string_of (Dn.pretty_name n)))
@@ -600,8 +618,9 @@ fun add_datatyp (n,md) dcx =
       val new_var_data = new_data_var dcx;
       val dcx2 = 
           dcx |> (fold (fn dn => set_dcx_data_entry (dn, new_var_data))
-                       new_cdnames);
-
+                       new_cdnames)
+              |> fold add_varname new_cdnames
+              |> (if wasvar then del_varname n else I);
       
       val supers2 = SupTySet.union1 (SupTyPos (n,[])) supers;
 
@@ -664,13 +683,19 @@ fun addfresh_datatyp (n,md) dcx =
     let val n2 = Dn.NSet.new n (DnTab.get_names (datas_of_dcx dcx))
     in (n2, add_datatyp (n2, md) dcx) end
 
+(* remove a references to "n" as a parent of the sub-datatypes of the
+   dtyp from the datacontext. *)
+fun remove_dtyp_childrens_parent_ref n (BType _) dcx = dcx
+  | remove_dtyp_childrens_parent_ref n (Ands etab) dcx = 
+    En.NTab.fold (del_parent_in_dcx n o snd) etab dcx
+  | remove_dtyp_childrens_parent_ref n (Ors ctab) dcx = 
+    Cn.NTab.fold (del_parent_in_dcx n o snd) ctab dcx;
+
 (* remove all entries to suppos's from superset of data entry for n,
-   if n is var and no longer has any parents, it is removed - THINK is
-   this what re really want to happen?. maybe too agressive? *)
+   if n is var and no longer has any parents, it is removed. *)
 fun remove_from_supset_refs suppos n dcx = 
     let val d = get dcx n
         val d2 = d |> del_super_in_data suppos
-                   |> del_parent_in_data n
     in 
       case dtrm_of_data d2
        of DataVar => (* if var *)
@@ -684,10 +709,7 @@ fun remove_from_supset_refs suppos n dcx =
     end;
 
 (* delete a data entry; make it a var if it's referenced from other
-   places. Also remove any children vars that have no other parent -
-   THINK is this what we really want? may be too agressive in terms of
-   removal. if not references remove it.. *)
-(* NEEDS TESTING *)
+   places. Also remove any children vars that have no other parent *)
 fun del_data n dcx =
     let val d = get dcx n;
         val parents = parents_of_data d;
@@ -704,19 +726,26 @@ fun del_data n dcx =
              dcx 
                (* start by making it a var, no, so it has no further child deps *)
                |> update_dcx_data_entry (set_dtrm_in_data DataVar) n
-               (* remove all subtypes (of or-types) who have n as a parent,
-                if the subtype is a var and has no other supertypes, it's also removed *)
+               (* remove parent and supertype refs for 
+                  all subtypes (of or-types) who have n as a parent.
+                  (If the subtype is a var has no other supertypes, 
+                   it's also removed) *)
                |> (SubTySet.fold (fn subpos => remove_from_supset_refs 
                                                   (suppos_of_subpos n subpos)
                                                   (childn_of_subpos subpos))
                                  (#subs rep))
-               (* if we now have no parents *)
+               (* remove any references to us as a parent - 
+                  vars are the parents of no one! *)
+               |> remove_dtyp_childrens_parent_ref n (#dtyp rep)
                |> (if Dn.NSet.is_empty parents then 
+                     (* if we now have no parents, remove it *)
                      update_dcx_data (DnTab.delete n)
-                   else I (* leave as var *))
+                   else (* else note that it's a var *)
+                     add_varname n o
+                     Dn.NSet.fold (add_vardep_in_dcx n) parents
+                  )
            end
     end;
-
 
 
 fun certify_datatyp dc md = 
@@ -976,9 +1005,16 @@ val print_dname_in_dcx = Pretty.writeln oo pretty_dname_in_dcx;
 
 
 fun pretty_dcx dc = 
-    Pretty.chunks
-      ([Pretty.block [Pretty.str "vars:", Dn.NSet.pretty (vars_of_dcx dc)]]
-       @ (map (pretty_dname_in_dcx dc) (DnTab.keys (datas_of_dcx dc))));
+    Pretty.chunks 
+    [Pretty.block 
+       [Pretty.str "DataContext;",
+        Pretty.str "(with Vars:", 
+        Dn.NSet.pretty (vars_of_dcx dc),
+        Pretty.str ") { "],
+     Pretty.indent 
+       2 (Pretty.chunks
+            (map (pretty_dname_in_dcx dc) (DnTab.keys (datas_of_dcx dc)))),
+     Pretty.str "}"];
 val print_dcx = Pretty.writeln o pretty_dcx;
 
 

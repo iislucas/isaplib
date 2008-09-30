@@ -18,7 +18,9 @@ use "adj_nds.ML";
 use "sym_state.ML";
 use "parse_state.ML";
 use "parser.ML";
-use "bnf_morpisms.ML";
+(* tools *)
+use "bnf_morpisms.ML"; (* such as elim epsilon from grammar *)
+use "bnf_function.ML"; (* functions to help defining bnfs *)
 
 (* testing/examples... *)
 cd "examples";

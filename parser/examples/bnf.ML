@@ -1,4 +1,5 @@
-structure ExData 
+(* Grammar for parsing grammars (BNFs) *)
+structure ExData_BNF 
 = struct 
 
 local 
@@ -9,12 +10,6 @@ in
 
 (* context which we will build up *)
 val dcx = base_dcx;
-
-val unit_id = Data.unit_strname;
-
-(* boolean *)
-val bool_md = mk_ors_dtyp [("False", unit_id), ("True", unit_id)];
-val dcx = dcx |> add_datatyp (dname "bool", bool_md);
 
 (* alpha numeric and "_" and "." *)
 val alphnum_base_ids = 
@@ -28,18 +23,8 @@ val alphanum_md = Ors (fold (fn x => CnTab.update (cname x, dname x))
   alphnum_base_ids CnTab.empty);
 val dcx = dcx |> add_datatyp (dname alphanum_id, alphanum_md);
 
-  
-val alphanum_list_cons_id = "alphanum_list.cons";
-val alphanum_list_id = "alphanum_list";
-
-val alphanum_list_cons_md = 
-    mk_ands_dtyp [("1hd", alphanum_id), ("2tl", alphanum_list_id)];
-val dcx = dcx |> add_datatyp (dname alphanum_list_cons_id, 
-                                alphanum_list_cons_md);
-
-val alphanum_list_md = 
-    mk_ors_dtyp [("nil", unit_id), ("cons", alphanum_list_cons_id)];
-val dcx = dcx |> add_datatyp (dname alphanum_list_id, alphanum_list_md);
+val ((alphanum_1list_id,alphanum_1list_cons_id),dcx) = 
+    dcx |> BNFFunction.mk_1list alphanum_id;
 
 (* *)
 val aspace_base_ids = (map id_of_str ["\\t", "\\n", " "]);
@@ -48,25 +33,13 @@ val aspace_md = Ors (fold (fn x => CnTab.update (cname x, dname x))
                                aspace_base_ids CnTab.empty);
 val dcx = dcx |> add_datatyp (dname aspace_id,aspace_md);
 
-
-(* generic list construction *)
-fun mk_list s_id dcx = 
-let 
-val s_list_id = (s_id ^ "_list")
-val s_list_cons_id = (s_list_id ^ ".cons")
-val s_list_md = 
-mk_ors_dtyp [("nil", unit_id), ("cons", s_list_cons_id)];
-val s_list_cons_md = 
-mk_ands_dtyp [("1hd", s_id), ("2tl", s_list_id)];     
-in 
-((s_list_id, s_list_cons_id),
-  dcx |> add_datatyp (dname s_list_id, s_list_md)
-  |> add_datatyp (dname s_list_cons_id, s_list_cons_md))
-end;
-
 val ((aspace_list_id, aspace_list_cons_id),dcx) = 
-    dcx |> mk_list aspace_id;
+    dcx |> BNFFunction.mk_list aspace_id;
 
+val ((aspace_1list_id, aspace_1list_cons_id),dcx) = 
+    dcx |> BNFFunction.mk_1list aspace_id;
+
+(* quoted strings within "'" using "\" as escape *)
 val id_of_char = id_of_str o Char.toString;
 val quote_id = id_of_char ParserLib.quote_char;
 fun quoted_id_of c = 
@@ -104,7 +77,7 @@ val dcx = dcx |> add_datatyp (dname quoted_or_unquoted_el_id,
                                 quoted_or_unquoted_el_md);
 
 val ((quoted_or_unquoted_list_id, quoted_or_unquoted_list_cons_id), dcx) = 
-    dcx |> mk_list quoted_or_unquoted_el_id;
+    dcx |> BNFFunction.mk_list quoted_or_unquoted_el_id;
 
 val quotes_and_quoted_string_id = "quotes_and_quoted_string";
 val quotes_and_quoted_string_md = 
@@ -116,45 +89,74 @@ val quotes_and_quoted_string_md =
 val dcx = dcx |> add_datatyp (dname quotes_and_quoted_string_id, 
                                 quotes_and_quoted_string_md);
 
+(* quoated strings or other rule names *)
 val string_or_name_id = "string_or_name";
 val string_or_name_md = 
     mk_ors_dtyp
-      [("name",alphanum_list_id),
-       ("string",quotes_and_quoted_string_id)];
-
+      [("1Name",alphanum_1list_id),
+       ("2String",quotes_and_quoted_string_id)];
 val dcx = dcx |> add_datatyp (dname string_or_name_id, string_or_name_md);
 
-(* 1list with space separator of strings or names *)
-val strname_1slist_many_id = "strname_1slist.many";
-val strname_1slist_id = "strname_1slist";
-val strname_1slist_many_md = 
-    mk_ands_dtyp [("1hd", string_or_name_id), 
-                   ("2space", aspace_list_id),
-                   ("3tl", strname_1slist_id)];
+val spaced_string_or_name_id = "spaced_string_or_name";
+val spaced_string_or_name_md = 
+    mk_ands_dtyp
+      [("1space",aspace_1list_id),
+       ("2string_or_name",string_or_name_id)];
+val dcx = dcx |> add_datatyp (dname spaced_string_or_name_id, 
+                              spaced_string_or_name_md);
 
-val dcx = dcx |> add_datatyp (dname strname_1slist_many_id, 
-                                strname_1slist_many_md);
+val ((spaced_strname_list_id, spaced_strname_list_cons_id), dcx) = 
+    dcx |> BNFFunction.mk_list string_or_name_id
 
-val dc = dcx;
-val (n,md) = (dname strname_1slist_many_id, strname_1slist_many_md)
+val string_or_names_id = "string_or_names";
+val string_or_names_md = 
+    mk_ors_dtyp
+      [("1FstStringOrName",string_or_name_id),
+       ("2MoreStringOrNames",spaced_strname_list_id)];
+val dcx = dcx |> add_datatyp (dname string_or_names_id, string_or_names_md);
 
-val strname_1slist_md = 
-    mk_ors_dtyp [("one", string_or_name_id), 
-                  ("many", strname_1slist_many_id)];
-val dcx = dcx |> add_datatyp (dname strname_1slist_id, strname_1slist_md);
-
+(* a BNF rule *)
 val rule_id = "rule";
 val rule_md = 
-mk_ands_dtyp 
-[("1", alphanum_list_cons_id), (* list_cons = 1list *)
- ("2", aspace_list_id),
- ("3", id_of_str "="),
- ("4", aspace_list_id),
- ("5", strname_1slist_id) 
-];
+    mk_ands_dtyp 
+      [("1", alphanum_1list_id), (* list_cons = 1list *)
+       ("2", aspace_list_id),
+       ("3", id_of_str "="),
+       ("4", aspace_list_id),
+       ("5", string_or_names_id) 
+      ];
 
 val dcx = dcx |> add_datatyp (dname rule_id, rule_md);
  
 val _ = print_dcx dcx;
 
 end; end;
+
+(* 
+local 
+val dcx = ExData_BNF.dcx;
+val str = "bnf = cat";
+(* val str = "some_alpha_string"; *)
+(* val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
+val _ = ParseState.print_sym_parse st i; *)
+
+val str = "  dsds  sdds";
+val (L as (i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
+val _ = Pretty.writeln 
+          (Pretty.chunks 
+             (map (fn (i,st) => 
+                      Pretty.chunks
+                        [Pretty.str "Parse {",
+                         Pretty.indent 
+                           2 (ParseState.pretty_sym_parse st i),
+                     Pretty.str "}"])
+                  L));
+val _ = Pretty.writeln 
+        (Pretty.block 
+           [Pretty.str "Number of results: ",
+            Pretty.str (Int.toString (length L))]);
+
+in
+val _ = Pretty.writeln (Pretty.str "TEST PASSED: bnf.ML")
+end;
+*)

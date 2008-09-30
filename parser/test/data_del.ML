@@ -1,7 +1,7 @@
 (* Testing Data *)
 
 (* --- *)
-structure ExData
+structure ExData_DataDel
 = struct 
 local open ParserLib; open BaseData; open Data; in
 val dcx = Data.mk_base_dcx 
@@ -28,12 +28,13 @@ in
 end;
 
 val ((catlist_id, catlist_cons_id), dcx) = dcx |> mk_1list "cat";
-
 val _ = print_dcx dcx;
 
 val dcx2 = Data.del_data (Dn.mk (id_of_str "a")) dcx;
-
 val _ = print_dcx dcx2;
+
+val dcx3 = Data.del_data (Dn.mk (catlist_cons_id)) dcx2;
+val _ = print_dcx dcx3;
 
 end; 
 end;

@@ -7,26 +7,6 @@ local open ParserLib; open BaseData; open Data; in
 
 val dcx = base_dcx;
 
-(* make a list of s_id, possibly empty 
-        X_list(A) ::= unit | X_list.cons(A)  
-   X_list.cons(A) ::= A, X_listist(A) 
-*)
-fun mk_list s_id dcx = 
-    let 
-      val s_list_id = (s_id ^ "_list")
-      val s_list_cons_id = (s_list_id ^ ".cons")
-      val s_list_md = 
-          Data.mk_ors_dtyp [("1empty", unit_strname), 
-                            ("2cons", s_list_cons_id)];
-      val s_list_cons_md = 
-          Data.mk_ands_dtyp [("1hdC", s_id), ("2tlC", s_list_id)];     
-    in 
-      ((s_list_id, s_list_cons_id),
-       dcx |> add_datatyp (dname s_list_id, s_list_md)
-           |> add_datatyp (dname s_list_cons_id, s_list_cons_md))
-    end;
-
-
 (* cat *)
 val cat_id = "cat";
 val cat_md = 
@@ -44,7 +24,8 @@ val aspace_md = Ors (fold (fn x => CnTab.update (cname x, dname x))
 val dcx = dcx |> add_datatyp (dname aspace_id,aspace_md);
 
 (* lists of spaces *)
-val ((space_list_id, space_list_cons_id), dcx) = dcx |> mk_list aspace_id;
+val ((space_list_id, space_list_cons_id), dcx) = 
+    dcx |> BNFFunction.mk_list aspace_id;
 
 (* cat prefixed by space *)
 val spaced_cat_id = "spaced_cat";
@@ -54,7 +35,8 @@ val spaced_cat_md =
 val dcx = dcx |> add_datatyp (dname spaced_cat_id, spaced_cat_md);
 
 (* spaced cat list *)
-val ((spaced_cat_list_id, spaced_cat_list_cons_id), dcx) = dcx |> mk_list spaced_cat_id;
+val ((spaced_cat_list_id, spaced_cat_list_cons_id), dcx) = 
+    dcx |> BNFFunction.mk_list spaced_cat_id;
 
 val dcx = dcx |> BNFMorphisms.elim_epsilon;
 
@@ -88,11 +70,12 @@ val str = "cat  cat cat    cat cat cat   cat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
 val _ = ParseState.print_sym_parse st i;
 
-in
-val _ = Pretty.writeln (Pretty.str "TEST PASSED: a_cat_option.ML")
 val L = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx (Data.dname (ParserLib.id_of_str " "))));
 val space_d = (Data.get dcx (Data.dname (ParserLib.id_of_str " ")));
 val apsace_d = (Data.get dcx (Data.dname (ParserLib.id_of_str "aspace")));
+
+in
+val _ = Pretty.writeln (Pretty.str "TEST PASSED: a_cat_option.ML")
 end;
 
 

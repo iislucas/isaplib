@@ -6,24 +6,6 @@ structure ExData
 local open ParserLib; open BaseData; open Data; in
 val dcx = base_dcx;
 
-(* helper function list consturction (substitue X): 
-        X_list(A) ::= A | X_list.cons(A)  
-   X_list.cons(A) ::= A, X_listist(A) 
-*)
-fun mk_1list s_id dcx = 
-let 
-val s_list_id = (s_id ^ "_list")
-val s_list_cons_id = (s_list_id ^ ".cons")
-val s_list_md = 
-mk_ors_dtyp [("1elem", s_id), ("2cons", s_list_cons_id)];
-val s_list_cons_md = 
-mk_ands_dtyp [("1hd", s_id), ("2tl", s_list_id)];     
-in 
-((s_list_id, s_list_cons_id),
-  dcx |> add_datatyp (dname s_list_id, s_list_md)
-  |> add_datatyp (dname s_list_cons_id, s_list_cons_md))
-end;
-
 
 (* a space (new line, tab, or space char): 
    aspace ::= "\n" | "\t" | " " 

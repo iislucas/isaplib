@@ -6,7 +6,7 @@ signature BNF_Morphisms
 val elim_epsilon : Data.dcontext -> Data.dcontext
 
 (* epsilon is called "unit" *)
-val unit_strname : string
+val unit_id : string
 val unit_dname : Data.dname
 
 (* Compressor/Make Efficient *)
@@ -32,7 +32,7 @@ structure BNFMorphisms
 
 exception bad_dcx_exp of string * Data.dname * Data.dcontext;
 
-val unit_strname = Data.unit_strname;
+val unit_id = Data.unit_id;
 val unit_dname = Data.unit_dname;
 
 (* remove every drop_dn from elem table *)
@@ -85,7 +85,9 @@ fun mk_optional_in_dn optdn dn (more_opts, dcx : Data.dcontext) =
               fold 
                 (fn etab => fn (or_dns,dcx2) => 
                     let val (newdn, dcx3) = 
-                            Data.addfresh_datatyp (dn, Data.Ands etab) dcx2
+                            Data.addfresh_datatyp 
+                              (Dn.mk ((Dn.dest dn) ^ ".option-a"), 
+                               Data.Ands etab) dcx2
                     in (Dn.NSet.add newdn or_dns, dcx3) end)
                 etabl
                 (Dn.NSet.empty, dcx)

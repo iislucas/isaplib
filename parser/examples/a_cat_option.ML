@@ -12,14 +12,8 @@ val cat_md =
                   ("3t", id_of_str "t")];     
 val dcx = dcx |> add_datatyp (dname cat_id, cat_md);
 
-val unit_id = BNFMorphisms.unit_strname;
-val unit_dname = BNFMorphisms.unit_dname;
-val cat_option_id = "cat_option";
-val cat_option_md = 
-    Data.mk_ors_dtyp [("1no_cat", unit_id), 
-                      ("2some_cat", cat_id)];
-
-val dcx = dcx |> add_datatyp (dname cat_option_id, cat_option_md)
+(* optional cat *)
+val (cat_option_id,dcx) = dcx |> BNFFunction.mk_optional cat_id
 
 val a_cat_option_id = "a_cat_option";
 val a_cat_option_md = 
