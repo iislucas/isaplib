@@ -131,9 +131,6 @@ datatype T
   val dest : T -> N.name list
   val of_list : N.name list -> T
 
-  val next_smaller : T -> N.name -> N.name option
-  val next_bigger : T -> N.name -> N.name option
-
   val add_new : N.name -> T -> (N.name * T)
   val ins_fresh : N.name -> T -> T (* raises duplicate_exp *)
   val new : N.name -> T -> N.name
@@ -149,11 +146,16 @@ datatype T
 
   val contains_range : T -> (N.name * N.name) -> bool
   val contains_range_exactly : T -> (N.name * N.name) -> bool
+
   (* contains exactly the same ranges *)
   val eq : T -> T -> bool
+  (* EQUAL = eq, LESS = snd has smallet disjoint member, 
+     GREATER = fst has smallest disjoint member *)
+  val ord : T * T -> order
 
   (* more set-like ops *)
   val union_merge : T -> T -> T (* union *)
+  (* ADD: add a merge_distinct which raises exception on not_distinct? *)
   val subtract : T -> T -> T (* subtraction = (fst - snd) *)
   val remove_set : T -> T -> T (* subtraction = (snd - fst) *)
   val intersect : T -> T -> T (* intersection *)
@@ -163,10 +165,20 @@ datatype T
   val forall : (N.name -> bool) -> T -> bool
   val exists : (N.name -> bool) -> T -> bool
 
-  (* pull out the biggest and smallest range elements (log time),
-     raises empty_exp is empty *)
-  val pop_biggest : T -> (N.name * N.name) * T;
-  val pop_smallest : T -> (N.name * N.name) * T;
+  (* moving around the name set (log time) *)
+  val next_smaller : T -> N.name -> N.name option
+  val next_bigger : T -> N.name -> N.name option
+
+  (* pull out the biggest and smallest elements (log time) *)
+(*   val pull_biggest : T -> (N.name * T) option;
+     val pull_smallest : T -> (N.name * T) option; *)
+
+  (* pull out the biggest and smallest range elements (log time) *)
+  val pull_biggest_range : T -> ((N.name * N.name) * T) option; 
+  val pull_smallest_range: T -> ((N.name * N.name) * T) option;
+  (* "empty_exp str" exception throwing versions.. *)
+  val pull_biggest_range' : T -> (N.name * N.name) * T;
+  val pull_smallest_range': T -> (N.name * N.name) * T;
 
   (* pull from the middle range, as value (either the top or bot end)
      out from the name table (constant time), give back element and
@@ -174,7 +186,8 @@ datatype T
   val pull_local_top : T -> (N.name * T) option;
   val pull_local_bot : T -> (N.name * T) option;
 
-  (* make the list of every element pulled out and paired with the rest *)
+  (* make the list of every element pulled out and paired with the rest:
+     [1,2,3] => [(1,[2,3]), (2,[1,3]), (3,[1,2])]                     *)
   val pull_each : T -> (N.name * T) list
 
   (* check subset relation *)
@@ -428,33 +441,36 @@ fun fully_rebalance Empty = Empty
   | fully_rebalance (Br(d,v,l,r)) = 
     rebalance (Br(d,v,fully_rebalance l,fully_rebalance r));
 
-
-
 (* pulls out the biggest element, also giving back new balanced tree,
    assumes initial true was well formed (especially balanced). *)
-fun pop_biggest Empty = raise empty_exp "pop_biggest"
-  | pop_biggest (Br(d,v,l,Empty)) = (v, l)
-  | pop_biggest (Br(d,v,l,r)) = 
-    let val (biggest,newr) = pop_biggest r
-    in (biggest, rebalance (Br(br_depth l newr,v,l,newr))) end;
+fun pull_biggest_range' Empty = raise empty_exp "pull_biggest"
+  | pull_biggest_range' (Br(d,v,l,Empty)) = (v, l)
+  | pull_biggest_range'  (Br(d,v,l,r)) = 
+    let val (biggest,newr) = pull_biggest_range'  r
+    in (biggest, rebalance (Br(br_depth l newr,v,l,newr))) end
+fun pull_biggest_range tr = 
+    SOME (pull_biggest_range' tr) handle empty_exp _ => NONE;
 
-fun pop_smallest Empty = raise empty_exp "pop_smallest"
-  | pop_smallest (Br(d,v,Empty,r)) = (v, r)
-  | pop_smallest (Br(d,v,l,r)) = 
-    let val (smallest,newl) = pop_smallest l
-    in (smallest, rebalance (Br(br_depth newl r,v,newl,r))) end;
+fun pull_smallest_range' Empty = raise empty_exp "pull_smallest"
+  | pull_smallest_range' (Br(d,v,Empty,r)) = (v, r)
+  | pull_smallest_range' (Br(d,v,l,r)) = 
+    let val (smallest,newl) = pull_smallest_range' l
+    in (smallest, rebalance (Br(br_depth newl r,v,newl,r))) end
+fun pull_smallest_range tr = 
+    SOME (pull_smallest_range' tr) handle empty_exp _ => NONE;
 
 (* for use when these are the children of a deleted node, in order to
    make the replacement for the deleted node. *)
+(* THINK: is this the most efficient? *)
 fun join_from_delete Empty Empty = Empty
   | join_from_delete (tr as Br _) Empty = tr
   | join_from_delete Empty (tr as Br _) = tr
   | join_from_delete (l as Br(ld,lv,ll,lr)) (r as Br(rd,rv,rl,rr)) = 
     if ld >= rd then 
-      let val (newv, newl) = pop_biggest l 
+      let val (newv, newl) = pull_biggest_range' l 
       in Br(br_depth newl r, newv, newl, r) end
     else 
-      let val (newv, newr) = pop_smallest r 
+      let val (newv, newr) = pull_smallest_range' r 
       in Br(br_depth l newr, newv, l, newr) end;
 
 (* Note: Depth is recalculated in rebalance. *)
@@ -827,15 +843,24 @@ fun fold_ranges_rev f Empty a = a
       |> f (b,t)
       |> fold_ranges_rev f l;
 
-(* IMPROVE: write nice optimal version based on top-level rotatability, 
-   should be: log(tr1), currently: tr1 * lg(tr2) *)
-exception stop_exp;
-fun eq tr1 tr2 = 
-    ((fold_ranges (fn r => fn () => 
-                              if contains_range_exactly tr2 r then () 
-                              else raise stop_exp) tr1 ()); 
-     true)
-    handle stop_exp => false;
+(* IMPROVE?: write nice optimal version based on top-level
+   rotatability, using the depth info. should be: log(tr1), currently: min(lg(tr1)^2) *)
+fun ord (tr1, tr2) = 
+    (case (pull_smallest_range tr1, pull_smallest_range tr2)
+      of (NONE, NONE) => EQUAL (* both empty *)
+       | (NONE, SOME _) => LESS
+       | (SOME _, NONE) => GREATER
+       | (SOME ((b1,t1),tr1'), SOME ((b2,t2),tr2')) => 
+         (case (N.ord (b1,b2)) 
+           of LESS => GREATER
+            | GREATER => LESS
+            | EQUAL => (case (N.ord (t1,t2)) 
+                         of LESS => LESS
+                          | GREATER => GREATER
+                          | EQUAL => ord (tr1', tr2'))));
+
+fun eq tr1 tr2 = case ord (tr1,tr2) of EQUAL => true | _ => false;
+
 
 (* IMPROVE: THIS IS NOT EFFICIENT! *)
 (* subtract 1st from 2nd = fromthis - subtractthis *)

@@ -55,11 +55,20 @@ sig
   val pull_elem : 'a T -> ((name * 'a) * 'a T) option
   val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T
   val map_all : ('a -> 'b) -> 'a T -> 'b T
+  val map_all' : (name -> 'a -> 'b) -> 'a T -> 'b T
   val fold : ((name * 'a) -> 'b -> 'b) -> 'a T -> 'b -> 'b
   val update : (name * 'a) -> 'a T -> 'a T  (* no exp, replaces old name *)
   val update_new : (name * 'a) -> 'a T -> 'a T (* exp if not fresh for table *)
 
   val delete : name -> 'a T -> 'a T
+
+  (* get the the biggest/smallest element (log time) *)
+  val lookup_biggest : 'a T -> (name * 'a) option;
+  val lookup_smallest : 'a T -> (name * 'a) option;
+
+  (* pull out the biggest/smallest element (log time) *)
+  val pull_biggest : 'a T -> ((name * 'a) * 'a T) option;
+  val pull_smallest : 'a T -> ((name * 'a) * 'a T) option;
 
   val merge_disjoint : 'a T -> 'a T -> 'a T (* note: must be disjoint: raises ATab.DUP *)
   val merge_joint : (* exception on clash noneq elements *)
@@ -79,6 +88,7 @@ sig
   val string_of_name : name -> string
   val pretty_name : name -> Pretty.T
   val pretty_ntree: 'a T -> Pretty.T
+  val pretty_as_list : ('a -> Pretty.T) -> 'a T -> Pretty.T
   val pretty : ('a -> Pretty.T) -> 'a T -> Pretty.T
   val print : ('a -> Pretty.T) -> 'a T -> unit
 (*   val direct_pretty : 'a T -> Pretty.T
@@ -153,18 +163,14 @@ functor FNameTabFun(N : FNAMER)
       Tab{ names = #names rep,
            tab = ATab.map f (#tab rep) };
 
-  fun fold f (Tab rep) = 
-      ATab.fold f (#tab rep);
+  fun map_all' f (Tab rep) = 
+      Tab{ names = #names rep,
+           tab = ATab.map' f (#tab rep) };
 
-  exception found_exp 
-  fun exists f ns = 
-      (fold (fn n => fn () => if (f n) then raise found_exp else ()) ns (); 
-       false)
-      handle found_exp => true;
-  fun forall f ns = 
-      (fold (fn n => fn () => if (f n) then () else raise found_exp) ns (); 
-       true)
-      handle found_exp => false;
+  fun fold f (Tab rep) = ATab.fold f (#tab rep);
+
+  fun exists f (Tab rep) = ATab.exists f (#tab rep);
+  fun forall f (Tab rep) = ATab.forall f (#tab rep);
 
 
   fun update (x as (n,a)) (Tab rep) = 
@@ -237,6 +243,27 @@ functor FNameTabFun(N : FNAMER)
          SOME ((n,get tab n), 
                Tab {names = names2, tab = ATab.delete n (#tab rep)}));
 
+  (* pull out the biggest/smallest element (log time) *)
+  fun lookup_biggest (tb as Tab rep) = 
+      (case ATab.max_key (#tab rep) 
+        of NONE => NONE
+         | SOME n => SOME (n,get tb n));
+
+  fun lookup_smallest (tb as Tab rep) = 
+      (case ATab.min_key (#tab rep) 
+        of NONE => NONE
+         | SOME n => SOME (n,get tb n));
+
+  (* pop off the biggest/smallest element (log time) *)
+  fun pull_biggest tb = 
+      (case lookup_biggest tb 
+        of NONE => NONE
+         | SOME (v as (n,_)) => SOME (v, delete n tb));
+  fun pull_smallest (tb as Tab rep) = 
+      (case lookup_smallest tb 
+        of NONE => NONE
+         | SOME (v as (n,_)) => SOME (v, delete n tb));
+
   (* getting all entries... *)
   fun dest (Tab rep) = ATab.fold cons (#tab rep) [];
   fun keys (Tab rep) = ATab.fold (cons o fst) (#tab rep) [];
@@ -268,16 +295,26 @@ functor FNameTabFun(N : FNAMER)
 
   (* pretty printing *)
   fun pretty f t = 
-      Pretty.chunks
-      [Pretty.str "Name Mappings: ",
-       Pretty.chunks 
-         (map 
-            (fn (k,v) => 
-                Pretty.block 
-                  [ pretty_name k, 
-                    Pretty.str " => ",
-                    f v ])
-            (ATab.dest (get_tab t)))];
+      Pretty.chunks 
+        (map 
+           (fn (k,v) => 
+               Pretty.block 
+                 [ pretty_name k, 
+                   Pretty.str " => ",
+                   f v ])
+           (ATab.dest (get_tab t)));
+
+  (* pretty printing *)
+  fun pretty_as_list f t = 
+      Pretty.list "{" "}" 
+        (map 
+           (fn (k,v) => 
+               Pretty.block 
+                 [ pretty_name k, 
+                   Pretty.str " => ",
+                   f v ])
+           (ATab.dest (get_tab t)));
+
 
   fun pretty_ntree t = 
       Pretty.chunks
