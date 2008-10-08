@@ -20,6 +20,7 @@ exception ename_already_exists_exp of Edge.name * T;
 
 (* Making Graphs *)
 val empty : T
+val is_empty : T -> bool
 (* adding a vertex gives back unique name for it and the new graph
 val add_vertex : Vertex.data -> T -> Vertex.name * T 
 val doadd_vertex : Vertex.data -> T -> T *)
@@ -119,6 +120,8 @@ fun get_vertices (RGraph rep) = #vertices rep;
 fun get_edges (RGraph rep) = #edges rep;
 val get_vertex_list = Vertex.NTab.dest o get_vertices;
 val get_edge_list = Edge.NTab.dest o get_edges;
+
+val is_empty = Vertex.NTab.is_name_empty o get_vertices;
 
 fun lookup_vertex g n = 
     case Vertex.NTab.lookup (get_vertices g) n 
