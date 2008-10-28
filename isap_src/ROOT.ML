@@ -8,6 +8,7 @@ use "fnametab.ML"; (* name tables which provide fresh names *)
 (* generic Name structure; provies nametables, namesets and collections *)
 use "basic_names.ML";
 use "renaming.ML"; (* genereic renaming for basic names *)
+use "change_names.ML"; (* genereic name translation over different types *)
 use "names.ML"; (* names + renaming for them *)
 
 (* collections of things, without suc operation.  *)
