@@ -64,9 +64,10 @@ val mk : external_name -> name
 val dest : name -> external_name
 end;
 
+signature STR_NAMES = NAMES where type name = string;
 
 (* strings as names *)
-structure StrName :> NAMES where type name = string
+structure StrName :> STR_NAMES
 = struct
   open BasicStrName
   structure Renaming = RenamingFun(BasicStrName);
@@ -89,9 +90,10 @@ structure StrName :> NAMES where type name = string
   val print_renaming = Renaming.print;
 end;
 
+signature SSTR_NAMES = SNAMES where type external_name = string;
 
 (* safe strings as names *)
-structure SStrName :> SNAMES where type external_name = string
+structure SStrName :> SSTR_NAMES
 = struct
 open StrName;
 type external_name = string;
@@ -99,9 +101,10 @@ val mk = I;
 val dest = I;
 end;
 
+signature STR_INT_NAMES = NAMES where type name = string * int;
 
 (* strings as names *)
-structure StrIntName :> NAMES where type name = string * int
+structure StrIntName :> STR_INT_NAMES
 = struct
   open BasicStrIntName
   structure Renaming = RenamingFun(BasicStrIntName);
@@ -124,9 +127,10 @@ structure StrIntName :> NAMES where type name = string * int
   val print_renaming = Renaming.print;
 end;
 
+signature SSTR_INT_NAMES = SNAMES where type external_name = string * int;
 
 (* safe (string * int) names *)
-structure SStrIntName :> SNAMES where type external_name = string * int
+structure SStrIntName :> SSTR_INT_NAMES
 = struct
 open StrIntName;
 type external_name = string * int;
@@ -135,9 +139,10 @@ val dest = I;
 end;
 
 
+signature INT_NAMES = NAMES where type name = int;
 
 (* ints as names *)
-structure IntName :> NAMES where type name = int
+structure IntName :> INT_NAMES
 = struct
   open BasicIntName
   structure Renaming = RenamingFun(BasicIntName);
@@ -160,9 +165,10 @@ structure IntName :> NAMES where type name = int
   val print_renaming = Renaming.print;
 end;
 
+signature SINT_NAMES = SNAMES where type external_name = int;
 
 (* safe (string * int) names *)
-structure SIntName :> SNAMES where type external_name = int
+structure SIntName :> SINT_NAMES
 = struct
 open IntName;
 type external_name = int;

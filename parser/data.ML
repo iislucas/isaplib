@@ -4,8 +4,9 @@
 signature DATA = 
 sig
 
-type basetype (* basic datatypes *)
+(* atomic data names are BName.name *)
 
+(* names for data, constructors and elements *)
 type dname = Dn.name; (* datatype names *)
 type cname = Cn.name; (* constructors names *)
 type ename = En.name; (* record element names *)
@@ -15,7 +16,7 @@ branch, and has been check w.r.t. context (certified). *)
 (* for proposing datatypes *)
 (* Ands [] = succeed, Ors [] = fail / invalid *)
 datatype datatyp = 
-         BType of basetype
+         BType of BName.name
        | Ands of dname EnTab.T (* (ename => sub dname) *)
        | Ors of dname CnTab.T; (* (cname => sub dname) *)
 
@@ -30,8 +31,9 @@ type data;
 type dcontext;
 
 (* context with only basic types *)
-val mk_base_dcx : (string * basetype) list -> dcontext
-val base_dcx : dcontext;
+val mk_base_dcx : (string * BName.name) list -> dcontext
+(* val base_dcx : dcontext; *)
+
 val unit_id : string; (* id is an escaped string *) 
 val unit_dname : dname;
 
@@ -151,8 +153,9 @@ functor DB_DataFUN(
 structure DB_Data
 = struct
 
-(* basic primitive types that exist in an empty context *)
-type basetype = BaseData.basetype
+(* basic primitive types that exist in an empty context:
+BName.name *)
+
 
 (* handy quantifiers over CnTab and EnTab values *)
 fun forall_in_cntab n = 
@@ -187,7 +190,7 @@ val ename_eq = En.name_eq;
 
 (* Ands [] = succeed, Ors [] = fail *)
 (* for proposing datatypes and examining it *)
-datatype datatyp = BType of basetype
+datatype datatyp = BType of BName.name
                  | Ands of dname EnTab.T (* (ename => sub dname) *)
                  | Ors of dname CnTab.T; (* (cname => sub dname) *)
 
@@ -463,8 +466,6 @@ fun mk_base_dcx basetype_names =
                   |> (fold (DnTab.update o mk_basedata)
                            basetype_names),
          vars = Dn.NSet.empty};
-
-val base_dcx = mk_base_dcx BaseData.basetype_names;
 
 (* n has at least one var child *)
 fun has_var_child dc n = 
@@ -914,7 +915,7 @@ fun apfst_mapfromsnd f1 f2 (x :: (xs as _ :: _)) = f1 x :: map f2 xs
 
 (* pretty stuff *)
 fun pretty_dtyp (BType btype) = 
-    Pretty.block [Pretty.str " = BType(", BaseData.pretty btype,
+    Pretty.block [Pretty.str " = BType(", BName.pretty_name btype,
                   Pretty.str ")"]
   | pretty_dtyp (Ands tb) = 
     Pretty.chunks (apfst_mapfromsnd 

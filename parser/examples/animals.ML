@@ -3,8 +3,8 @@
 (* --- *)
 structure ExData_Animals
 = struct 
-local open ParserLib; open BaseData; open Data; in
-val dcx = base_dcx;
+local open ParserLib; open ParserBaseData; open Data; in
+val dcx = Parser.base_dcx;
 val cat_md = 
     mk_ands_dtyp [("1c", id_of_str "c"), 
                   ("2a", id_of_str "a"), 

@@ -3,6 +3,8 @@
 signature PARSER
 = sig
 
+val base_dcx : Data.dcontext;
+
 datatype pstep = PStep of An.NSet.T * An.NSet.T * ParseState.T
                | PFinal of AnTab.name * (An.NSet.T * An.NSet.T * ParseState.T)
                | PFail of An.NSet.T * An.NSet.T * ParseState.T;
@@ -36,6 +38,7 @@ end;
 structure DB_Parser
 = struct
 
+val base_dcx = Data.mk_base_dcx ParserBaseData.basetype_names;
 
 (* SMALL IMPROVE: slight duplication of work: two calls to containment
 for left and right id, this is already done in do_pstep: could reuse
@@ -77,7 +80,7 @@ datatype pstep = PStep of (An.NSet.T * An.NSet.T * ParseState.T)
                | PFinal of AnTab.name * (An.NSet.T * An.NSet.T * ParseState.T)
                | PFail of An.NSet.T * An.NSet.T * ParseState.T;
 
-val dbg_st = ref (PFail (An.NSet.empty,An.NSet.empty,ParseState.init_state Data.base_dcx));
+val dbg_st = ref (PFail (An.NSet.empty,An.NSet.empty,ParseState.init_state base_dcx));
 
 (* lset and rset are set of nodes touching the left and right edges of
 the text to be parsed. *)

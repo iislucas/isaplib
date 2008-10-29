@@ -4,12 +4,12 @@ structure ExData_BNF
 
 local 
   open ParserLib;
-  open BaseData;
+  open ParserBaseData;
   open Data;
 in
 
 (* context which we will build up *)
-val dcx = base_dcx;
+val dcx = Parser.base_dcx;
 
 (* alpha numeric and "_" and "." *)
 val alphnum_base_ids = 

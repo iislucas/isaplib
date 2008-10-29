@@ -9,7 +9,7 @@ end;
 
 structure XMLParser = 
 struct
-local open ParserLib; open BaseData; open Data; in
+local open ParserLib; open ParserBaseData; open Data; in
 
 
 fun mk_1list s_id dcx = 

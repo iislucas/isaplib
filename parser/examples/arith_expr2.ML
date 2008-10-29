@@ -3,8 +3,8 @@
 (* --- *)
 structure ExData_ArithExpr2
 = struct 
-local open ParserLib; open BaseData; open Data; in
-val dcx = base_dcx;
+local open ParserLib; open ParserBaseData; open Data; in
+val dcx = Parser.base_dcx;
 
 (* a space (new line, tab, or space char): 
    aspace ::= "\n" | "\t" | " " 

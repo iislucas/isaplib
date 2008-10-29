@@ -3,9 +3,9 @@
 (* --- *)
 structure ExData_SpacedCats
 = struct 
-local open ParserLib; open BaseData; open Data; in
+local open ParserLib; open ParserBaseData; open Data; in
 
-val dcx = base_dcx;
+val dcx = Parser.base_dcx;
 
 (* cat *)
 val cat_id = "cat";

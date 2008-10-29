@@ -1,49 +1,35 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  Foundational basic types for building on *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+structure BName : SSTR_NAMES = SStrName;
+
 signature BASE_DATA 
 = sig
-  type basetype
-
   (* one of these for each constructor of basetype *)
-  val basetype_names : (string * basetype) list
-
-  val pretty : basetype -> Pretty.T
-  val print : basetype -> unit
+  val basetype_names : (string * BName.name) list
 end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* Charcters are the basic data: foundations of a parser *)
-structure ParserBaseData 
+structure DB_ParserBaseData 
 = struct
-  type basetype = Char.char;
-  val basetype_names = (ParserLib.base_char_ids ~~ ParserLib.base_chars);
-  val pretty = Pretty.str o Char.toString;
-  val print = Pretty.writeln o pretty;
+  val basetype_names = 
+       (ParserLib.base_char_ids 
+          ~~ (map (BName.mk o Char.toString) ParserLib.base_chars));
 end;
-
-structure BaseData : BASE_DATA = ParserBaseData;
-
-install_pp (make_pp ["BaseData", "basetype"] 
-                    (Pretty.pprint o BaseData.pretty));
-
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  Another idea for base data (currently unused):
     unit, int, string = as base data *)
-structure BasicBaseData :> BASE_DATA
+structure DB_BasicBaseData 
 = struct
+  val unit_id = BName.mk "unit";
+  val int_id = BName.mk "int";
+  val string_id = BName.mk "string";
 
-datatype basetype = UnitTy
-                  | IntTy
-                  | StrTy;
-
-val basetype_names = [("unit", UnitTy), ("int", IntTy), ("string", StrTy)];
-
-fun pretty UnitTy = Pretty.str "unit"
-  | pretty IntTy = Pretty.str "int"
-  | pretty StrTy = Pretty.str "string";
-
-val print = Pretty.writeln o pretty;
+  val basetype_names = 
+      [("unit", unit_id), ("int", int_id), ("string", string_id)];
 end;
 
+structure BasicBaseData : BASE_DATA = DB_BasicBaseData;
+structure ParserBaseData : BASE_DATA = DB_ParserBaseData;
