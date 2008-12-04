@@ -12,7 +12,7 @@ fun id_of_str "" = "unit" (* empty string mapped to char 0 *)
   | id_of_str " " = "\" \""
   | id_of_str s = 
     let val s2 = String.toString s
-    in if s2 = s then  s else ("\"" ^ s2 ^ "\"") end;
+    in if s2 = s then s else ("\"" ^ s2 ^ "\"") end;
 
 val empty_str_id = id_of_str (Char.toString #"\^@"); (* empty string mapped to char 0 *)
 

@@ -14,13 +14,12 @@ val aspace_id = "aspace";
 val aspace_md = Ors (fold (fn x => CnTab.update (cname x, dname x))
                                aspace_base_ids CnTab.empty);
 val dcx = dcx |> add_datatyp (dname aspace_id,aspace_md);
-val ((space_id, space_cons_id), dcx) = 
-    dcx |> BNFFunction.mk_list aspace_id;
 
 (* make list of spaces
    space ::= list(aspace) 
 *)
-val dcx = dcx |> BNFFunction.mk_list space_id;
+val ((space_id, space_cons_id), dcx) = dcx |> BNFFunction.mk_list aspace_id;
+
 
 (* digits ::= 0 | 1 | ... | 9 *)
 val digit_base_ids = 
@@ -79,17 +78,18 @@ end; end;
 
 (* --- *)
 local 
-val dcx = ExData.dcx;
+val dcx = ExData_ArithExpr2.dcx;
 
 val str = "1*2+";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "1**2";
-val [] = Seq.list_of (Parser.parse_of_string dcx str);
+val [(i1,st1)] = Seq.list_of (Parser.parse_of_string dcx str);
+val _ = ParseState.print_sym_parse st1 i1;
 
-val str = "1+2";
+val str = "1+ 2";
 val [(i,st)] = Seq.list_of (Parser.parse_of_string dcx str); 
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "1*2+1";
 val ([(i1,st1),(i2,st2)]) = Seq.list_of (Parser.parse_of_string dcx str); 
@@ -102,6 +102,20 @@ end;
 (* 
 raise ERROR "stop";
 
+val dcx = ExData_ArithExpr2.dcx;
+val str = "1**2";
+val [(i1,st1)] = Seq.list_of (Parser.parse_of_string dcx str);
+val _ = ParseState.print_sym_parse st1 i1;
+
+
+val (p as Parser.PStep (r as (lset,rset,st))) = Parser.pstep_of_string dcx str;
+val _ = Parser.print_pstep_active p;
+
+val (p as Parser.PStep (r as (lset,rset,st))) = Parser.do_pstep r;
+val _ = Parser.print_pstep_active p;
+
+
+
 val aposes = ParseState.get_andposes st (UnderData.dname "1");
 val aposes_set = Data.AndSet.dest aposes;
 
@@ -111,7 +125,6 @@ ParseState.print_sym_parse st1 i1;
 ParseState.print_sym_parse st2 i2;
 
 (* -- useful tools... *)
-if false then let 
 val (p as Parser.PStep (r as (lset,rset,st))) = Parser.pstep_of_string dcx str;
 val _ = Parser.print_pstep_active p;
 

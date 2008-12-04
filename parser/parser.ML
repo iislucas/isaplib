@@ -150,7 +150,8 @@ fun pstep_of_string dcx s =
 (* sequence construction for iterating parse steps *)
 fun finite_parse_aux (p as PStep r) () = 
     (ParseState.assert_agreeing_adjs (#3 r); (* for debugging *)
-     dbg_st := p; finite_parse_aux (do_pstep r) ())
+     dbg_st := p; 
+     finite_parse_aux (do_pstep r) ())
   | finite_parse_aux (p as PFinal (i,r as (rset,lset,st))) () = 
     SOME ((i,st), Seq.make (finite_parse_aux (do_pstep r)))
   | finite_parse_aux (PFail _) () = NONE;

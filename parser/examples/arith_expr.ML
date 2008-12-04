@@ -1,7 +1,7 @@
 (* Arithmetic Expressions *)
 
 (* --- *)
-structure ExData
+structure ExData_ArithExpr
 = struct 
 local open ParserLib; open ParserBaseData; open Data; in
 val dcx = Parser.base_dcx;
@@ -76,7 +76,9 @@ val _ = print_dcx dcx;
 end; end;
 
 (* --- *)
-val dcx = ExData.dcx;
+local 
+
+val dcx = ExData_ArithExpr.dcx;
 
 val str = "1*2+";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
@@ -86,15 +88,16 @@ val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "1+2";
 val [(i,st)] = Seq.list_of (Parser.parse_of_string dcx str); 
-ParseState.print_sym_parse st i;
+val _ = ParseState.print_sym_parse st i;
 
 val str = "1*2+1";
 val ([(i1,st1),(i2,st2)]) = Seq.list_of (Parser.parse_of_string dcx str); 
-ParseState.print_sym_parse st1 i1;
-ParseState.print_sym_parse st2 i2;
+val _ = ParseState.print_sym_parse st1 i1;
+val _ = ParseState.print_sym_parse st2 i2;
 
-writeln "Exmaple/testing finished happily!";
-
+in
+  val _ = Pretty.writeln (Pretty.str "TEST PASSED: arith_expr.ML")
+end;
 (* 
 raise ERROR "stop";
 

@@ -30,6 +30,13 @@ type data;
 (* datatype context: table/graph of dnames -> datatypes *)
 type dcontext;
 
+(* exceptions *)
+exception bug_exp of dname * datatyp * dcontext;
+exception named_data_is_var_exp of string * dname;
+exception data_is_var_exp of string;
+exception data_is_not_ors_exp of string;
+exception get_exp of dcontext * dname;
+
 (* context with only basic types *)
 val mk_base_dcx : (string * BName.name) list -> dcontext
 (* val base_dcx : dcontext; *)
@@ -55,7 +62,6 @@ val datatyp_of_data : data -> datatyp
 val vars_of_dcx : dcontext -> Dn.NSet.T
 
 (* checking and adding new data *)
-exception bug_exp of dname * datatyp * dcontext;
 exception bad_datatype_exp of string;
 val certify_datatyp :  dcontext -> dname * datatyp -> bool
 val add_datatyp : dname * datatyp -> dcontext -> dcontext
@@ -396,11 +402,16 @@ exception get_exp of dcontext * dname;
 fun get dcx n = (case lookup dcx n of NONE => raise get_exp (dcx,n)
                                     | SOME v => v);
 
+(* exception to be raised when data name is known, and data is var but should not be. *)
+exception named_data_is_var_exp of string * dname;
+
 val get_datatyp = datatyp_of_data oo get; 
 fun lookup_datatyp dcx n = 
   case lookup dcx n 
   of NONE => NONE 
-   | SOME data => SOME (datatyp_of_data data);
+   | SOME data => SOME (datatyp_of_data data)
+     handle data_is_var_exp _ => 
+            raise named_data_is_var_exp ("lookup_datatyp",n);
 
 fun update_dcx_data_entry f n (DCx rep) = 
     DCx {data = DnTab.map_entry f n (#data rep), vars = #vars rep};
@@ -783,6 +794,8 @@ fun add_dname_subposes_to_ptab dcx n ptab =
               ctab ptab
           end
       val dtyp = datatyp_of_data (get dcx n)
+                 handle data_is_var_exp _ => 
+                        raise named_data_is_var_exp ("add_dname_subposes_to_ptab",n)
     in dtypf dtyp ptab end;
 
 fun mk_ptab dcx =
@@ -864,6 +877,8 @@ fun add_dname_subposes_to_andptab dcx n andtab =
           end
         | dtypf (Ors ctab) andtab = andtab
       val dtyp = datatyp_of_data (get dcx n)
+          handle data_is_var_exp _ => 
+                 raise named_data_is_var_exp ("add_dname_subposes_to_andptab",n)
     in dtypf dtyp andtab end;
 
 (* andptab is used to hold all the locations in and data types that a
@@ -976,7 +991,7 @@ fun pretty_data d =
       val parents = parents_of_data d
     in 
       Pretty.chunks 
-        ((if isvar_of_data d then [Pretty.str " ?"]
+        ((if isvar_of_data d then [Pretty.str " = ?"]
           else 
             [pretty_dtyp (datatyp_of_data d)]
             @ [Pretty.block 
@@ -999,7 +1014,7 @@ val print_full_data = Pretty.writeln o pretty_full_data;
 fun pretty_dname_in_dcx dc n = 
     Pretty.chunks 
       [Dn.pretty_name n,
-       Pretty.block [Pretty.str "  ", pretty_data (get dc n)]];
+       Pretty.indent 2 (Pretty.block [pretty_data (get dc n)])];
 
 val print_dname_in_dcx = Pretty.writeln oo pretty_dname_in_dcx;
 
