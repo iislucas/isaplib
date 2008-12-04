@@ -2,7 +2,7 @@
 
 ML_ISA_SRC_FILES = $(shell ls isa_src/*.ML)
 ML_ISAP_SRC_FILES = $(shell ls isap_src/*.ML)
-ML_PARSER_SRC_FILES = $(shell ls parser/*.ML)
+ML_PARSER_SRC_FILES = $(shell ls parser/*.ML parser/example/*.ML)
 ML_SYSTEM_FILES = $(shell ls ML-Systems/*.ML)
 
 
