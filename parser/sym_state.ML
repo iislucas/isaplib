@@ -565,9 +565,9 @@ exception bad_data_ctxt_exp of string;
    old InAndType data *)
 fun mk_parent dcx (sid, InAndType rep) andp = 
     let
-      val new_parent_dname = Data.parentn_of_andpos andp
-      val sym_ename = Data.field_of_andpos andp
-      val parent_dtyp = Data.get_datatyp dcx new_parent_dname 
+      val new_parent_dname = Data.parentn_of_andpos andp;
+      val sym_ename = Data.field_of_andpos andp;
+      val parent_dtyp = Data.get_datatyp dcx new_parent_dname;
     in
       case parent_dtyp of 
         Data.Ands etab => 
