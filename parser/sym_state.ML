@@ -26,6 +26,9 @@ signature SYM_STATE
   val is_top : T -> bool;
   val is_alive : T -> bool; 
 
+  val has_undernds_forall_elems : T -> bool; (* all elems are there as undernds *)
+  val is_well_formed : T -> bool; (* checks well-formedness for symstate *)
+
   val are_adjacent : T -> T -> bool
   val have_same_parent : T -> T -> bool
   val needs_more_left : T -> bool
@@ -128,8 +131,8 @@ datatype intype = InAndType of
            undernds : AnTab.name EnTab.T, (* link to known and-elems *)
            lnds : AdjNds.T, (* or-choices of left node ids *)
            rnds : AdjNds.T, (* or-choics of right node ids *)
-           maxlnd : AnTab.name, (* most-left id on bottom level *)
-           maxrnd : AnTab.name (* most-right id on bottom level *)
+           maxlnd : AnTab.name, (* most-left known id on bottom level *)
+           maxrnd : AnTab.name (* most-right known id on bottom level *)
          };
 
 (* status at left or right end of a dname, more stuff needed only on 1 side *)
@@ -137,12 +140,12 @@ datatype endstatus = EndStatus of
          { intype : intype,
            nextelem : (En.name * Dn.name)
          };
-         
+
 (* status when we have more elems needed for the dname to the right and left *) 
 datatype midstatus = MidStatus of
          { intype : intype,
            nextlelem : (En.name * Dn.name),
-           nextrelem : (En.name  * Dn.name)
+           nextrelem : (En.name * Dn.name)
          };
 
 (* state of a collection of adjacent symbols *)
@@ -288,6 +291,158 @@ val empty_right_agenda = AdjNds.has_mergeable o get_rnds;
 
 (* fun is_alive s = not (empty_left_agenda s andalso empty_right_agenda s); *)
 fun is_alive s = not (AdjNds.is_empty (get_lnds s) andalso AdjNds.is_empty (get_rnds s));
+
+
+
+(* Well Formedness *)
+
+(* has all undernds (only true for full top) *)
+fun has_undernds_forall_elems s = 
+    let val undernds = get_undernds s
+    in En.NSet.forall
+         (fn n => case En.NTab.lookup undernds n 
+                   of NONE => false | SOME _ => true)
+         (get_elems s)
+    end;
+
+(* check that all nds between n1 and n2 are in table. *)
+fun has_all_undernds_in n1 n2 s = 
+    let val undernds = get_undernds s
+    in En.NSet.forall
+         (fn n => 
+             case En.name_ord (n, n1)
+              of LESS => true
+                | _ => 
+                  (case En.name_ord (n, n2) 
+                    of GREATER => true
+                     | _ => 
+                       (case En.NTab.lookup undernds n 
+                         of NONE => false | SOME _ => true)))
+         (get_elems s)
+    end;
+
+(* check that all nds between n1 and n2 are in table. *)
+fun has_no_undernds_in n1 n2 s = 
+    let val undernds = get_undernds s
+    in En.NSet.forall
+         (fn n => 
+             case En.name_ord (n, n1)
+              of LESS => true
+                | _ => 
+                  (case En.name_ord (n, n2) 
+                    of GREATER => true
+                     | _ => 
+                       (case En.NTab.lookup undernds n 
+                         of NONE => true | SOME _ => false)))
+         (get_elems s)
+    end;
+
+(* every undernd is an elem (should always be the case) *)
+fun only_elems_as_undernds s = 
+    let val elems = get_elems s
+    in En.NTab.forall
+         (fn (n,_) => En.NSet.contains elems n)
+         (get_undernds s)
+    end;
+
+fun get_min_and_max_of_elems s = 
+    let val elems = get_elems s
+    in case (En.NSet.get_min elems, En.NSet.get_max elems)
+        of (SOME min, SOME max) => SOME (min,max)
+         | _ => NONE
+    end;
+
+(* well formed, specific cases: 
+   Top: undernds all have entries
+   LeftEdge: left-most element and all elements left of next are known. 
+   RightEdge: as for left. 
+   MiddleEdge: Left-most and right-most are unkown, and known for a continous chunk. 
+*)
+fun is_well_formed' (s as Top _) = has_undernds_forall_elems s
+  | is_well_formed' (s as LeftEdge endstat) = 
+    let 
+      val (nextr,_) = nextelem_of_endstatus endstat 
+      val undernds = get_undernds s
+      val elems = get_elems s
+    in
+      case get_min_and_max_of_elems s of 
+        NONE => false
+      | SOME (min,max) => 
+        (has_no_undernds_in nextr max s
+         andalso 
+         (case En.NTab.lookup_biggest undernds 
+           of NONE => false 
+            | SOME (biggest,_) => (* there is some right-most *) 
+              (* it's not the right-most of the parent data (else we should be RightEdge) *)
+              not (En.name_eq (max, biggest)) 
+              andalso 
+              (case En.NTab.lookup_smallest undernds 
+                of NONE => false
+                 | SOME (smallest,_) => (* there is some left most *) 
+                   (* it's the left-most of the parent data (else we should not be LeftEdge) *)
+                   (En.name_eq (min, smallest)) 
+                   andalso 
+                   (* all between the left-and right-most elems with undernds have undernds *)
+                   has_all_undernds_in smallest biggest s)))
+    end
+  | is_well_formed' (s as RightEdge endstat) = 
+    let 
+      val (nextl,_) = nextelem_of_endstatus endstat 
+      val undernds = get_undernds s
+      val elems = get_elems s
+    in
+      case get_min_and_max_of_elems s of 
+        NONE => false
+      | SOME (min,max) => 
+      (has_no_undernds_in min nextl s
+       andalso 
+       (case En.NTab.lookup_biggest undernds 
+         of NONE => false 
+          | SOME (biggest,_) => (* there is some right-most *) 
+            (* it's the right-most of the parent data (else we should not be RightEdge) *)
+            (En.name_eq (max, biggest)) 
+            andalso 
+            (case En.NTab.lookup_smallest undernds 
+              of NONE => false
+               | SOME (smallest,_) => (* there is some left most *) 
+                 (* it's not the left-most of the parent data (else we should be LeftEdge) *)
+                 not (En.name_eq (min, smallest)) 
+                 andalso 
+                 (* all between the left-and right-most elems with undernds have undernds *)
+                 has_all_undernds_in smallest biggest s)))
+    end
+  | is_well_formed' (s as Middle midstat) = 
+    let
+      val (nextl,_) = nextlelem_of_midstatus midstat;
+      val (nextr,_) = nextrelem_of_midstatus midstat;
+      val undernds = get_undernds s
+      val elems = get_elems s
+    in 
+      case get_min_and_max_of_elems s of 
+        NONE => false
+      | SOME (min,max) => 
+        ((has_no_undernds_in min nextl s)
+         andalso 
+         (has_no_undernds_in nextr max s)
+         andalso 
+         (case En.NTab.lookup_biggest undernds 
+           of NONE => false 
+            | SOME (biggest,_) => (* there is some right-most *) 
+              (* it's not the right-most of the parent data (else we should be RightEdge) *)
+              not (En.name_eq (max, biggest)) 
+              andalso 
+              (case En.NTab.lookup_smallest undernds 
+                of NONE => false
+                 | SOME (smallest,_) => (* there is some left most *) 
+                   (* it's not the left-most of the parent data (else we should be LeftEdge) *)
+                   not (En.name_eq (min, smallest)) 
+                   andalso 
+                   (* all between the left-and right-most elems with undernds have undernds *)
+                   has_all_undernds_in smallest biggest s)))
+    end;
+
+fun is_well_formed s = 
+    only_elems_as_undernds s andalso is_well_formed' s;
 
 
 (* implicit intype *)
@@ -451,6 +606,8 @@ fun mk_parent dcx (sid, InAndType rep) andp =
 				end
       | _ => raise bad_data_ctxt_exp "parent of andpos should be an and-type."
     end;
+
+
 
 (* created a merge intype, assumes s1 and s2 are adjacent (thus disjoint w.r.t. undernds). *)
 fun mk_merged_intype s1 s2 =

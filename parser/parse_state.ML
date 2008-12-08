@@ -99,11 +99,23 @@ val dcx_of_cx : cx -> Data.dcontext
 val andptab_of_cx : cx -> Data.AndSet.T DnTab.T
 
 (* invarient checks *)
+exception assert_agreeing_adjs_exp of An.name * An.name * T;
 val assert_agreeing_adjs : T -> T;
+
+exception assert_well_formed_sym_exp of An.name * T;
+val assert_well_formed_syms : T -> T;
+
+val assert_well_formed : T -> T;
 
 (* pretty printing *)
 val pretty_symst : T -> AnTab.name -> Pretty.T
 val print_symst : T -> AnTab.name -> unit
+
+val pretty_active : T -> Pretty.T
+val print_active : T -> unit
+val pretty_full : T -> Pretty.T
+val print_full : T -> unit
+
 val pretty : T -> Pretty.T
 val print : T -> unit
 
@@ -438,8 +450,19 @@ fun assert_agreeing_adjs st =
              in true end)
          (get_sts st)
    ; st);
-      
-    
+
+exception assert_well_formed_sym_exp of An.name * T;
+fun assert_well_formed_syms st = 
+    (An.NTab.forall
+       (fn (i1,s1) => 
+           if SymState.is_well_formed s1 then true
+           else raise assert_well_formed_sym_exp (i1,st))
+       (get_sts st); 
+     st);
+
+fun assert_well_formed st = 
+   (assert_well_formed_syms st; assert_agreeing_adjs st; st)
+
 
 
 exception bad_data_ctxt_exp of string;
@@ -500,6 +523,40 @@ fun pretty_sym_parse st i =
     end;
 
 val print_sym_parse = Pretty.writeln oo pretty_sym_parse;
+
+
+fun pretty_isopen_presym st i =
+    (case get_next_open_id st 
+      of NONE => Pretty.str "?"
+       | SOME openi => 
+         (if AnTab.name_eq (openi,i)
+          then Pretty.str "*" else Pretty.str "-"));
+
+fun pretty_active st = 
+    Pretty.chunks
+    ([Pretty.block [Pretty.str "open sts: ", An.NSet.pretty (get_opensts st)]]
+     @ (map (fn (i,s) => Pretty.block [pretty_isopen_presym st i,
+                                       Pretty.str "(",
+                                       AnTab.pretty_name i,
+                                       Pretty.str ")=",
+                                       SymState.pretty s])
+            (Library.sort 
+               (fn ((i1,s1),(i2,s2)) => SymState.lr_order (s1,s2))
+               (filter 
+                  (fn (i,s) => SymState.is_alive s)
+                  (AnTab.dest (get_sts st))))));
+val print_active = Pretty.writeln o pretty_active;
+
+fun pretty_full st = 
+     Pretty.chunks 
+     ([Pretty.block [Pretty.str "sts: ", An.NSet.pretty (get_opensts st)]]
+      @ (map (fn (i,s) => Pretty.block [pretty_isopen_presym st i,
+                                        Pretty.str "(",
+                                        AnTab.pretty_name i,
+                                        Pretty.str ")=",
+                                        SymState.pretty s])
+             (AnTab.dest (get_sts st))));
+val print_full = Pretty.writeln o pretty_full;
 
 
 fun pretty st = 

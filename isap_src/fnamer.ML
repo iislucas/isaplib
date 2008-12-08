@@ -403,7 +403,7 @@ fun get_first (Br (_, (b,t),Empty,r)) = SOME b
   | get_first (Br (_, (b,t),l,r)) = get_first l
   | get_first Empty = NONE;
 fun get_last (Br (_, (b,t),l,Empty)) = SOME t
-  | get_last (Br (_, (b,t),l,r)) = get_last l
+  | get_last (Br (_, (b,t),l,r)) = get_last r
   | get_last Empty = NONE;
 
 

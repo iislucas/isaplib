@@ -2,6 +2,8 @@
 signature BNF_Morphisms
 = sig
 
+exception bad_dcx_exp of string * Data.dname * Data.dcontext;
+
 (* transform a bnf to remove epsilons *)
 val elim_epsilon : Data.dcontext -> Data.dcontext
 
@@ -20,14 +22,14 @@ types - checks that white space is not "needed" in some places. Maybe
 need to say which tokens you can separate with whitespace. *)
 
 (* internal *)
-val remove_all_etab_dnames : Data.dname -> 'a EnTab.T -> 'a EnTab.T 
-val remove_all_ctab_dnames : Data.dname -> 'a CnTab.T -> 'a CnTab.T 
+val remove_all_etab_dnames : Data.dname -> Data.dname EnTab.T -> Data.dname EnTab.T 
+val remove_all_ctab_dnames : Data.dname -> Data.dname CnTab.T -> Data.dname CnTab.T 
 
 end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-structure BNFMorphisms
+structure DB_BNFMorphisms
 = struct
 
 exception bad_dcx_exp of string * Data.dname * Data.dcontext;
@@ -48,10 +50,10 @@ fun remove_all_etab_dnames drop_dn etab =
 (* remove every drop_dn from constructor table *)
 fun remove_all_ctab_dnames drop_dn ctab = 
     CnTab.fold 
-      (fn (cn,dn) => 
+      (fn (cn,dn) => fn ctab2 =>
           if Dn.name_eq (dn, drop_dn) then 
-            CnTab.delete cn
-          else I)
+            CnTab.delete cn ctab2
+          else ctab2)
       ctab
       ctab;
 
@@ -86,7 +88,7 @@ fun mk_optional_in_dn optdn dn (more_opts, dcx : Data.dcontext) =
                 (fn etab => fn (or_dns,dcx2) => 
                     let val (newdn, dcx3) = 
                             Data.addfresh_datatyp 
-                              (Dn.mk ((Dn.dest dn) ^ ".option-a"), 
+                              (Dn.mk ((Dn.dest dn) ^ ".a"), 
                                Data.Ands etab) dcx2
                     in (Dn.NSet.add newdn or_dns, dcx3) end)
                 etabl
@@ -152,3 +154,6 @@ fun elim_epsilon dcx =
       dcx;
 
 end;
+
+
+structure BNFMorphisms : BNF_Morphisms = DB_BNFMorphisms;

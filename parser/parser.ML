@@ -9,6 +9,8 @@ datatype pstep = PStep of An.NSet.T * An.NSet.T * ParseState.T
                | PFinal of AnTab.name * (An.NSet.T * An.NSet.T * ParseState.T)
                | PFail of An.NSet.T * An.NSet.T * ParseState.T;
 
+val dbg_st : pstep ref;
+
 (* initial pstep preperation *)
 val pstep_of_dlist : Data.dcontext -> DnTab.name list -> pstep
 val pstep_of_string : Data.dcontext -> string -> pstep
@@ -149,7 +151,7 @@ fun pstep_of_string dcx s =
 
 (* sequence construction for iterating parse steps *)
 fun finite_parse_aux (p as PStep r) () = 
-    (ParseState.assert_agreeing_adjs (#3 r); (* for debugging *)
+    (ParseState.assert_well_formed (#3 r); (* for debugging *)
      dbg_st := p; 
      finite_parse_aux (do_pstep r) ())
   | finite_parse_aux (p as PFinal (i,r as (rset,lset,st))) () = 
@@ -161,41 +163,17 @@ fun parse_of_pstep pstep0 = Seq.make (finite_parse_aux pstep0);
 fun parse_of_string dcx s = parse_of_pstep (pstep_of_string dcx s);
 
 
-fun pretty_isopen_presym st i =
-    (case ParseState.get_next_open_id st 
-      of NONE => Pretty.str "?"
-       | SOME openi => 
-         (if AnTab.name_eq (openi,i)
-          then Pretty.str "*" else Pretty.str "-"));
-
 fun pretty_pstate_active (l,r,st) = 
      Pretty.chunks 
-       ([Pretty.block [Pretty.str "lset: ", An.NSet.pretty l],
-         Pretty.block [Pretty.str "rset: ", An.NSet.pretty r],
-         Pretty.block [Pretty.str "open sts: ", An.NSet.pretty (ParseState.get_opensts st)]
-        ]
-        @ (map (fn (i,s) => Pretty.block [pretty_isopen_presym st i,
-                                          Pretty.str "(",
-                                          AnTab.pretty_name i,
-                                          Pretty.str ")=",
-                                          SymState.pretty s])
-               (Library.sort 
-                  (fn ((i1,s1),(i2,s2)) => SymState.lr_order (s1,s2))
-                  (filter 
-                     (fn (i,s) => SymState.is_alive s)
-                     (AnTab.dest (ParseState.get_sts st))))));
+       [Pretty.block [Pretty.str "lset: ", An.NSet.pretty l],
+        Pretty.block [Pretty.str "rset: ", An.NSet.pretty r],
+        ParseState.pretty_active st];
 
 fun pretty_pstate_full (l,r,st) = 
      Pretty.chunks 
-       ([Pretty.block [Pretty.str "lset: ", An.NSet.pretty l],
-         Pretty.block [Pretty.str "rset: ", An.NSet.pretty r],
-         Pretty.block [Pretty.str "open sts: ", An.NSet.pretty (ParseState.get_opensts st)]
-        ]
-        @ (map (fn (i,s) => Pretty.block [Pretty.str "Symid: ",
-                                          AnTab.pretty_name i,
-                                          Pretty.str " : ",
-                                          SymState.pretty s])
-               (AnTab.dest (ParseState.get_sts st))));
+       [Pretty.block [Pretty.str "lset: ", An.NSet.pretty l],
+        Pretty.block [Pretty.str "rset: ", An.NSet.pretty r],
+        ParseState.pretty_full st];
 
 fun pretty_pstep_full (PStep r) = 
     Pretty.block [Pretty.str "PStep: ", pretty_pstate_full r]
