@@ -9,7 +9,6 @@ val ((space_id, space_cons_id), dcx) = dcx |> BNFFunction.mk_list aspace_id;
 val digit_suc_id = id_of_str "s";
 val ((sucs_id, sucs_cons_id), dcx) = dcx |> BNFFunction.mk_list digit_suc_id;
 
-
 val digit_zero_id = id_of_str "0";
 val ((zeros_id, zeros_cons_id), dcx) = dcx |> BNFFunction.mk_1list digit_zero_id;
 

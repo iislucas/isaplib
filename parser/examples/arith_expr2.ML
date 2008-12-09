@@ -76,6 +76,7 @@ val dcx = dcx |> BNFMorphisms.elim_epsilon;
 val _ = print_dcx dcx;
 end; end;
 
+
 (* --- *)
 local 
 val dcx = ExData_ArithExpr2.dcx;
@@ -84,10 +85,17 @@ val str = "1*2+";
 val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "1**2";
-val [(i1,st1)] = Seq.list_of (Parser.parse_of_string dcx str);
-val _ = ParseState.print_sym_parse st1 i1;
+val [] = Seq.list_of (Parser.parse_of_string dcx str);
 
 val str = "1+ 2";
+val [(i,st)] = Seq.list_of (Parser.parse_of_string dcx str); 
+val _ = ParseState.print_sym_parse st i;
+
+val str = "1+  2";
+val [(i,st)] = Seq.list_of (Parser.parse_of_string dcx str); 
+val _ = ParseState.print_sym_parse st i;
+
+val str = " 1 + 1 ";
 val [(i,st)] = Seq.list_of (Parser.parse_of_string dcx str); 
 val _ = ParseState.print_sym_parse st i;
 
