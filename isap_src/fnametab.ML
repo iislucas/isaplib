@@ -42,6 +42,8 @@ sig
      have a function in FNAMETAB to useup names from a name collection *)
   val useup_names : N.T -> 'a T -> 'a T
 
+  val rename : name -> name -> 'a T -> 'a T (* raises on duplicate *)
+
   val lookup : 'a T -> name -> 'a option
   val contains : 'a T -> name -> bool
   val contains_name : 'a T -> name -> bool (* some names may be used 
@@ -217,6 +219,16 @@ functor FNameTabFun(N : FNAMER)
   fun contains (Tab rep) n =
       (case ATab.lookup (#tab rep) n of NONE => false 
                                       | _ => true);
+
+  (* rename an entry in a table *)
+  fun rename n1 n2 (Tab rep) = 
+      (case ATab.lookup (#tab rep) n1
+        of NONE => 
+           raise ATab.UNDEF n1
+         | SOME x => 
+           Tab{ names = (#names rep) |> N.rename n1 n2,
+                tab = (#tab rep) |> ATab.delete n1
+                                 |> ATab.update (n2,x) });
 
   fun get (Tab rep) n =
       case ATab.lookup (#tab rep) n 

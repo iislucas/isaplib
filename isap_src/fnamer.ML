@@ -111,6 +111,7 @@ datatype T
   exception duplicate_exp of N.name * T;
 
   val empty : T
+  val single : N.name -> T
   val is_empty : T -> bool
   val is_singleton : T -> bool
   val tryget_singleton : T -> N.name option
@@ -138,6 +139,8 @@ datatype T
   val add_list : N.name list -> T -> T
   val add_range : N.name * N.name -> T -> T
   val add_ranges : T -> (N.name * N.name) list -> (N.name * N.name) list
+
+  val rename : N.name -> N.name -> T -> T (* raises duplicate_exp *)
 
   val lookup : T -> N.name -> (N.name * N.name) option
   val contains : T -> N.name -> bool
@@ -341,8 +344,9 @@ fun assert_correct t =
      assert_correctly_ordered t; t);
 
 
-(* basic constructor *)
+(* basic constructors *)
 val empty = Empty;
+fun single x = Br(1,(x,x),Empty,Empty);
 
 (* depth of a br tree with these subtrees *)
 fun br_depth Empty Empty = 1
@@ -919,6 +923,11 @@ fun pretty_struct ns =  Pretty.enclose "{" "}" (pretty_struct' ns);
 val print = Pretty.writeln o pretty;
 val print_struct = Pretty.writeln o pretty_struct;
 val print_full = Pretty.writeln o pretty_full;
+
+
+fun rename n1 n2 tr = 
+    tr |> ins_fresh n2 (* raises duplicate_exp *)
+       |> delete n2;
 
 (* fold over all elements *)
 fun fold f = fold_ranges (Basics.fold f o dest_range);
