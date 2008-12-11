@@ -1,15 +1,10 @@
 local
 structure StrFNamer = FNamerFun(StrNamer);
 structure N = StrFNamer;
-
 structure N2 = FNamerFun(StrIntNamer);
-
 structure N3 = FNamerFun(IntNamer);
-
 in 
-
-val _ = 
-    let 
+val _ = let 
 (* 
  install_pp (make_pp ["N", "T"] (Pretty.pprint o N.pretty_struct));
 *)
@@ -135,15 +130,24 @@ val (v as (b,t)) = (111,111);
 open N3;
 val (tr as Br (d,v2 as (b2,t2),l,r)) = s;
 
+val _ = N3.union_merge s2 s |> N3.assert_correct;;
 
-N3.union_merge s2 s |> N3.assert_correct;;
+(* --- renaming --- *)
 
-in Pretty.writeln (Pretty.str "FNameTab tests passed.") end (* big let *)
-handle _ => raise ERROR "test/fnamer.ML: test failed! horrible monsters!";
+val s = N3.of_list [1,2,3];
+val _ = N3.print s;
+val s = s |> N3.add 5;
+val _ = N3.print s;
+val s = s |> N3.rename 5 4;
+val _ = N3.print s;
 
-end; (* local *)
 
-
+in 
+  Pretty.writeln (Pretty.str "FNameTab tests passed.") (* big let *)
+end (* let *)
+    handle _ => raise ERROR "test/fnamer.ML: test failed! horrible monsters!";
+end
+; (* local *)
 
 
 

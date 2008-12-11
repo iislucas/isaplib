@@ -11,6 +11,9 @@ use "renaming.ML"; (* genereic renaming for basic names *)
 use "change_names.ML"; (* genereic name translation over different types *)
 use "names.ML"; (* names + renaming for them *)
 
+(* Binary Relations of finite name sets: good for dependencies *)
+use "binrel.ML"; 
+
 (* collections of things, without suc operation.  *)
 use "collection.ML"; 
 
@@ -22,3 +25,8 @@ use "rgraph.ML";
 use "gsearch.ML";
 use "msearch.ML";
 use "lsearch.ML";
+
+(* testing *)
+cd "test";
+use "ROOT.ML";
+cd "..";

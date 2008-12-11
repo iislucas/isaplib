@@ -924,10 +924,10 @@ val print = Pretty.writeln o pretty;
 val print_struct = Pretty.writeln o pretty_struct;
 val print_full = Pretty.writeln o pretty_full;
 
-
+(* rename *)
 fun rename n1 n2 tr = 
     tr |> ins_fresh n2 (* raises duplicate_exp *)
-       |> delete n2;
+       |> delete n1;
 
 (* fold over all elements *)
 fun fold f = fold_ranges (Basics.fold f o dest_range);
