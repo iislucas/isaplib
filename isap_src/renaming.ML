@@ -18,17 +18,26 @@ structure N : BASIC_NAMES
 
 type T
 
-val mk : N.NSet.T (* ignore these *)
-         -> N.NSet.T (* avoid these *)
+val mk : N.NSet.T (* do not create new fresh names for these *)
+         -> N.NSet.T (* avoid these names for new names *)
          -> N.name N.NTab.T (* use this renaming map *)
          -> T
 
 val init_with_avoids : N.NSet.T (* avoid these *)
                        -> T
 
+val empty : T
+
+(* for doing renaming *)
 val rename1 : N.name (* old name *)
              -> T (* renaming so far *)
              -> (N.name option) * T (* new name and extended renaming *)
+
+(* for alpha equivlance checking *)
+val try_rename1 : N.name (* old name *)
+                  -> N.name (* new name *)
+             -> T (* renaming so far *)
+             -> T option (* (if possible) extended renaming *)
 
 
 val union_ignores : N.NSet.T -> T -> T 
@@ -65,7 +74,7 @@ structure N = N;
    range(rn) <= avoids 
 *)
 datatype T = Renaming of 
-         {ignore : N.NSet.T, (* These names that are not renamed *)
+         {ignore : N.NSet.T, (* considered to already be renamed, so not renamed again *)
           new : N.NSet.T, (* these are the newly generated names, range of nmap *)
           avoids : N.NSet.T, (* Nothing is allowed to be renamed to these *)
           nmap : N.name N.NTab.T}; (* mapping from old to new names *)
@@ -82,6 +91,13 @@ fun init_with_avoids avoids =
     Renaming {ignore = N.NSet.empty,
               new = N.NSet.empty,
               avoids = avoids,
+              nmap = N.NTab.empty};
+
+(* empty renaming *)
+val empty =
+    Renaming {ignore = N.NSet.empty,
+              new = N.NSet.empty,
+              avoids = N.NSet.empty,
               nmap = N.NTab.empty};
 
 (* *)
@@ -127,6 +143,25 @@ fun rename1 oldn (rn as Renaming rep) =
              end
            | SOME n2 => (SOME n2, rn))
         end
+    end;
+
+
+(* rename an old name *)
+fun try_rename1 oldn newn (rn as Renaming rep) =
+    let val nmap = (#nmap rep) in 
+      case N.NTab.lookup nmap oldn of
+        NONE => 
+        let val avoids = (#avoids rep) in
+          if N.NSet.contains avoids newn then NONE
+          else 
+            (SOME 
+               (Renaming {ignore = N.NSet.ins_fresh oldn (#ignore rep), 
+                          new = N.NSet.add newn (#new rep),
+                          avoids = N.NSet.ins_fresh oldn avoids, 
+                          nmap = N.NTab.ins (oldn,newn) nmap }))
+        end
+      | SOME n2 => if N.name_eq (n2, newn) then SOME rn
+                   else NONE
     end;
 
 

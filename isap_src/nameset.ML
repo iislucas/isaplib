@@ -93,7 +93,7 @@ end;
 
 (* A Fresh Namer : this holds collection of used names in order to
    make fresh ones *)
-signature FNAMER =
+signature NAME_SET =
 sig
   type name
   structure N : NAMER sharing type N.name = name;
@@ -129,10 +129,11 @@ datatype T
   val fold : (N.name -> 'a -> 'a) -> T -> 'a -> 'a
   val fold_rev : (N.name -> 'a -> 'a) -> T -> 'a -> 'a
 
-  val dest : T -> N.name list
+  val list_of : T -> N.name list
   val of_list : N.name list -> T
 
   val add_new : N.name -> T -> (N.name * T)
+  val try_ins_fresh : N.name -> T -> T option (* NONE is it already exists *)
   val ins_fresh : N.name -> T -> T (* raises duplicate_exp *)
   val new : N.name -> T -> N.name
   val add : N.name -> T -> T (* = union1 *)
@@ -243,8 +244,8 @@ end;
 
 
 (* Fresh Name Table Functor *)
-functor FNamerFun(N : NAMER)
-(* : FNAMER  *)
+functor NameSetFun(N : NAMER)
+(* : NAME_SET  *)
 = struct
 
 structure N = N;
@@ -373,7 +374,7 @@ fun dest_range (b,t) =
        | LESS => b :: (dest_range (N.suc b, t)));
 
 (* give back list of all used names, expands the intervals *)
-fun dest tr = maps dest_range (add_ranges tr []);
+fun list_of tr = maps dest_range (add_ranges tr []);
 
 (* empty/singleton checks *)
 fun is_empty Empty = true
@@ -613,6 +614,11 @@ fun ins_fresh a tr =
     case lookup tr a of 
       NONE => add a tr
     | _ => raise duplicate_exp (a,tr);
+
+fun try_ins_fresh a tr = 
+    case lookup tr a of 
+      NONE => SOME (add a tr) (* fresh, so add it *)
+    | SOME _ => NONE; (* not fresh! *)
 
 
 (* grow from s getting smaller. Gives back new max and rest of tree.
@@ -869,16 +875,16 @@ fun eq tr1 tr2 = case ord (tr1,tr2) of EQUAL => true | _ => false;
 (* IMPROVE: THIS IS NOT EFFICIENT! *)
 (* subtract 1st from 2nd = fromthis - subtractthis *)
 fun subtract fromthis subtractthis =  
-    fold delete (dest subtractthis) fromthis;
+    fold delete (list_of subtractthis) fromthis;
 val subtract = assert_correct oo subtract;
 (* same as above but swaped arguments for curried folding *)
 fun remove_set subtractthis fromthis =  
-    fold delete (dest subtractthis) fromthis;
+    fold delete (list_of subtractthis) fromthis;
 val remove_set = assert_correct oo remove_set;
 
 (* IMPROVE: this is the inefficient version; write the efficient one ! *)
 fun intersect A B = 
-    fold (fn a => if contains B a then I else delete a) (dest A) A;
+    fold (fn a => if contains B a then I else delete a) (list_of A) A;
 
 
 (* contrast: compute leftonly tree, intersection and

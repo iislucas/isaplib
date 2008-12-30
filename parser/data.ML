@@ -564,7 +564,7 @@ fun assert_is_not_loopy dc n =
    building a table of the checked data to avoid ancestor checking loops *)
 fun assert_has_no_loopy_ancestor dc n checked0 = 
     let 
-      val parents_list = Dn.NSet.dest (parents_of_data (get dc n))
+      val parents_list = Dn.NSet.list_of (parents_of_data (get dc n))
     in 
       fold (fn pn => fn checked => 
             if Dn.NSet.contains checked pn then 
@@ -692,7 +692,7 @@ fun add_datatyp (n,md) dcx =
 
 
 fun addfresh_datatyp (n,md) dcx = 
-    let val n2 = Dn.NSet.new n (DnTab.get_names (datas_of_dcx dcx))
+    let val n2 = Dn.NSet.new n (DnTab.get_nameset (datas_of_dcx dcx))
     in (n2, add_datatyp (n2, md) dcx) end
 
 (* remove a references to "n" as a parent of the sub-datatypes of the
@@ -780,14 +780,14 @@ fun add_dname_subposes_to_ptab dcx n ptab =
     let 
       fun dtypf (BType _) dptab = ptab
         | dtypf (Ands etab) ptab = 
-          let val enames = EnTab.get_names etab in
+          let val enames = EnTab.get_nameset etab in
             EnTab.fold
               (fn (e2,n2) => 
                   add_pos_to_ptab n2 (DataPos.mk_atands (n, (e2,enames))))
               etab ptab
           end
         | dtypf (Ors ctab) ptab = 
-          let val cnames = CnTab.get_names ctab in 
+          let val cnames = CnTab.get_nameset ctab in 
             CnTab.fold
               (fn (c2,n2) => 
                   add_pos_to_ptab n2 (DataPos.mk_ators (n, (c2,cnames))))
@@ -861,7 +861,7 @@ fun add_dname_subposes_to_andptab dcx n andtab =
     let 
       fun dtypf (BType _) andtab = andtab
         | dtypf (Ands etab) andtab = 
-          let val enames = EnTab.get_names etab in
+          let val enames = EnTab.get_nameset etab in
             EnTab.fold
               (fn (e2,n2) => 
                   SubTySet.fold (* add for each subtype *)
@@ -914,7 +914,7 @@ fun pretty_andptab andptab =
                  [Dn.pretty_name n,
                   Pretty.str " <= ",
                   pretty_andset andset]) 
-           (DnTab.dest andptab));
+           (DnTab.list_of andptab));
 
 val print_andptab = Pretty.writeln o pretty_andptab;
 
@@ -940,7 +940,7 @@ fun pretty_dtyp (BType btype) =
                                          [En.pretty_name e,
                                           Pretty.str " : ", 
                                           Dn.pretty_name d])
-                          (rev (EnTab.dest tb))))
+                          (rev (EnTab.list_of tb))))
   | pretty_dtyp (Ors tb) = 
     Pretty.chunks (apfst_mapfromsnd 
                      (fn p => Pretty.block [Pretty.str " = ", p])
@@ -949,7 +949,7 @@ fun pretty_dtyp (BType btype) =
                                          [Cn.pretty_name e,
                                           Pretty.str " of ", 
                                           Dn.pretty_name d])  
-                         (rev (CnTab.dest tb))));
+                         (rev (CnTab.list_of tb))));
 
 val print_dtyp = Pretty.writeln o pretty_dtyp;
 
@@ -968,13 +968,13 @@ fun pretty_full_data d =
                  [Pretty.str "vardeps: ",
                   Pretty.list 
                     "[" "]" (map Dn.pretty_name 
-                                 (Dn.NSet.dest 
+                                 (Dn.NSet.list_of 
                                     (vardeps_of_data d)))]])
          @ [Pretty.block 
               [Pretty.str "parents: ",
                Pretty.list 
                  "[" "]" (map Dn.pretty_name 
-                              (Dn.NSet.dest parents))]]
+                              (Dn.NSet.list_of parents))]]
          @ [Pretty.block 
                  [Pretty.str "supers: ",
                   pretty_supset supers]]
@@ -998,13 +998,13 @@ fun pretty_data d =
                  [Pretty.str "vardeps: ",
                   Pretty.list 
                     "[" "]" (map Dn.pretty_name 
-                                 (Dn.NSet.dest 
+                                 (Dn.NSet.list_of 
                                     (vardeps_of_data d)))]])
          @ [Pretty.block 
               [Pretty.str "parents: ",
                Pretty.list 
                  "[" "]" (map Dn.pretty_name 
-                              (Dn.NSet.dest parents))]]
+                              (Dn.NSet.list_of parents))]]
         )
     end;
     
@@ -1043,10 +1043,10 @@ val print_latex_data : data -> unit
 
 
 fun each_pos_in_ands f dt = 
-    List.filter (f o snd) (CnTab.dest dt)
+    List.filter (f o snd) (CnTab.list_of dt)
 
 fun each_pos_in_ors f dt = 
-    List.filter (f o snd) (EnTab.dest dt)
+    List.filter (f o snd) (EnTab.list_of dt)
 
 (*     
 fun deriv_wrt x (Type name) = if dname_eq x name then NONE else SOME

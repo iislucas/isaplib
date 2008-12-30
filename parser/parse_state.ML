@@ -502,7 +502,7 @@ fun pretty_sym_parse st i =
     in
       Pretty.block 
       ([Dn.pretty_name pn] @  
-       (if EnTab.N.is_empty elems then 
+       (if EnTab.NSet.is_empty elems then 
           let val l = SymState.get_maxlnd s
               val r = SymState.get_maxrnd s
           in
@@ -518,7 +518,7 @@ fun pretty_sym_parse st i =
                 (fn e => case EnTab.lookup undernds e of 
                            NONE => Pretty.str "?"
                          | SOME i2 => pretty_sym_parse st i2)
-                (EnTab.N.dest elems))])
+                (EnTab.NSet.list_of elems))])
       )
     end;
 
@@ -544,7 +544,7 @@ fun pretty_active st =
                (fn ((i1,s1),(i2,s2)) => SymState.lr_order (s1,s2))
                (filter 
                   (fn (i,s) => SymState.is_alive s)
-                  (AnTab.dest (get_sts st))))));
+                  (AnTab.list_of (get_sts st))))));
 val print_active = Pretty.writeln o pretty_active;
 
 fun pretty_full st = 
@@ -555,7 +555,7 @@ fun pretty_full st =
                                         AnTab.pretty_name i,
                                         Pretty.str ")=",
                                         SymState.pretty s])
-             (AnTab.dest (get_sts st))));
+             (AnTab.list_of (get_sts st))));
 val print_full = Pretty.writeln o pretty_full;
 
 

@@ -15,13 +15,13 @@ val dcx = dcx |> add_datatyp (dname "cat", cat_md);
 (* lists of cats *)
 val ((catlist_id, catlist_cons_id), dcx) = dcx |> BNFFunction.mk_list "cat";
 
-val [cat_list_dname] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx Data.unit_dname));
+val [cat_list_dname] = Dn.NSet.list_of (Data.parents_of_data (Data.get dcx Data.unit_dname));
 
 (* remove units to make standard bnf *)
 val dcx = dcx |> BNFMorphisms.elim_epsilon;
 
 (* unit has been removed! *)
-val [] = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx Data.unit_dname));
+val [] = Dn.NSet.list_of (Data.parents_of_data (Data.get dcx Data.unit_dname));
 
 val _ = print_dcx dcx;
 end; end;

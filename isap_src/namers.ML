@@ -6,19 +6,31 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
     Basic kinds of names and their lifting into FreshNamers.
-*)
 
+    Requirements: 
+    order must be transitive, and monotomic w.r.t. succ
+    pred (succ x) = x
+    
+    A useful problems to think of: 
+    if "za" = succ("z") and "c7" < "z" then it must be that "c7" < "za"
+    standard string-orders (length then alpha, and basic alpha) fail 
+    for this notion of succ.
+
+*)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-structure StrNamer : NAMER
-  = struct 
+
+(* string names that go up by changing ...zzz => ...aaaa, (the last n
+"z"s to n +1 "a"s) and otherwise incrementing the last letter if its
+alpha. If not alpha, we add an "a" to the end of it. *)
+
+structure StrNamer 
+: NAMER 
+= struct
 
 exception exp of string;
 
 type name = string;
 val pretty = Pretty.str;
-
-(* we use string_ord to ignore length, which will allow c10 to be
-after c9 in lookup. else: c7 > z and c7 < za *)
 
 fun is_alpha c = (c >= #"a" andalso c <= #"z");
 
@@ -29,6 +41,12 @@ fun count_z nzs (#"z"::t) = count_z (nzs + 1) t
 fun count_a nas (#"a"::t) = count_a (nas + 1) t 
   | count_a nas l = (nas,l);
 (* Note: only applied to alpha chars *)
+
+(* counting for digits, currently unused: TODO: add numerical endings? *)
+fun count_9 nzs (#"9"::t) = count_9 (nzs + 1) t
+  | count_9 nzs l = (nzs,l);
+fun count_0 nas (#"0"::t) = count_0 (nas + 1) t 
+  | count_0 nas l = (nas,l);
 
 (* adds an "a" to the end of a string if no alpha ending part, if
 we get a bunch of "z"'s, then we replace them by the number + 1 of
@@ -105,6 +123,9 @@ fun ord (a,b) =
 end; (* structure *)
 
 
+
+
+
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 structure StrIntNamer : NAMER
   = struct
@@ -134,10 +155,10 @@ end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* Lifting into FreshNamers *)
-structure IntFNamer = FNamerFun(IntNamer);
-structure StrFNamer = FNamerFun(StrNamer);
-structure StrIntFNamer = FNamerFun(StrIntNamer);
+structure IntNSet = NameSetFun(IntNamer);
+structure StrNSet = NameSetFun(StrNamer);
+structure StrIntNSet = NameSetFun(StrIntNamer);
 
-install_pp (make_pp ["IntFNamer", "T"] (Pretty.pprint o IntFNamer.pretty));
-install_pp (make_pp ["StrFNamer", "T"] (Pretty.pprint o StrFNamer.pretty));
-install_pp (make_pp ["StrIntFNamer", "T"] (Pretty.pprint o StrIntFNamer.pretty));
+install_pp (make_pp ["IntNSet", "T"] (Pretty.pprint o IntNSet.pretty));
+install_pp (make_pp ["StrNSet", "T"] (Pretty.pprint o StrNSet.pretty));
+install_pp (make_pp ["StrIntNSet", "T"] (Pretty.pprint o StrIntNSet.pretty));

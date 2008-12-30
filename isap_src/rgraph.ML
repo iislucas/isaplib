@@ -118,8 +118,8 @@ val set_vertices = update_vertices o K;
 val set_edges = update_edges o K;
 fun get_vertices (RGraph rep) = #vertices rep;
 fun get_edges (RGraph rep) = #edges rep;
-val get_vertex_list = Vertex.NTab.dest o get_vertices;
-val get_edge_list = Edge.NTab.dest o get_edges;
+val get_vertex_list = Vertex.NTab.list_of o get_vertices;
+val get_edge_list = Edge.NTab.list_of o get_edges;
 
 val is_empty = Vertex.NTab.is_name_empty o get_vertices;
 
@@ -385,11 +385,11 @@ fun pretty g =
                        Pretty.block 
                          [pretty_vname n,
                           Pretty.str "; ",
-                          Pretty.list "{" "}" (map pretty_ename (Edge.NSet.dest ens)),
+                          Pretty.list "{" "}" (map pretty_ename (Edge.NSet.list_of ens)),
                           Pretty.str "; ",
                           pretty_vertex nd
                    ])
-                   (Vertex.NTab.dest (get_vertices g)))],
+                   (Vertex.NTab.list_of (get_vertices g)))],
            Pretty.block
              [Pretty.str "Edges: ",
               Pretty.chunks 
@@ -398,11 +398,11 @@ fun pretty g =
                        Pretty.block 
                          [pretty_ename en,
                           Pretty.str "; ",
-                          Pretty.list "{" "}" (map pretty_vname (Vertex.NSet.dest nns)),
+                          Pretty.list "{" "}" (map pretty_vname (Vertex.NSet.list_of nns)),
                           Pretty.str "; ",
                           pretty_edge ed
                    ])
-                   (Edge.NTab.dest (get_edges g)))]]],
+                   (Edge.NTab.list_of (get_edges g)))]]],
        Pretty.str "}"
       ];
      

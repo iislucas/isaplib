@@ -70,7 +70,7 @@ val str = "cat  cat cat    cat cat cat   cat";
 val ((i,st)::more) = Seq.list_of (Parser.parse_of_string dcx str);
 val _ = ParseState.print_sym_parse st i;
 
-val L = Dn.NTab.N.dest (Data.parents_of_data (Data.get dcx (Data.dname (ParserLib.id_of_str " "))));
+val L = Dn.NSet.list_of (Data.parents_of_data (Data.get dcx (Data.dname (ParserLib.id_of_str " "))));
 val space_d = (Data.get dcx (Data.dname (ParserLib.id_of_str " ")));
 val apsace_d = (Data.get dcx (Data.dname (ParserLib.id_of_str "aspace")));
 
@@ -117,7 +117,7 @@ val (newids1, newlset1, newrset1, st1) =
      ParseState.del1_from_open i st);
 
 val (is1 as (i,s)) = is0;
-val ragenda_list = An.NSet.dest (AdjNds.get_awakened ragenda);
+val ragenda_list = An.NSet.list_of (AdjNds.get_awakened ragenda);
 
 val (i2::ragenda_list) = ragenda_list;
 val (newids1, newlset1, newrset1, st1) = 

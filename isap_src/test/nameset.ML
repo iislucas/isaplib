@@ -1,15 +1,14 @@
 local
-structure StrFNamer = FNamerFun(StrNamer);
-structure N = StrFNamer;
-structure N2 = FNamerFun(StrIntNamer);
-structure N3 = FNamerFun(IntNamer);
+structure N = StrNSet;
+structure N2 = StrIntNSet;
+structure N3 = IntNSet;
 in 
 val _ = let 
 (* 
  install_pp (make_pp ["N", "T"] (Pretty.pprint o N.pretty_struct));
 *)
 
-fun assert_correct m = StrFNamer.assert_correct m;
+fun assert_correct m = N.assert_correct m;
 
 (* --- basic tests --- *)
 val m = N.empty;
@@ -73,19 +72,19 @@ val big_table =
 
 
 val tr2 = 
-    StrFNamer.empty 
-      |> StrFNamer.add_range ("conjEm","conjEn")
-      |> StrFNamer.add_range ("aw","bk")
-      |> StrFNamer.add "exEh"
-      |> StrFNamer.add_range ("g","j")
-      |> StrFNamer.add "exEf"
-      |> StrFNamer.add_range ("conjEj","conjEk")
-      |> StrFNamer.add_range ("conjEg","conjEh")
+    N.empty 
+      |> N.add_range ("conjEm","conjEn")
+      |> N.add_range ("aw","bk")
+      |> N.add "exEh"
+      |> N.add_range ("g","j")
+      |> N.add "exEf"
+      |> N.add_range ("conjEj","conjEk")
+      |> N.add_range ("conjEg","conjEh")
       |> assert_correct;
-val _ = StrFNamer.print_full tr2;
+val _ = N.print_full tr2;
 
 (* causes major rebalance... *)
-val tr3 = tr2 |> StrFNamer.add "conjEl";
+val tr3 = tr2 |> N.add "conjEl";
 
 
 
@@ -156,25 +155,25 @@ end
 
 
 val tr = 
-    StrFNamer.empty 
-      |> StrFNamer.add_range ("conjEm","conjEn")
-      |> StrFNamer.add_range ("aw","bk")
-      |> StrFNamer.add "exEh"
-      |> StrFNamer.add_range ("g","j")
-      |> StrFNamer.add "exEf"
-      |> StrFNamer.add_range ("conjEj","conjEk")
-      |> StrFNamer.add_range ("conjEg","conjEh")
+    N.empty 
+      |> N.add_range ("conjEm","conjEn")
+      |> N.add_range ("aw","bk")
+      |> N.add "exEh"
+      |> N.add_range ("g","j")
+      |> N.add "exEf"
+      |> N.add_range ("conjEj","conjEk")
+      |> N.add_range ("conjEg","conjEh")
       |> assert_correct;
-val _ = StrFNamer.print_full tr;
+val _ = N.print_full tr;
 
-open StrFNamer;
+open N;
 
 val s = "conjEl";
 val (s as (sp,sx,ss)) = (pred_or_same s, s, N.suc s);
 
-val tr3 = tr |> StrFNamer.add' s;
+val tr3 = tr |> N.add' s;
 
-val tr2 = tr |> StrFNamer.add "conjEl";
+val tr2 = tr |> N.add "conjEl";
 
 
 

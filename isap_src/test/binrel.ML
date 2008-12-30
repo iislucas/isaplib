@@ -1,7 +1,7 @@
 local 
 
-structure IntStrBinxRel = BinRelFun(structure A = IntName and B = StrName)
-structure BinRel = IntStrBinxRel
+structure IntStrBinRel = BinRelFun(structure Dom = IntName and Cod = StrName)
+structure BinRel = IntStrBinRel;
 
 in val _ = let
 
@@ -10,10 +10,10 @@ val rel = rel0 |> (BinRel.add_many (IntName.NSet.of_list [1,2,3])
                                    (StrName.NSet.of_list ["a","b","c"]));
 val _ = BinRel.print rel;
 
-val rel = rel |> (BinRel.add_toA 5 (StrName.NSet.of_list ["a","b"]));
+val rel = rel |> (BinRel.add_to_dom 5 (StrName.NSet.of_list ["a","b"]));
 val _ = BinRel.print rel;
 
-val rel = rel |> (BinRel.renameA 5 4);
+val rel = rel |> (BinRel.rename_dom 5 4);
 val _ = BinRel.print rel;
 
 val rel = rel |> (BinRel.del_many (IntName.NSet.of_list [1,2,4]) 

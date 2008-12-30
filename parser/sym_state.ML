@@ -120,7 +120,7 @@ right of us. *)
 structure DB_SymState
 = struct
 
-structure SnTab :> FNAME_TAB where type name = string = StrNameTab;
+structure SnTab :> NAME_TAB where type name = string = StrNTab;
 
 
 (* intype hold infor for being inside a type - consturcting it from
@@ -451,12 +451,12 @@ exception nothing_under_intype_exp of string;
 val get_max_right_elem_of_intype = 
     (fn NONE => raise nothing_under_intype_exp "get_max_right_elem_of_intype" 
       | SOME x => x) 
-    o En.NSet.get_last o EnTab.get_names 
+    o En.NSet.get_last o EnTab.get_nameset 
     o undernds_of_intype;
 val get_max_left_elem_of_intype = 
     (fn NONE => raise nothing_under_intype_exp "get_max_left_elem_of_intype" 
       | SOME x => x) 
-    o En.NSet.get_first o EnTab.get_names 
+    o En.NSet.get_first o EnTab.get_nameset 
     o undernds_of_intype;
 
 (* implicit s *)
@@ -574,7 +574,7 @@ fun mk_parent dcx (sid, InAndType rep) andp =
         let 
           val parent_inandtype = 
               InAndType {parent=new_parent_dname,
-                         elems = EnTab.get_names etab,
+                         elems = EnTab.get_nameset etab,
                          undernds = EnTab.update 
                                       (sym_ename,sid)
                                       EnTab.empty,
@@ -663,7 +663,7 @@ fun pretty_intype (InAndType rep) =
                        case EnTab.lookup (#undernds rep) e of 
                          NONE => Pretty.str "?"
                        | SOME i => AnTab.pretty_name i])
-               (En.NSet.dest (#elems rep)))],
+               (En.NSet.list_of (#elems rep)))],
        Pretty.block [Pretty.str "ls: ", AdjNds.pretty (#lnds rep)],
        Pretty.block [Pretty.str "rs: ", AdjNds.pretty (#rnds rep)]
       ];
@@ -681,7 +681,7 @@ fun pretty_intype_full (InAndType rep) =
                      Dn.pretty_name (#parent rep)],
        Pretty.block [Pretty.str "All children elems: ", 
                      Pretty.list "[" "]" 
-                     (map En.pretty_name (En.NSet.dest 
+                     (map En.pretty_name (En.NSet.list_of 
                                                     (#elems rep)))],
        Pretty.block [Pretty.str "Known children nds: ", 
                      Pretty.list "[" "]" 
@@ -690,7 +690,7 @@ fun pretty_intype_full (InAndType rep) =
                                             [(En.pretty_name e),
                                              Pretty.str ": ",
                                              (AnTab.pretty_name i)])
-                                      (EnTab.dest (#undernds rep)))]
+                                      (EnTab.list_of (#undernds rep)))]
       ];
 
 

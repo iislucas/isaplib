@@ -32,10 +32,18 @@ signature NAMES
                     -> renaming
   val init_renaming : NSet.T (* avoid these names *)
                       -> renaming
+
+  (* for renaming *)
   val rename1 : name (* old name *)
                 -> renaming (* renaming so far *)
                 -> (name option) (* new name *)
                    * renaming (* extended renaming *)
+
+  (* for alpha conversion *)
+  val try_rename1 : name (* old name *)
+                    -> name (* new name *)
+                    -> renaming (* renaming so far *)
+                    -> renaming option (* (optional) extended renaming *)
 
   (* add more stuff to renaming *)
   val union_avoids_to_renaming : NSet.T -> renaming -> renaming
@@ -77,6 +85,7 @@ structure StrName :> STR_NAMES
   val init_renaming = Renaming.init_with_avoids;
 
   val rename1 = Renaming.rename1;
+  val try_rename1 = Renaming.try_rename1;
 
   val union_ignores_to_renaming = Renaming.union_ignores; 
   val union_avoids_to_renaming = Renaming.union_avoids; 
@@ -114,6 +123,7 @@ structure StrIntName :> STR_INT_NAMES
   val init_renaming = Renaming.init_with_avoids;
 
   val rename1 = Renaming.rename1;
+  val try_rename1 = Renaming.try_rename1;
 
   val union_ignores_to_renaming = Renaming.union_ignores; 
   val union_avoids_to_renaming = Renaming.union_avoids; 
@@ -152,6 +162,7 @@ structure IntName :> INT_NAMES
   val init_renaming = Renaming.init_with_avoids;
 
   val rename1 = Renaming.rename1;
+  val try_rename1 = Renaming.try_rename1;
 
   val union_ignores_to_renaming = Renaming.union_ignores; 
   val union_avoids_to_renaming = Renaming.union_avoids; 
