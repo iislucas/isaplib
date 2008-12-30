@@ -142,10 +142,15 @@ datatype T
   val add_ranges : T -> (N.name * N.name) list -> (N.name * N.name) list
 
   val rename : N.name -> N.name -> T -> T (* raises duplicate_exp *)
+  val try_rename : N.name -> N.name -> T -> T option (* NONE on name clash *)
 
   val lookup : T -> N.name -> (N.name * N.name) option
   val contains : T -> N.name -> bool
-  val delete : N.name -> T -> T
+
+  val delete' : N.name -> T -> T (* raises empty_exp if name not in set *)
+  val delete : N.name -> T -> T (* is identify if name not in set *)
+  val try_delete : N.name -> T -> T option (* is NONE if name not in set  *)
+
   val delete1 : N.name -> T -> T (* for debgging only *)
 
   val contains_range : T -> (N.name * N.name) -> bool
@@ -758,8 +763,8 @@ shorter branch of the tree. 2. s is the end of some range, then we
 just move the range along one bit. But when the range we are adjusting
 is just one element, then we simply remove this node, as per avl
 trees. 3. recurse on left or right *)
-fun delete s Empty = Empty
-  | delete s (tr as Br (d,v as (b,t),l,r)) = 
+fun delete' s Empty = raise empty_exp "delete': no such element to delete"
+  | delete' s (tr as Br (d,v as (b,t),l,r)) = 
     (case (N.ord(s,b), N.ord(s,t))
       of (EQUAL,EQUAL) => 
          join_from_delete l r
@@ -773,23 +778,26 @@ fun delete s Empty = Empty
        | (EQUAL, LESS) => Br (d,(N.suc b,t),l,r)
        | (GREATER, EQUAL) => Br (d,(b,pred_or_same t),l,r)
        | (LESS, LESS) => 
-         let val newl = delete s l
+         let val newl = delete' s l
          in rebalance (Br (br_depth newl r,v,newl,r)) end
        | (GREATER, GREATER) => 
-         let val newr = delete s r
+         let val newr = delete' s r
          in rebalance (Br (br_depth l newr,v,l,newr)) end
-       | (EQUAL, GREATER) => raise bug0_exp "impossible! delete 1"
-       | (LESS, EQUAL) => raise bug0_exp "impossible! delete 2"
-       | (LESS, GREATER) => raise bug0_exp "impossible! delete 3");
+       | (EQUAL, GREATER) => raise bug0_exp "impossible! delete' 1"
+       | (LESS, EQUAL) => raise bug0_exp "impossible! delete' 2"
+       | (LESS, GREATER) => raise bug0_exp "impossible! delete' 3");
+
+fun delete el set = delete' el set handle empty_exp _ => set;
+fun try_delete el set = SOME (delete' el set) handle empty_exp _ => NONE;
 
 val delete1 = delete;
 
-fun delete' s t = 
-    assert_correct (delete s t)
-    handle bad_fnametab_exp (msg,_) => raise delete_exp ("delete bug: " ^ msg, s, t)
-         | bug0_exp msg => raise delete_exp ("delete bug: " ^ msg, s, t);
+fun delete2 s t = 
+    assert_correct (delete1 s t)
+    handle bad_fnametab_exp (msg,_) => raise delete_exp ("delete2 bug: " ^ msg, s, t)
+         | bug0_exp msg => raise delete_exp ("delete2 bug: " ^ msg, s, t);
 
-val delete = delete';
+val delete = delete2;
 
 (* pulls out the biggest element, also giving back new balanced tree,
    assumes initial true was well formed (especially balanced). *)
@@ -934,6 +942,11 @@ val print_full = Pretty.writeln o pretty_full;
 fun rename n1 n2 tr = 
     tr |> ins_fresh n2 (* raises duplicate_exp *)
        |> delete n1;
+
+fun rename n1 n2 tr = 
+    tr |> ins_fresh n2 (* raises duplicate_exp *)
+       |> delete n1;
+
 
 (* fold over all elements *)
 fun fold f = fold_ranges (Basics.fold f o dest_range);
