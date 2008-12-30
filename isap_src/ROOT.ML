@@ -1,7 +1,7 @@
 (* Generic Tools for namers, fresh names tables, and collections *)
 (* for creating fresh names, has name suc and pred operation, 
    also nameset with ability to make fresh names. *)
-use "dbg.ML"; (* function to call for debug tool *)
+(* use "dbg.ML"; *) (* function to call for debug tool *)
 use "nameset.ML"; 
 use "namers.ML"; (* instances of fnamer *)
 use "nametab.ML"; (* name tables which provide fresh names *)
