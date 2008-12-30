@@ -938,14 +938,17 @@ val print = Pretty.writeln o pretty;
 val print_struct = Pretty.writeln o pretty_struct;
 val print_full = Pretty.writeln o pretty_full;
 
-(* rename *)
+(* renaming *)
 fun rename n1 n2 tr = 
-    tr |> ins_fresh n2 (* raises duplicate_exp *)
-       |> delete n1;
+    (case try_delete n1 tr 
+      of NONE => tr
+       | SOME tr2 => ins_fresh n2 tr2)
 
-fun rename n1 n2 tr = 
-    tr |> ins_fresh n2 (* raises duplicate_exp *)
-       |> delete n1;
+fun try_rename n1 n2 tr = 
+    (case try_delete n1 tr 
+      of NONE => SOME tr
+       | SOME tr2 => 
+         try_ins_fresh n2 tr2);
 
 
 (* fold over all elements *)
