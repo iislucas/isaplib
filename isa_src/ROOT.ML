@@ -1,10 +1,5 @@
-(*  Title:      Pure/ROOT.ML
-    ID:         $Id: ROOT.ML,v 1.158 2008/04/12 15:00:42 wenzelm Exp $
-
-Pure Isabelle.
-*)
-
-val version = "Isabelle Library - 2008";
+(* Generic parts of the Isabelle library *)
+val version = "Isabelle/IsaPlanner Library - 2008";
 
 print_depth 10;
 

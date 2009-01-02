@@ -170,3 +170,8 @@ fun profile 0 f x = f x
         val _ = RunCall.run_call1 RuntimeCalls.POLY_SYS_profiler 0;
       in Exn.release res end;
 
+
+fun do_and_exit_or_die f = 
+    (PolyML.exception_trace f; OS.Process.exit OS.Process.success)
+    handle _ => OS.Process.exit OS.Process.failure;
+ 
