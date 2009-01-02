@@ -6,6 +6,11 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
+Note: This is essentially isomorphisms on a finite set of names.  We
+do not store the inverse name function and thus this does not allow
+efficient renaming. Efficient renaming can be done using the
+change_names structure.
+
 Generic renaming with a set of ignored names, a set of names to be
 avoided, and a table of renamings. 
 
@@ -28,12 +33,12 @@ val init_with_avoids : N.NSet.T (* avoid these *)
 
 val empty : T
 
-(* for doing renaming *)
+(* for doing renaming / creating an isomorphism *)
 val rename1 : N.name (* old name *)
              -> T (* renaming so far *)
              -> (N.name option) * T (* new name and extended renaming *)
 
-(* for alpha equivlance checking *)
+(* for alpha-equivlance checking / isomorphism checking *)
 val try_rename1 : N.name (* old name *)
                   -> N.name (* new name *)
              -> T (* renaming so far *)
@@ -122,7 +127,7 @@ fun get_ignored (Renaming rep) = (#ignore rep);
 (* rename an old name *)
 fun rename1 oldn (rn as Renaming rep) = 
     let val ignore = (#ignore rep) in
-      if N.NSet.contains ignore oldn then (NONE, rn) (* ignore it *)
+      if N.NSet.contains ignore oldn then (NONE, rn) (* ignore it, already renamed *)
       else 
         let val nmap = (#nmap rep) in 
           (case N.NTab.lookup nmap oldn of
@@ -130,12 +135,15 @@ fun rename1 oldn (rn as Renaming rep) =
              let val avoids = (#avoids rep) in
                if N.NSet.contains avoids oldn then (* rename it! *)
                  let val (n2,avoids2) = (N.NSet.add_new oldn avoids)
-                 in (SOME n2, 
-                     Renaming {ignore = ignore, avoids = avoids2,
+                 in (SOME n2, (* oldname clashed, so it was renamed *)
+                     Renaming {ignore = ignore,
+                               avoids = avoids2,
                                new = N.NSet.add n2 (#new rep),
                                nmap = N.NTab.ins (oldn,n2) nmap}) 
                  end
-               else (NONE, 
+               else (NONE, (* old name was not renamed to something different,
+                            so we can ignore all future occurences, and avoid 
+                            changing anything other names to this this one. *)
                      Renaming {ignore = N.NSet.ins_fresh oldn ignore, 
                                new = #new rep,
                                avoids = N.NSet.ins_fresh oldn avoids, 
@@ -147,6 +155,7 @@ fun rename1 oldn (rn as Renaming rep) =
 
 
 (* rename an old name *)
+(* THINK: maybe check if newn = oldn, then add name to ignores and it is not new or in nmap *)
 fun try_rename1 oldn newn (rn as Renaming rep) =
     let val nmap = (#nmap rep) in 
       case N.NTab.lookup nmap oldn of
@@ -155,7 +164,7 @@ fun try_rename1 oldn newn (rn as Renaming rep) =
           if N.NSet.contains avoids newn then NONE
           else 
             (SOME 
-               (Renaming {ignore = N.NSet.ins_fresh oldn (#ignore rep), 
+               (Renaming {ignore = #ignore rep, 
                           new = N.NSet.add newn (#new rep),
                           avoids = N.NSet.ins_fresh oldn avoids, 
                           nmap = N.NTab.ins (oldn,newn) nmap }))
