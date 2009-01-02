@@ -143,7 +143,7 @@ fun rename1 oldn (rn as Renaming rep) =
                  end
                else (NONE, (* old name was not renamed to something different,
                             so we can ignore all future occurences, and avoid 
-                            changing anything other names to this this one. *)
+                            later changing any other name to clash with this one. *)
                      Renaming {ignore = N.NSet.ins_fresh oldn ignore, 
                                new = #new rep,
                                avoids = N.NSet.ins_fresh oldn avoids, 
