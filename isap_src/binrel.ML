@@ -33,6 +33,10 @@ val lookup : T -> (Dom.name * Cod.name) -> bool option
 val domf : T -> Dom.name -> Cod.NSet.T (* is empty is none *)
 val codf : T -> Cod.name -> Dom.NSet.T (* is empty is none *)
 
+(* internal; partial function, NONE when there is no such set *)
+val lookup_domf : T -> Dom.name -> Cod.NSet.T option
+val lookup_codf : T -> Cod.name -> Dom.NSet.T option
+
 (* add and delete many binary relations *)
 val add_many : Dom.NSet.T -> Cod.NSet.T -> T -> T
 val del_many : Dom.NSet.T -> Cod.NSet.T -> T -> T
@@ -68,9 +72,6 @@ val get_codset : T -> Cod.NSet.T
 val get_domtab : T -> Cod.NSet.T Dom.NTab.T
 val get_codtab : T -> Dom.NSet.T Cod.NTab.T
 
-(* internal partial function *)
-val lookup_domf : T -> Dom.name -> Cod.NSet.T option
-val lookup_codf : T -> Cod.name -> Dom.NSet.T option
 
 (* pretty printing *)
 val pretty : T -> Pretty.T
