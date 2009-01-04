@@ -137,7 +137,8 @@ val s = N3.of_list [1,2,3];
 val _ = N3.print s;
 val s = s |> N3.add 5;
 val _ = N3.print s;
-val s = s |> N3.rename 5 4;
+val (SOME s) = s |> N3.try_rename1 5 4;
+val _ = case s |> N3.try_rename1 4 2 of SOME _ => raise ERROR "N3.try_rename1 4 2: failed :( " | _ => ();
 val _ = N3.print s;
 
 

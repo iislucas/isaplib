@@ -15,9 +15,9 @@ signature BASIC_NAMES
 = sig
   type name
 
-  structure NTab : NAME_TAB 
+  structure NTab : BASIC_NAME_TAB 
   sharing type NTab.name = name;
-  structure NSet : NAME_SET
+  structure NSet : BASIC_NAME_SET
   sharing NTab.NSet = NSet;
   structure Tab : TABLE
   sharing NTab.Tab = Tab;
@@ -30,13 +30,35 @@ signature BASIC_NAMES
 end;
 
 
+
+
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+(* Lifting into FreshNamers *)
+structure BasicIntNSet = BasicNameSetFun(IntNamer);
+structure BasicStrNSet = BasicNameSetFun(StrNamer);
+structure BasicStrIntNSet = BasicNameSetFun(StrIntNamer);
+
+install_pp (make_pp ["BasicIntNSet", "T"] (Pretty.pprint o BasicIntNSet.pretty));
+install_pp (make_pp ["BasicStrNSet", "T"] (Pretty.pprint o BasicStrNSet.pretty));
+install_pp (make_pp ["BasicStrIntNSet", "T"] (Pretty.pprint o BasicStrIntNSet.pretty));
+
+
+structure BasicIntNTab = BasicNameTabFun(BasicIntNSet);
+structure BasicStrNTab = BasicNameTabFun(BasicStrNSet);
+structure BasicStrIntNTab = BasicNameTabFun(BasicStrIntNSet);
+
+structure BasicIntTab = BasicIntNTab.Tab;
+structure BasicStrTab = BasicStrNTab.Tab;
+structure BasicStrIntTab = BasicStrIntNTab.Tab;
+
+
 (* strings as names *)
 structure BasicStrName : BASIC_NAMES where type name = string
 = struct
   type name = string
-  structure NTab = StrNTab;
-  structure NSet = StrNSet;
-  structure Tab = StrTab;
+  structure NTab = BasicStrNTab;
+  structure NSet = BasicStrNSet;
+  structure Tab = BasicStrTab;
   val default_name = "a";
   val pretty_name = Pretty.str;
   val print_name = Pretty.writeln o pretty_name;
@@ -48,13 +70,13 @@ end;
 structure BasicStrIntName : BASIC_NAMES where type name = (string * int)
   = struct
   type name = string * int
-  structure NTab = StrIntNTab;
-  structure NSet = StrIntNSet;
-  structure Tab = StrIntTab;
+  structure NTab = BasicStrIntNTab;
+  structure NSet = BasicStrIntNSet;
+  structure Tab = BasicStrIntTab;
   val default_name = ("a",0);
-  val pretty_name = StrIntNTab.pretty_name;
+  val pretty_name = BasicStrIntNTab.pretty_name;
   val print_name = Pretty.writeln o pretty_name;
-  val name_ord = StrIntNTab.ord;;
+  val name_ord = BasicStrIntNTab.ord;;
   fun name_eq (ab as (a,b)) = case (name_ord ab) of EQUAL => true | _ => false;
 end;
 
@@ -62,12 +84,21 @@ end;
 structure BasicIntName : BASIC_NAMES where type name = int
   = struct
   type name =  int
-  structure NTab = IntNTab;
-  structure NSet = IntNSet;
-  structure Tab = IntTab;
+  structure NTab = BasicIntNTab;
+  structure NSet = BasicIntNSet;
+  structure Tab = BasicIntTab;
   val default_name = 0;
-  val pretty_name = IntNTab.pretty_name;
+  val pretty_name = BasicIntNTab.pretty_name;
   val print_name = Pretty.writeln o pretty_name;
-  val name_ord = IntNTab.ord;;
+  val name_ord = BasicIntNTab.ord;;
   fun name_eq (ab as (a,b)) = case (name_ord ab) of EQUAL => true | _ => false;
 end;
+
+
+
+(* 
+install_pp (make_pp ["StrNTab", "'a T"] 
+                    (Pretty.pprint o StrNTab.direct_pretty));
+install_pp (make_pp ["StrIntNTab", "'a T"] 
+                    (Pretty.pprint o StrIntNTab.direct_pretty));
+*)

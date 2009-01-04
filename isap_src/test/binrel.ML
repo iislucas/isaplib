@@ -13,8 +13,8 @@ val _ = BinRel.print rel;
 val rel = rel |> (BinRel.add_to_dom 5 (StrName.NSet.of_list ["a","b"]));
 val _ = BinRel.print rel;
 
-val rel = rel |> (BinRel.rename_dom 5 4);
-val _ = BinRel.print rel;
+(* val rel = rel |> (BinRel.try_rename1_dom 5 4);
+val _ = BinRel.print rel; *)
 
 val rel = rel |> (BinRel.del_many (IntName.NSet.of_list [1,2,4]) 
                                   (StrName.NSet.of_list ["b","c"]));

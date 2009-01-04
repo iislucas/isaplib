@@ -151,14 +151,3 @@ structure IntNamer : NAMER
   val ord = Library.int_ord;
   fun pretty x = Pretty.str (Int.toString x);
 end;
-
-
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-(* Lifting into FreshNamers *)
-structure IntNSet = NameSetFun(IntNamer);
-structure StrNSet = NameSetFun(StrNamer);
-structure StrIntNSet = NameSetFun(StrIntNamer);
-
-install_pp (make_pp ["IntNSet", "T"] (Pretty.pprint o IntNSet.pretty));
-install_pp (make_pp ["StrNSet", "T"] (Pretty.pprint o StrNSet.pretty));
-install_pp (make_pp ["StrIntNSet", "T"] (Pretty.pprint o StrIntNSet.pretty));

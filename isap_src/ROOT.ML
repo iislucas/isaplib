@@ -2,15 +2,24 @@
 (* for creating fresh names, has name suc and pred operation, 
    also nameset with ability to make fresh names. *)
 (* use "dbg.ML"; *) (* function to call for debug tool *)
-use "nameset.ML"; 
-use "namers.ML"; (* instances of fnamer *)
-use "nametab.ML"; (* name tables which provide fresh names *)
+use "namer.ML"; 
+use "namers.ML"; (* instances of namer, StrName, etc *)
+
+use "basic_nameset.ML"; (* basic sets of names *)  
+use "basic_nametab.ML"; (* name tables which provide fresh names *)
 
 (* generic Name structure; provies nametables, namesets and collections *)
 use "basic_names.ML";
-use "renaming.ML"; (* genereic renaming for basic names *)
-use "change_names.ML"; (* genereic name translation over different name types *)
-use "names.ML"; (* names + renaming for them *)
+use "renaming.ML"; (* renaming *)
+use "compound_renaming.ML"; (* renaming *)
+use "change_names.ML";(* name translation over different name types *)
+
+(* as above, but with renaming *)
+use "nameset.ML"; 
+use "nametab.ML"; 
+
+(* names + renaming for them *)
+use "names.ML"; 
 
 (* Binary Relations of finite name sets: good for dependencies *)
 use "binrel.ML"; 
