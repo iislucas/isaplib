@@ -27,6 +27,7 @@ signature NAMER
   val suc : name -> name
   val pred : name -> name option
   val ord : name * name -> order
+  val eq : name * name -> bool
   val pretty : name -> Pretty.T
 end;
 
@@ -51,6 +52,7 @@ val mk = Name;
 fun suc (Name n) = Name (N.suc n);
 fun pred (Name n) = (case N.pred n of NONE => NONE | SOME n2 => SOME (Name n2));
 fun ord (Name n1, Name n2) = N.ord (n1,n2);
+fun eq (Name n1, Name n2) = N.eq (n1,n2);
 fun pretty (Name n) = N.pretty n;
 end;
 
@@ -81,6 +83,7 @@ fun pred (Name (i,n)) = (case N.pred n of NONE => NONE
 																				| SOME n2 => SOME (Name (i,n2)));
 (* FIXME: is prod order right??? *)
 fun ord (Name ns1, Name ns2) = Library.prod_ord N.ord N.ord (ns1, ns2);
+fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
 fun pretty (Name (_,n)) = N.pretty n;
 fun get_ideal (Name (i,_)) = i;
 fun get_actual (Name (_,n)) = n;

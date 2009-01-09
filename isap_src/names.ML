@@ -22,20 +22,22 @@ of "n" are ignored.
 signature NAMES
 = sig
   type name
-
-  structure Rnm : RENAMING;
-  sharing type Rnm.Nm.name = name;
-
   structure NTab : NAME_TAB;
   sharing type NTab.name = name;
-  sharing NTab.Rnm = Rnm;
 
   structure NSet : NAME_SET;
   sharing NTab.NSet = NSet;
-  sharing NSet.Rnm = Rnm;
 
   structure Tab : TABLE;
   sharing NTab.Tab = Tab;
+
+  structure Rnm : RENAMING 
+  where type name = name 
+  and type nset = NSet.T 
+  and type 'a nmap = 'a NTab.T
+
+  sharing type NTab.renaming = Rnm.T 
+  sharing type NSet.renaming = Rnm.T;
 
   val default_name : name
   val pretty_name : name -> Pretty.T
@@ -46,12 +48,14 @@ signature NAMES
   type renaming  
   sharing type Rnm.T = renaming
 
+  val empty_renaming : renaming (* avoid these names *)
   val mk_renaming : NSet.T  (* ignore these *)
                     -> NSet.T (* avoid these names *) 
                     -> name NTab.T (* Use this renaming map *)
                     -> renaming
-  val init_renaming : NSet.T (* avoid these names *)
-                      -> renaming
+  val renaming_of_avoidset 
+      : NSet.T (* avoid these names *)
+        -> renaming
 
   (* for renaming *)
   val rename1 : name (* old name *)
@@ -92,34 +96,43 @@ val mk : external_name -> name
 val dest : name -> external_name
 end;
 
+functor NamesFun(Nm : BASIC_NAMES) : NAMES
+= struct
+  open Nm;
+  structure NSet = NameSetFun(Nm);
+  structure NTab = NameTabFun(Nm);
+
+  type renaming = Rnm.T
+  val empty_renaming = Rnm.empty;
+  val mk_renaming = Rnm.mk;
+  val renaming_of_avoidset = Rnm.mk_from_avoidset;
+
+  val rename1 = Rnm.rename1;
+  val try_rename1 = Rnm.try_rename1;
+
+  val union_ignores_to_renaming = Rnm.union_ignores; 
+  val union_avoids_to_renaming = Rnm.union_avoids; 
+
+  val newnames_of_renaming = Rnm.get_newnames;
+  val ignored_of_renaming = Rnm.get_ignored;
+  val avoids_of_renaming = Rnm.get_avoids;
+  val nmap_of_renaming = Rnm.get_nmap;
+
+  val pretty_renaming = Rnm.pretty;
+  val print_renaming = Rnm.print;
+end;
+
+signature foofoo =
+sig
+structure N1 : NAMES
+structure N2 : NAMES
+sharing N1 = N2
+end;
+
 signature STR_NAMES = NAMES where type name = string;
 
 (* strings as names *)
-structure StrName :> STR_NAMES
-= struct
-  open BasicStrName
-  structure Renaming = RenamingFun(BasicStrName);
-  structure NSet = NameSetFun(Renaming);
-  structure NTab = NameTabFun(Renaming);
-  structure Rnm = Renaming;
-  type renaming = Renaming.T
-  val mk_renaming = Renaming.mk;
-  val init_renaming = Renaming.init_with_avoids;
-
-  val rename1 = Renaming.rename1;
-  val try_rename1 = Renaming.try_rename1;
-
-  val union_ignores_to_renaming = Renaming.union_ignores; 
-  val union_avoids_to_renaming = Renaming.union_avoids; 
-
-  val newnames_of_renaming = Renaming.get_newnames;
-  val ignored_of_renaming = Renaming.get_ignored;
-  val avoids_of_renaming = Renaming.get_avoids;
-  val nmap_of_renaming = Renaming.get_nmap;
-
-  val pretty_renaming = Renaming.pretty;
-  val print_renaming = Renaming.print;
-end;
+structure StrName :> STR_NAMES = NamesFun(BasicStrName);
 
 signature SSTR_NAMES = SNAMES where type external_name = string;
 
@@ -132,38 +145,12 @@ val mk = I;
 val dest = I;
 end;
 
+
 signature STR_INT_NAMES = NAMES where type name = string * int;
-
-(* strings as names *)
-structure StrIntName :> STR_INT_NAMES
-= struct
-  open BasicStrIntName
-  structure Renaming = RenamingFun(BasicStrIntName);
-  structure NSet = NameSetFun(Renaming);
-  structure NTab = NameTabFun(Renaming);
-  structure Rnm = Renaming;
-  type renaming = Renaming.T
-  val mk_renaming = Renaming.mk;
-  val init_renaming = Renaming.init_with_avoids;
-
-  val rename1 = Renaming.rename1;
-  val try_rename1 = Renaming.try_rename1;
-
-  val union_ignores_to_renaming = Renaming.union_ignores; 
-  val union_avoids_to_renaming = Renaming.union_avoids; 
-
-  val newnames_of_renaming = Renaming.get_newnames;
-  val ignored_of_renaming = Renaming.get_ignored;
-  val avoids_of_renaming = Renaming.get_avoids;
-  val nmap_of_renaming = Renaming.get_nmap;
-
-  val pretty_renaming = Renaming.pretty;
-  val print_renaming = Renaming.print;
-end;
-
-signature SSTR_INT_NAMES = SNAMES where type external_name = string * int;
+structure StrIntName :> STR_INT_NAMES = NamesFun(BasicStrIntName);
 
 (* safe (string * int) names *)
+signature SSTR_INT_NAMES = SNAMES where type external_name = string * int;
 structure SStrIntName :> SSTR_INT_NAMES
 = struct
 open StrIntName;
@@ -172,39 +159,11 @@ val mk = I;
 val dest = I;
 end;
 
-
 signature INT_NAMES = NAMES where type name = int;
+structure IntName :> INT_NAMES = NamesFun(BasicIntName);
 
-(* ints as names *)
-structure IntName :> INT_NAMES
-= struct
-  open BasicIntName
-  structure Renaming = RenamingFun(BasicIntName);
-  structure NSet = NameSetFun(Renaming);
-  structure NTab = NameTabFun(Renaming);
-  structure Rnm = Renaming;
-  type renaming = Renaming.T
-  val mk_renaming = Renaming.mk;
-  val init_renaming = Renaming.init_with_avoids;
-
-  val rename1 = Renaming.rename1;
-  val try_rename1 = Renaming.try_rename1;
-
-  val union_ignores_to_renaming = Renaming.union_ignores; 
-  val union_avoids_to_renaming = Renaming.union_avoids; 
-
-  val newnames_of_renaming = Renaming.get_newnames;
-  val ignored_of_renaming = Renaming.get_ignored;
-  val avoids_of_renaming = Renaming.get_avoids;
-  val nmap_of_renaming = Renaming.get_nmap;
-
-  val pretty_renaming = Renaming.pretty;
-  val print_renaming = Renaming.print;
-end;
-
+(* safe int names *)
 signature SINT_NAMES = SNAMES where type external_name = int;
-
-(* safe (string * int) names *)
 structure SIntName :> SINT_NAMES
 = struct
 open IntName;

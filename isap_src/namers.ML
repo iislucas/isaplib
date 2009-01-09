@@ -120,6 +120,8 @@ fun ord (a,b) =
         | x => x
     end;
 
+fun eq n1n2 = (case String.compare n1n2 of EQUAL => true | _ => false)
+
 end; (* structure *)
 
 
@@ -138,6 +140,7 @@ structure StrIntNamer : NAMER
       Pretty.block 
         ([Pretty.str n]
          @ (if i <> 0 then [Pretty.str (Int.toString i)] else []));
+  fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
 end;
 
 
@@ -150,4 +153,5 @@ structure IntNamer : NAMER
 		| pred x = SOME (x - 1);
   val ord = Library.int_ord;
   fun pretty x = Pretty.str (Int.toString x);
+  fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
 end;

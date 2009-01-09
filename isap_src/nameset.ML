@@ -20,28 +20,20 @@
 signature NAME_SET =
 sig
   include BASIC_NAME_SET
-
-  structure Rnm : RENAMING
-  sharing Rnm.Nm.NSet.N = N;
-  sharing type Rnm.Nm.NSet.T = T;
-
-  val rename : Rnm.T -> T -> Rnm.T * T 
-  val mk_renaming : T -> Rnm.T -> Rnm.T
-  val do_renaming : Rnm.T -> T -> T
-
+  include COMPOUND_RENAMING where type obj = T
 end;
 
 
-functor NameSetFun(Rnm : RENAMING) =
+functor NameSetFun(Nm : BASIC_NAMES) =
 struct
-  open Rnm.Nm.NSet;
+  open Nm.NSet;
 
   structure CR = CompoundRenamingFun(
                  struct
-                 structure Rnm = Rnm;
-                 type T = Rnm.Nm.NSet.T
-                 val get_nameset = I 
-                 val try_rename1 = Rnm.Nm.NSet.try_rename1
+                 structure Nm = Nm;
+                 type obj = Nm.NSet.T
+                 val get_nameset = I
+                 val try_rename1 = Nm.NSet.try_rename1
                  end)
 
   open CR;

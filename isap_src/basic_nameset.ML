@@ -22,7 +22,7 @@ signature BASIC_NAME_SET =
 sig
   type name
   structure N : NAMER 
-  sharing type N.name = name;
+  where type name = name;
 
   datatype T 
     = Empty
