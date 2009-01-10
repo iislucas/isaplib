@@ -61,7 +61,7 @@ sig
   val of_list : name list -> T
 
   (* a fresh name *)
-  val new : name -> T -> name
+  val new :  T -> name -> name
 
   (* adding a name *)
   val try_ins_fresh : name -> T -> T option (* NONE is it already exists *)
@@ -552,7 +552,7 @@ fun add_new_opt a tr =
     | SOME (b,t) => 
       let val a2 = N.suc t in (SOME a2, add a2 tr) end;
 
-fun new a tr = 
+fun new tr a = 
     case lookup tr a of 
       NONE => a
     | SOME (b,t) => 

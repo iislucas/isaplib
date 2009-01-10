@@ -692,7 +692,7 @@ fun add_datatyp (n,md) dcx =
 
 
 fun addfresh_datatyp (n,md) dcx = 
-    let val n2 = Dn.NSet.new n (DnTab.get_nameset (datas_of_dcx dcx))
+    let val n2 = Dn.NSet.new (DnTab.get_nameset (datas_of_dcx dcx)) n
     in (n2, add_datatyp (n2, md) dcx) end
 
 (* remove a references to "n" as a parent of the sub-datatypes of the
