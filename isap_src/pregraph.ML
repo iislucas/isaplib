@@ -47,8 +47,12 @@ end;
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  Some instances of edges and vertices *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
+(* BUG BUG BUG!!! PolyML: 
+if you make the signature constraint strict, you get: 
+StrVertex.NSet.empty : StrVertex.Rnm.T
+*)
 structure StrVertex 
-:> VERTEX where type name = string and type data = string
+: VERTEX where type name = string and type data = string
 = struct
 open StrName;
 val default_name = "Va";
@@ -56,7 +60,7 @@ open StrData;
 end;
 
 structure UnitVertex 
-:> VERTEX where type name = string and type data = unit
+: VERTEX where type name = string and type data = unit
 = struct
 open StrName;
 val default_name = "Va";
@@ -65,7 +69,7 @@ end;
 
 
 structure UnitEdge 
-:> EDGE where type name = string and type data = unit
+: EDGE where type name = string and type data = unit
 = struct
 open StrName;
 val default_name = "Ea";
@@ -73,7 +77,7 @@ open UnitData;
 end;
 
 structure StrEdge 
-:> EDGE where type name = string and type data = string
+: EDGE where type name = string and type data = string
 = struct
 open StrName;
 val default_name = "Ea";

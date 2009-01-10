@@ -62,8 +62,8 @@ val rename1_cod : Cod.name -> Cod.name -> T -> (Cod.name * T)
 val rename1_opt_dom : Dom.name -> Dom.name -> T -> (Dom.name option * T)
 val rename1_opt_cod : Cod.name -> Cod.name -> T -> (Cod.name option * T)
 
-(* val try_rename1_dom : Dom.name -> Dom.name -> T -> T option
-val try_rename1_cod : Cod.name -> Cod.name -> T -> T option *)
+val try_rename1_dom : Dom.name -> Dom.name -> T -> T option
+val try_rename1_cod : Cod.name -> Cod.name -> T -> T option
 
 (* converting to/from lists *)
 val of_rawlist : (Dom.name * Cod.name) list -> T
@@ -221,6 +221,8 @@ fun del_cod b1 rel =
                                 changedas abtab));
 
 (* renaming *)
+
+(* rename domain element *)    
 fun rename1_opt_dom a1 a2 rel = 
     let val domtab = get_domtab rel
     in 
@@ -258,7 +260,23 @@ fun rename1_dom a1 a2 rel =
         end
     end;
 
-      
+fun try_rename1_dom a1 a2 rel = 
+    let val domtab = get_domtab rel
+    in case Dom.NTab.try_rename1 a1 a2 domtab of 
+         NONE => NONE
+       | SOME domtab2 => 
+         (case Dom.NTab.lookup domtab a1 of 
+            NONE => SOME rel
+          | SOME codset => 
+            SOME (rel |> set_domtab domtab2
+                      |> update_codf 
+                      (fn codtab => 
+                          Cod.NSet.fold 
+                            (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a2))
+                            codset codtab)))
+    end;
+
+(* rename codomain element *)    
 fun rename1_opt_cod a1 a2 rel = 
     let val codtab = get_codtab rel
     in 
@@ -293,6 +311,22 @@ fun rename1_cod a1 a2 rel =
                      (Dom.NTab.map_entry (snd o Cod.NSet.rename1 a1 a3))
                      domset domtab))
         end
+    end;
+
+fun try_rename1_cod a1 a2 rel = 
+    let val codtab = get_codtab rel
+    in case Cod.NTab.try_rename1 a1 a2 codtab of 
+         NONE => NONE
+       | SOME codtab2 => 
+         (case Cod.NTab.lookup codtab a1 of 
+            NONE => SOME rel
+          | SOME domset => 
+           SOME (rel |> set_codtab codtab2
+                     |> update_domf 
+                     (fn domtab => 
+                         Dom.NSet.fold 
+                           (Dom.NTab.map_entry (snd o Cod.NSet.rename1 a1 a2))
+                           domset domtab)))
     end;
 
 
