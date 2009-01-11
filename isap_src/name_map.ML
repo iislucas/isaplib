@@ -74,6 +74,8 @@ val codf_list_of : T -> (Cod.name * Dom.NSet.T) list
 (* get internal tables *)
 val get_domset : T -> Dom.NSet.T
 val get_codset : T -> Cod.NSet.T
+val get_domlist : T -> Dom.name list
+val get_codlist : T -> Cod.name list
 val get_domtab : T -> Cod.name Dom.NTab.T
 val get_codtab : T -> Dom.NSet.T Cod.NTab.T
 
@@ -105,6 +107,9 @@ fun get_codtab (NameMap rep) = #codf rep;
 
 val get_domset = Dom.NTab.get_nameset o get_domtab;
 val get_codset = Cod.NTab.get_nameset o get_codtab;
+
+val get_domlist = Dom.NSet.list_of o get_domset;
+val get_codlist = Cod.NSet.list_of o get_codset;
 
 fun update_domf f (NameMap rep) = 
     NameMap {domf = f (#domf rep), codf = (#codf rep)}
