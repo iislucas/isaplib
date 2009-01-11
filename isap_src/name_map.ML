@@ -3,7 +3,12 @@
     Author:     Lucas Dixon - lucas.dixon@ed.ac.uk                     *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
+
     Name mappings (non-isomorphic functions on names)
+
+    Note: not necessarily surjective (inverse set is not always
+    defined), and not injective.
+
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 signature NAME_MAP = 
@@ -143,21 +148,32 @@ fun add_many_to_1cod aset b m =
            );
 
 (* delete many elements *)
-fun del_dom' a m = 
+fun surj_del_dom a m = 
     (case lookup_domf m a of 
        NONE => (NONE,m)
      | SOME b => 
        let val aset = Dom.NSet.delete a (codf m b)           
            val codtab = get_codtab m
            val (delopt, codtab2) = 
+               (* surjective delete:, if unmapped cod, remove from cod *)
                if Dom.NSet.is_empty aset then 
                  (SOME b, Cod.NTab.delete b codtab)
-               else (NONE, Cod.NTab.update (b,aset) codtab)
+               else
+               (NONE, Cod.NTab.update (b,aset) codtab)
        in
          (delopt, 
           m |> set_codtab codtab2
             |> update_domf (Dom.NTab.delete a))
        end);
+
+(* non-surjective delete: leaves unampped elements in the codomain *)
+fun del_dom' a m = 
+    (case lookup_domf m a of 
+       NONE => m
+     | SOME b => 
+       m |> update_codf (Cod.NTab.map_entry (Dom.NSet.delete a) b)
+         |> update_domf (Dom.NTab.delete a));
+(* also removes domain elements that map to it *)
 fun del_cod' b m = 
     (case lookup_codf m b of 
        NONE => (Dom.NSet.empty, m)
@@ -166,7 +182,7 @@ fun del_cod' b m =
                 |> update_domf (Dom.NSet.fold Dom.NTab.delete aset)));
 
 (* deleting all entries *)
-val del_dom = snd oo del_dom';
+val del_dom = del_dom';
 val del_cod = snd oo del_cod';
 
 (* implicit: a b m *)
