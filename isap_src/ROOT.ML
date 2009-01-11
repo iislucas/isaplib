@@ -12,7 +12,6 @@ use "renaming.ML"; (* renaming, based on tables and sets *)
 (* generic Name structure; provies nametables, namesets and collections *)
 use "basic_names.ML";
 use "compound_renaming.ML"; (* renaming within datatypes *)
-use "change_names.ML";(* name translation over different name types *)
 
 (* as above, but with renaming *)
 use "nameset.ML"; 
@@ -22,7 +21,10 @@ use "nametab.ML";
 use "names.ML"; 
 
 (* Binary Relations of finite name sets: good for dependencies *)
-use "binrel.ML"; 
+use "name_iso.ML";(* name iso-morphisms *)
+use "name_brel.ML"; (* bin relations on names *)
+use "name_map.ML"; (* functions/mappings on names *)
+use "name_amorph.ML"; (* name auto-morphisms (name iso where dom = cod) *)
 
 (* collections of things, without suc operation.  *)
 use "collection.ML"; 

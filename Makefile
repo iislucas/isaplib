@@ -32,8 +32,8 @@ heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES) $(ML_PA
 	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; do_and_exit_or_die (fn () => (cd "isap_src"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"));' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
 
-run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISAP_HEAP)
-	./bin/polyml-isaplib
+run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP)
+	(echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; cd "isap_src"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd "..";'; cat) | $(POLYML)
 
 run-$(POLYML_ISA_HEAP): heaps/$(POLYML_ISA_HEAP)
 	./bin/polyml-isalib

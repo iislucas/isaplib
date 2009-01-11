@@ -1,5 +1,5 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      binrel.ML
+(*  Title:      name_brel.ML
     Author:     Lucas Dixon, University of Edinburgh
                 lucas.dixon@ed.ac.uk
     Updated:    10 Dec 2008
@@ -14,7 +14,7 @@
     POSSIBLE IMPROVEMENT: lazy updates? 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-signature BINREL 
+signature NAME_BREL 
 = sig
 
 structure Dom : NAMES (* domain elements *)
@@ -87,8 +87,8 @@ end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-functor BinRelFun(structure Dom : NAMES and Cod : NAMES) 
-: BINREL
+functor NameBRelFun(structure Dom : NAMES and Cod : NAMES) 
+: NAME_BREL
 = struct
 
 structure Dom = Dom; (* argument 1 name type *)

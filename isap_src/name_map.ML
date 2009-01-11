@@ -1,0 +1,298 @@
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
+(*  Title:      names_map.ML                                           
+    Author:     Lucas Dixon - lucas.dixon@ed.ac.uk                     *)
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
+(*  DESCRIPTION:
+    Name mappings (non-isomorphic functions on names)
+*)
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+signature NAME_MAP = 
+sig 
+structure Dom : NAMES (* domain elements *)
+structure Cod : NAMES (* codomain elements *)
+
+(* name map type *)
+type T
+
+val empty : T
+
+(* add?: union, intersection, ... *)
+
+(* contains/lookup *)
+val contains : T -> (Dom.name * Cod.name) -> bool
+(* lookup: NONE if domain element does not exist *)
+val lookup : T -> (Dom.name * Cod.name) -> bool option
+
+(* domain and codomain functions *)
+exception not_in_dom_exp of Dom.name * T;
+exception not_in_cod_exp of Cod.name * T;
+val domf : T -> Dom.name -> Cod.name   (* raise *)
+val codf : T -> Cod.name -> Dom.NSet.T (* raise *)
+
+(* internal; partial function, NONE when there is no such set *)
+val lookup_domf : T -> Dom.name -> Cod.name option
+val lookup_codf : T -> Cod.name -> Dom.NSet.T option
+
+(* add and delete many things *)
+(* val add_many_to_1cod : Dom.NSet.T -> Cod.name -> T -> T *)
+(* val del_many_from_1cod : Cod.name -> Dom.NSet.T -> T -> T *)
+
+(* 1 to many relations *)
+val del_dom : Dom.name -> T -> T
+val del_cod : Cod.name -> T -> T
+
+(* 1-1 relations *)
+val add_to_dom : Dom.name -> Cod.name -> T -> T
+val add_to_cod : Cod.name -> Dom.NSet.T -> T -> T
+
+(* rename *)
+val rename1_dom : Dom.name -> Dom.name -> T -> (Dom.name * T)
+val rename1_cod : Cod.name -> Cod.name -> T -> (Cod.name * T)
+
+val rename1_opt_dom : Dom.name -> Dom.name -> T -> (Dom.name option * T)
+val rename1_opt_cod : Cod.name -> Cod.name -> T -> (Cod.name option * T)
+
+val try_rename1_dom : Dom.name -> Dom.name -> T -> T option
+val try_rename1_cod : Cod.name -> Cod.name -> T -> T option
+
+(* converting to/from lists *)
+val of_list : (Dom.name * Cod.name) list -> T
+val list_of : T -> (Dom.name * Cod.name) list
+
+val of_codf_list : (Cod.name * Dom.NSet.T) list -> T
+val codf_list_of : T -> (Cod.name * Dom.NSet.T) list
+
+(* get internal tables *)
+val get_domset : T -> Dom.NSet.T
+val get_codset : T -> Cod.NSet.T
+val get_domtab : T -> Cod.name Dom.NTab.T
+val get_codtab : T -> Dom.NSet.T Cod.NTab.T
+
+(* pretty printing *)
+val pretty : T -> Pretty.T
+val print : T -> unit
+end;
+
+(* *)
+functor NameMapFun(structure Dom : NAMES and Cod : NAMES) 
+: NAME_MAP
+= struct 
+
+structure Dom = Dom; (* argument 1 name type *)
+structure Cod = Cod; (* argument 2 name type *)
+
+(* datatype for meta variable environments *)
+(* invarient: *)
+datatype T = NameMap of {
+         domf : Cod.name Dom.NTab.T,
+         codf : Dom.NSet.T Cod.NTab.T
+};
+
+val empty = NameMap {domf = Dom.NTab.empty,
+                    codf = Cod.NTab.empty};
+
+fun get_domtab (NameMap rep) = #domf rep;
+fun get_codtab (NameMap rep) = #codf rep;
+
+val get_domset = Dom.NTab.get_nameset o get_domtab;
+val get_codset = Cod.NTab.get_nameset o get_codtab;
+
+fun update_domf f (NameMap rep) = 
+    NameMap {domf = f (#domf rep), codf = (#codf rep)}
+
+fun update_codf f (NameMap rep) = 
+    NameMap {domf = (#domf rep), codf = f (#codf rep)}
+
+val set_domtab = update_domf o K;
+val set_codtab = update_codf o K;
+
+(* implicit: m n *)
+val lookup_domf = Dom.NTab.lookup o get_domtab;
+val lookup_codf = Cod.NTab.lookup o get_codtab;
+
+exception not_in_dom_exp of Dom.name * T;
+exception not_in_cod_exp of Cod.name * T;
+
+fun domf m n = 
+    case lookup_domf m n of 
+      NONE => raise not_in_dom_exp (n,m)
+    | SOME x => x;
+
+fun codf m n = 
+    case lookup_codf m n of 
+      NONE => raise not_in_cod_exp (n,m) 
+    | SOME x => x;
+
+(* given two elements check if function maps them *)
+fun contains m (a,b) = Cod.name_eq (domf m a, b);
+fun lookup m (a,b) = 
+    (case lookup_domf m a 
+      of NONE => NONE
+       | SOME b2 => SOME (Cod.name_eq (b2,b)));
+
+(*  aset cannot be mapped already *)
+fun add_many_to_1cod aset b m = 
+    m |> update_domf (Dom.NSet.fold
+                        (fn a => Dom.NTab.ins (a,b)) 
+                        aset)
+      |> update_codf (fn batab2 => 
+           case Cod.NTab.lookup batab2 b of
+             NONE => Cod.NTab.ins (b,aset) batab2
+           | SOME oldaset => 
+             Cod.NTab.update (b,Dom.NSet.union_merge aset oldaset) batab2
+           );
+
+(* delete many elements *)
+fun del_dom' a m = 
+    (case lookup_domf m a of 
+       NONE => (NONE,m)
+     | SOME b => 
+       let val aset = Dom.NSet.delete a (codf m b)           
+           val codtab = get_codtab m
+           val (delopt, codtab2) = 
+               if Dom.NSet.is_empty aset then 
+                 (SOME b, Cod.NTab.delete b codtab)
+               else (NONE, Cod.NTab.update (b,aset) codtab)
+       in
+         (delopt, 
+          m |> set_codtab codtab2
+            |> update_domf (Dom.NTab.delete a))
+       end);
+fun del_cod' b m = 
+    (case lookup_codf m b of 
+       NONE => (Dom.NSet.empty, m)
+     | SOME aset => 
+       (aset, m |> update_codf (Cod.NTab.delete b)
+                |> update_domf (Dom.NSet.fold Dom.NTab.delete aset)));
+
+(* deleting all entries *)
+val del_dom = snd oo del_dom';
+val del_cod = snd oo del_cod';
+
+(* implicit: a b m *)
+val add_to_dom = add_many_to_1cod o Dom.NSet.single;
+(* implicit: m *)
+fun add_to_cod b aset = add_many_to_1cod aset b;
+
+(* implicit: a b m *)
+val add1 = add_to_dom;
+(* implicit: a m *)
+(* val del1_from_cod = del_dom; *)
+
+(* convert to/from lists *)
+val list_of = Dom.NTab.list_of o get_domtab;
+fun of_list l = fold (fn (a,b) => add1 a b) l empty;
+
+val codf_list_of = Cod.NTab.list_of o get_codtab;
+fun of_codf_list l = fold (fn (b,aset) => add_to_cod b aset) l empty;
+
+(* renaming *)
+
+(* rename domain element *)    
+fun rename1_opt_dom a1 a2 m = 
+    let val domtab = get_domtab m
+    in 
+      case Dom.NTab.lookup domtab a1 of 
+        NONE => (NONE, m)
+      | SOME b => 
+        let val (a3opt,domtab2) = Dom.NTab.rename1_opt a1 a2 domtab
+            val a3 = case a3opt of NONE => a2 | SOME a3' => a3'
+        in 
+          (a3opt,
+           m |> set_domtab domtab2
+             |> update_codf 
+             (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a3) b))
+        end
+    end;
+
+fun rename1_dom a1 a2 rel = 
+    let val domtab = get_domtab rel
+    in 
+      case Dom.NTab.lookup domtab a1 of 
+        NONE => (a2, rel)
+      | SOME b => 
+        let val (a3,domtab2) = Dom.NTab.rename1 a1 a2 domtab
+        in 
+          (a3,
+           rel |> set_domtab domtab2
+               |> update_codf 
+               (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a3) b))
+        end
+    end;
+
+fun try_rename1_dom a1 a2 rel = 
+    let val domtab = get_domtab rel
+    in case Dom.NTab.try_rename1 a1 a2 domtab of 
+         NONE => NONE
+       | SOME domtab2 => 
+         (case Dom.NTab.lookup domtab a1 of 
+            NONE => SOME rel
+          | SOME b => 
+            SOME (rel |> set_domtab domtab2
+                      |> update_codf 
+                      (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a2) b)))
+    end;
+
+(* rename codomain element *)    
+fun rename1_opt_cod a1 a2 rel = 
+    let val codtab = get_codtab rel
+    in 
+      case Cod.NTab.lookup codtab a1 of 
+        NONE => (NONE, rel)
+      | SOME domset => 
+        let val (a3opt,codtab2) = Cod.NTab.rename1_opt a1 a2 codtab
+            val a3 = case a3opt of NONE => a2 | SOME a3' => a3'
+        in 
+          (a3opt,
+           rel |> set_codtab codtab2
+               |> update_domf 
+               (fn domtab => 
+                   Dom.NSet.fold (Dom.NTab.map_entry (K a3))
+                                 domset domtab))
+        end
+    end;
+
+fun rename1_cod a1 a2 rel = 
+    let val codtab = get_codtab rel
+    in 
+      case Cod.NTab.lookup codtab a1 of 
+        NONE => (a2, rel)
+      | SOME domset => 
+        let val (a3,codtab2) = Cod.NTab.rename1 a1 a2 codtab in 
+          (a3,
+           rel |> set_codtab codtab2
+               |> update_domf 
+               (fn domtab => 
+                   Dom.NSet.fold (Dom.NTab.map_entry (K a3))
+                                 domset domtab))
+        end
+    end;
+
+fun try_rename1_cod a1 a2 rel = 
+    let val codtab = get_codtab rel
+    in case Cod.NTab.try_rename1 a1 a2 codtab of 
+         NONE => NONE
+       | SOME codtab2 => 
+         (case Cod.NTab.lookup codtab a1 of 
+            NONE => SOME rel
+          | SOME domset => 
+           SOME (rel |> set_codtab codtab2
+                     |> update_domf 
+                     (fn domtab => 
+                         Dom.NSet.fold (Dom.NTab.map_entry (K a2))
+                                       domset domtab)))
+    end;
+
+
+(* pretty printing *)
+fun pretty m = 
+    Pretty.chunks 
+    [Pretty.str "NameMap{",
+     Pretty.block [Pretty.str "Dom->Cod:",  
+                   Dom.NTab.pretty Cod.pretty_name (get_domtab m)],
+     Pretty.block [Pretty.str "Cod->Dom:",  
+                   Cod.NTab.pretty Dom.NSet.pretty (get_codtab m)],
+     Pretty.str "}"];
+val print = Pretty.writeln o pretty;
+
+end;

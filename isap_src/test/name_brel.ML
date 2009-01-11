@@ -1,6 +1,6 @@
 local 
 
-structure IntStrBinRel = BinRelFun(structure Dom = IntName and Cod = StrName)
+structure IntStrBinRel = NameBRelFun(structure Dom = IntName and Cod = StrName)
 structure BinRel = IntStrBinRel;
 
 in val _ = let
