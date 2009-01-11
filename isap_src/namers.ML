@@ -23,6 +23,7 @@
 "z"s to n +1 "a"s) and otherwise incrementing the last letter if its
 alpha. If not alpha, we add an "a" to the end of it. *)
 
+(* probably not good to use - slow - better to use SStrNamer *)
 structure StrNamer 
 : NAMER 
 = struct
@@ -123,9 +124,6 @@ fun ord (a,b) =
 fun eq n1n2 = (case String.compare n1n2 of EQUAL => true | _ => false)
 
 end; (* structure *)
-
-
-
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)

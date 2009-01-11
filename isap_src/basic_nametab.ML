@@ -106,21 +106,26 @@ sig
 end;
 
 
-functor BasicNameTabFun(NSet : BASIC_NAME_SET)
+functor BasicNameTabFun(
+  structure NSet : BASIC_NAME_SET
+  structure Namer : NAMER 
+  sharing type Namer.name = NSet.name
+)
 : BASIC_NAME_TAB 
 = struct
 
+  structure Namer = Namer;
   structure NSet = NSet;
 
-  type name = NSet.N.name;
+  type name = Namer.name;
 
-  val pretty_name  = NSet.N.pretty
+  val pretty_name  = Namer.pretty
 
 (*   fun pretty_name (n,i) = 
       Pretty.block [N.pretty_name n, Pretty.str (Int.toString i)]; *)
   val string_of_name = Pretty.string_of o pretty_name;
 
-  fun ord (a, b) = NSet.N.ord (a,b);
+  fun ord (a, b) = Namer.ord (a,b);
 
   fun name_eq (a, b) = (ord (a,b) = EQUAL);
 
@@ -201,7 +206,7 @@ functor BasicNameTabFun(NSet : BASIC_NAME_SET)
          of NONE => (NONE, Tab{ names = NSet.add n names,
                                 tab = Tab.update_new x (#tab rep) })
           | SOME (_,t) => 
-            let val n' = NSet.N.suc t in
+            let val n' = Namer.suc t in
               (SOME n', Tab{ names = NSet.add n' names,
                              tab = Tab.update_new (n',a) (#tab rep) })
             end
@@ -213,7 +218,7 @@ functor BasicNameTabFun(NSet : BASIC_NAME_SET)
          of NONE => (n, Tab{ names = NSet.add n names,
                              tab = Tab.update_new x (#tab rep) })
           | SOME (_,t) => 
-            let val n' = NSet.N.suc t in
+            let val n' = Namer.suc t in
               (n', Tab{ names = NSet.add n' names,
                         tab = Tab.update_new (n',a) (#tab rep) })
             end

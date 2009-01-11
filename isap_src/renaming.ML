@@ -69,7 +69,9 @@ end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-functor RenamingFun(NTab : BASIC_NAME_TAB) 
+functor RenamingFun(structure NTab : BASIC_NAME_TAB
+                    and Namer : NAMER 
+                    sharing type Namer.name = NTab.name) 
 : RENAMING
 = struct
 
@@ -187,7 +189,7 @@ fun try_rename1 oldn newn (rn as Renaming rep) =
                           avoids = NSet.ins_fresh oldn avoids, 
                           nmap = NTab.ins (oldn,newn) nmap }))
         end
-      | SOME n2 => if NSet.N.eq (n2, newn) then SOME rn
+      | SOME n2 => if Namer.eq (n2, newn) then SOME rn
                    else NONE
     end;
 
@@ -209,7 +211,7 @@ fun pretty (Renaming rep) =
       [Pretty.str "Renaming:",
        Pretty.block [Pretty.str "ignore: ", NSet.pretty (#ignore rep)],
        Pretty.block [Pretty.str "avoids: ", NSet.pretty (#avoids rep)],
-       Pretty.block [Pretty.str "NMap: ", NTab.pretty NSet.N.pretty (#nmap rep)]];
+       Pretty.block [Pretty.str "NMap: ", NTab.pretty Namer.pretty (#nmap rep)]];
 
 val print = Pretty.writeln o pretty;
 

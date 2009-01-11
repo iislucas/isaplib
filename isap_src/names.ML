@@ -22,6 +22,10 @@ of "n" are ignored.
 signature NAMES
 = sig
   type name
+
+  structure Namer : NAMER
+  sharing type Namer.name = name;
+
   structure NTab : NAME_TAB;
   sharing type NTab.name = name;
 
@@ -96,9 +100,19 @@ val mk : external_name -> name
 val dest : name -> external_name
 end;
 
-functor NamesFun(Nm : BASIC_NAMES) : NAMES
+functor NamesFun(
+  structure Namer : NAMER 
+  val default_name : Namer.name
+) : NAMES
 = struct
+  (* create basic names *)
+  structure Nm : BASIC_NAMES = 
+    BasicNameFun(
+      structure Namer = Namer 
+      val default_name = default_name);
+
   open Nm;
+
   structure NSet = NameSetFun(Nm);
   structure NTab = NameTabFun(Nm);
 
@@ -122,22 +136,43 @@ functor NamesFun(Nm : BASIC_NAMES) : NAMES
   val print_renaming = Rnm.print;
 end;
 
-signature foofoo =
-sig
-structure N1 : NAMES
-structure N2 : NAMES
-sharing N1 = N2
+(* add data to a names type - makes new names type with extra data *)
+functor AddDataNameFun(
+  structure Nm : NAMES 
+  type data
+  val ord_data : data * data -> order
+  val pretty : data * Nm.name -> Pretty.T
+  val default_name : data * Nm.name
+)
+: NAMES
+= struct 
+  structure Namer2 = 
+    AddDataNamerFun(
+      structure N = Nm.Namer;
+      type data = data
+      val ord_data = ord_data
+      val pretty = pretty);
+  structure Names = NamesFun(
+    structure Namer = Namer2
+    val default_name = default_name);
+  open Names;
 end;
 
+(* IMRPOVE: stop using StrNames and use SStrNames - can be more
+   efficient and is safer *)
 signature STR_NAMES = NAMES where type name = string;
+structure StrName : STR_NAMES = 
+  NamesFun(structure Namer = StrNamer val default_name = "a");
 
-(* strings as names *)
-structure StrName :> STR_NAMES = NamesFun(BasicStrName);
-
+(* FIXME: seriously improve SNAMER's by internally using (string * int),
+and parsing the last alphanum to the int representation. This would
+give much faster suc, pred, and ord relationships. pretty printing and
+parsing from string would still be slowish, but would not really
+matter. *)
 signature SSTR_NAMES = SNAMES where type external_name = string;
 
 (* safe strings as names *)
-structure SStrName :> SSTR_NAMES
+structure SStrName : SSTR_NAMES
 = struct
 open StrName;
 type external_name = string;
@@ -147,20 +182,23 @@ end;
 
 
 signature STR_INT_NAMES = NAMES where type name = string * int;
-structure StrIntName :> STR_INT_NAMES = NamesFun(BasicStrIntName);
+structure StrIntName : STR_INT_NAMES = 
+  NamesFun(structure Namer = StrIntNamer val default_name = ("a",0));
 
 (* safe (string * int) names *)
 signature SSTR_INT_NAMES = SNAMES where type external_name = string * int;
 structure SStrIntName :> SSTR_INT_NAMES
 = struct
-open StrIntName;
-type external_name = string * int;
-val mk = I;
-val dest = I;
+  open StrIntName;
+  type external_name = string * int;
+  val mk = I;
+  val dest = I;
 end;
 
 signature INT_NAMES = NAMES where type name = int;
-structure IntName :> INT_NAMES = NamesFun(BasicIntName);
+structure IntName : INT_NAMES = 
+  NamesFun(structure Namer = IntNamer 
+           val default_name = 0);
 
 (* safe int names *)
 signature SINT_NAMES = SNAMES where type external_name = int;

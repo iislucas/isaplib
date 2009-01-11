@@ -6,9 +6,16 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
 (* names with an ordering, sets of names, and tables from names to objects *)
+
+(* NOTE: this signature is unused, its just for building NAMES which
+   is used, see names.ML *)
+
 signature BASIC_NAMES
 = sig
   type name
+
+  structure Namer : NAMER
+  sharing type Namer.name = name
 
   structure NTab : BASIC_NAME_TAB 
   sharing type NTab.name = name;
@@ -42,15 +49,17 @@ val print_name = Pretty.writeln o pretty_name;
 val name_ord = Namer.ord;
 fun name_eq ab = case (name_ord ab) of EQUAL => true | _ => false;
 val default_name = default_name;
+structure Namer = Namer; 
 structure NSet = BasicNameSetFun(Namer);
-structure NTab = BasicNameTabFun(NSet);
+structure NTab = BasicNameTabFun(structure NSet = NSet and Namer = Namer);
 structure Tab = NTab.Tab;
-structure Rnm = RenamingFun(NTab);
+structure Rnm = RenamingFun(structure NTab = NTab and Namer = Namer);
 end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* basic names: strings, integers, and pairs of strings and ints     *)
+(* 
 structure BasicStrName : BASIC_NAMES where type name = string
 = BasicNameFun(structure Namer = StrNamer val default_name = "a");
 
@@ -60,9 +69,9 @@ structure BasicIntName : BASIC_NAMES where type name = int
 structure BasicStrIntName : BASIC_NAMES where type name = string * int
 = BasicNameFun(structure Namer = StrIntNamer val default_name = ("a",0));
 
-
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  PolyML pretty printing *)
 install_pp (make_pp ["BasicStrName", "NSet", "T"] (Pretty.pprint o BasicIntName.NSet.pretty));
 install_pp (make_pp ["BasicStrName", "NSet", "T"] (Pretty.pprint o BasicStrName.NSet.pretty));
 install_pp (make_pp ["BasicStrIntName", "NSet", "T"] (Pretty.pprint o BasicStrIntName.NSet.pretty));
+*)

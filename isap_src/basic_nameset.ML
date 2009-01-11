@@ -21,8 +21,9 @@
 signature BASIC_NAME_SET =
 sig
   type name
-  structure N : NAMER 
+(*   structure N : NAMER 
   where type name = name;
+*)
 
   datatype T 
     = Empty
@@ -187,7 +188,7 @@ end;
 
 (* Fresh Name Table Functor *)
 functor BasicNameSetFun(N : NAMER)
-(*  : BASIC_NAME_SET  *)
+(*  : BASIC_NAME_SET *)
 = struct
 
 structure N = N;

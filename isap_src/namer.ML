@@ -31,6 +31,31 @@ signature NAMER
   val pretty : name -> Pretty.T
 end;
 
+signature PRETTY_ORD
+= sig
+  type name
+  val ord : name * name -> order
+  val pretty : name -> Pretty.T 
+end;
+
+(* a functor to make a an opaque namer from a src namer type, this is
+   really just for name hidding. *)
+functor AddDataNamerFun(
+structure N : NAMER 
+type data
+val ord_data : data * data -> order
+val pretty : data * N.name -> Pretty.T
+) : NAMER
+= struct
+type name = data * N.name;
+fun suc (d,n) = (d, N.suc n);
+fun pred (d,n) = 
+    (case N.pred n of NONE => NONE | SOME n' => SOME (d, n'));
+val ord = Library.prod_ord ord_data N.ord;
+fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
+val pretty = pretty;
+end;
+
 
 (* a (safe) namer that has names made from a src type assumes: (mk (dest n) = n) *)
 signature SNAMER
@@ -43,7 +68,7 @@ end;
 
 (* a functor to make a an opaque namer from a src namer type, this is
    really just for name hidding. *)
-functor SNamerFun(N : NAMER) :> SNAMER
+functor SNamerFun(N : NAMER) : SNAMER
 = struct
 type src = N.name;
 datatype name = Name of src;
@@ -72,7 +97,7 @@ end;
    really just for name hidding. It allows us to try to make every
    name closer to the idea, for example, when used name is removed, we
    might be able to rename later names. *)
-functor IdealNamerFun(N : NAMER) :> IDEAL_NAMER
+functor IdealNamerFun(N : NAMER) : IDEAL_NAMER
 = struct
 structure Src = N;
 datatype name = Name of N.name (* ideal *)
