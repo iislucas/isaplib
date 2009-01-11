@@ -42,15 +42,19 @@ val lookup_codf : T -> Cod.name -> Dom.NSet.T option
 (* val add_many_to_1cod : Dom.NSet.T -> Cod.name -> T -> T *)
 (* val del_many_from_1cod : Cod.name -> Dom.NSet.T -> T -> T *)
 
-(* 1 to many relations *)
+(* remove things *)
+val surj_del_dom' : Dom.name -> T 
+                   -> (Cod.name option (* removed this from cod *)
+                       * T)
+val surj_del_dom : Dom.name -> T -> T
 val del_dom : Dom.name -> T -> T
 val del_cod : Cod.name -> T -> T
 
-(* 1-1 relations *)
+(* adding mappings *)
 val add_to_dom : Dom.name -> Cod.name -> T -> T
 val add_to_cod : Cod.name -> Dom.NSet.T -> T -> T
 
-(* rename *)
+(* renaming *)
 val rename1_dom : Dom.name -> Dom.name -> T -> (Dom.name * T)
 val rename1_cod : Cod.name -> Cod.name -> T -> (Cod.name * T)
 
@@ -148,7 +152,7 @@ fun add_many_to_1cod aset b m =
            );
 
 (* delete many elements *)
-fun surj_del_dom a m = 
+fun surj_del_dom' a m = 
     (case lookup_domf m a of 
        NONE => (NONE,m)
      | SOME b => 
@@ -165,6 +169,7 @@ fun surj_del_dom a m =
           m |> set_codtab codtab2
             |> update_domf (Dom.NTab.delete a))
        end);
+val surj_del_dom = snd oo surj_del_dom';
 
 (* non-surjective delete: leaves unampped elements in the codomain *)
 fun del_dom' a m = 
@@ -221,46 +226,46 @@ fun rename1_opt_dom a1 a2 m =
         end
     end;
 
-fun rename1_dom a1 a2 rel = 
-    let val domtab = get_domtab rel
+fun rename1_dom a1 a2 m = 
+    let val domtab = get_domtab m
     in 
       case Dom.NTab.lookup domtab a1 of 
-        NONE => (a2, rel)
+        NONE => (a2, m)
       | SOME b => 
         let val (a3,domtab2) = Dom.NTab.rename1 a1 a2 domtab
         in 
           (a3,
-           rel |> set_domtab domtab2
-               |> update_codf 
-               (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a3) b))
+           m |> set_domtab domtab2
+             |> update_codf 
+             (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a3) b))
         end
     end;
 
-fun try_rename1_dom a1 a2 rel = 
-    let val domtab = get_domtab rel
+fun try_rename1_dom a1 a2 m = 
+    let val domtab = get_domtab m
     in case Dom.NTab.try_rename1 a1 a2 domtab of 
          NONE => NONE
        | SOME domtab2 => 
          (case Dom.NTab.lookup domtab a1 of 
-            NONE => SOME rel
+            NONE => SOME m
           | SOME b => 
-            SOME (rel |> set_domtab domtab2
+            SOME (m |> set_domtab domtab2
                       |> update_codf 
                       (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a2) b)))
     end;
 
 (* rename codomain element *)    
-fun rename1_opt_cod a1 a2 rel = 
-    let val codtab = get_codtab rel
+fun rename1_opt_cod a1 a2 m = 
+    let val codtab = get_codtab m
     in 
       case Cod.NTab.lookup codtab a1 of 
-        NONE => (NONE, rel)
+        NONE => (NONE, m)
       | SOME domset => 
         let val (a3opt,codtab2) = Cod.NTab.rename1_opt a1 a2 codtab
             val a3 = case a3opt of NONE => a2 | SOME a3' => a3'
         in 
           (a3opt,
-           rel |> set_codtab codtab2
+           m |> set_codtab codtab2
                |> update_domf 
                (fn domtab => 
                    Dom.NSet.fold (Dom.NTab.map_entry (K a3))
@@ -268,15 +273,15 @@ fun rename1_opt_cod a1 a2 rel =
         end
     end;
 
-fun rename1_cod a1 a2 rel = 
-    let val codtab = get_codtab rel
+fun rename1_cod a1 a2 m = 
+    let val codtab = get_codtab m
     in 
       case Cod.NTab.lookup codtab a1 of 
-        NONE => (a2, rel)
+        NONE => (a2, m)
       | SOME domset => 
         let val (a3,codtab2) = Cod.NTab.rename1 a1 a2 codtab in 
           (a3,
-           rel |> set_codtab codtab2
+           m |> set_codtab codtab2
                |> update_domf 
                (fn domtab => 
                    Dom.NSet.fold (Dom.NTab.map_entry (K a3))
@@ -284,19 +289,19 @@ fun rename1_cod a1 a2 rel =
         end
     end;
 
-fun try_rename1_cod a1 a2 rel = 
-    let val codtab = get_codtab rel
+fun try_rename1_cod a1 a2 m = 
+    let val codtab = get_codtab m
     in case Cod.NTab.try_rename1 a1 a2 codtab of 
          NONE => NONE
        | SOME codtab2 => 
          (case Cod.NTab.lookup codtab a1 of 
-            NONE => SOME rel
+            NONE => SOME m
           | SOME domset => 
-           SOME (rel |> set_codtab codtab2
-                     |> update_domf 
-                     (fn domtab => 
-                         Dom.NSet.fold (Dom.NTab.map_entry (K a2))
-                                       domset domtab)))
+           SOME (m |> set_codtab codtab2
+                   |> update_domf 
+                   (fn domtab => 
+                       Dom.NSet.fold (Dom.NTab.map_entry (K a2))
+                                     domset domtab)))
     end;
 
 

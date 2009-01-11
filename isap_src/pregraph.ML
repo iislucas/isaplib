@@ -12,7 +12,7 @@ end;
 
 signature NAME_AND_DATA
 = sig
-include NAMES
+include SSTR_NAMES
 include ORD_DATA
 val default_data : data
 end;
@@ -35,6 +35,16 @@ val mk_hen : half -> name -> Hen.name;
 val hen_is_src : Hen.name -> bool
 val hen_is_tgt : Hen.name -> bool
 val other_hen : Hen.name -> Hen.name (* swap: src <-> tgt *)
+
+val mk_src_hen : name -> Hen.name;
+val mk_tgt_hen : name -> Hen.name;
+
+(* val src_henset : NSet.T -> Hen.NSet.T;
+val tgt_henset : NSet.T -> Hen.NSet.T;
+
+val src_hentab : NTab.T -> Hen.NTab.T;
+val tgt_hentab : NTab.T -> Hen.NTab.T;
+*)
 
 end;
 
@@ -63,10 +73,14 @@ structure Hen : NAMES =
     val default_name = (TargetEnd, Nm.default_name));
 
 fun edge_of_hen ((h,en) : Hen.name) = en;
-fun mk_hen h e = ((h,e) : Hen.name);
 fun hen_is_src ((h,en) : Hen.name) = (SourceEnd = h);
 fun hen_is_tgt ((h,en) : Hen.name) = (TargetEnd = h);
 fun other_hen ((h,en) : Hen.name) = (other_half h, en);
+
+fun mk_hen h e = ((h,e) : Hen.name);
+
+val mk_src_hen = mk_hen SourceEnd;
+val mk_tgt_hen = mk_hen TargetEnd;
 
 end;
 
@@ -93,19 +107,19 @@ val data_eq = K true;
 end;
 
 structure StrNmStrData 
-: NAME_AND_DATA where type name = string and type data = string
+: NAME_AND_DATA where type data = string
 = struct
-open StrName;
-val default_name = "a";
+open SStrName;
+val default_name = mk "a";
 open StrData;
 val default_data = "";
 end;
 
 structure StrNmUnitData 
-: NAME_AND_DATA where type name = string and type data = unit
+: NAME_AND_DATA where type data = unit
 = struct
-open StrName;
-val default_name = "a";
+open SStrName;
+val default_name = mk "a";
 open UnitData;
 val default_data = ();
 end;
@@ -119,23 +133,23 @@ if you make the signature constraint strict, you get:
 StrVertex.NSet.empty : StrVertex.Rnm.T
 *)
 structure StrVertex 
-: VERTEX where type name = string and type data = string
+: VERTEX where type data = string
 = struct
 open StrNmStrData;
-val default_name = "Va";
+val default_name = mk "Va";
 end;
 
 structure UnitVertex 
-: VERTEX where type name = string and type data = unit
+: VERTEX where type data = unit
 = struct
 open StrNmUnitData;
-val default_name = "Va";
+val default_name = mk "Va";
 end;
 
 structure UnitEdge 
-: EDGE where type name = string and type data = unit
+: EDGE where type data = unit
 = EdgeFun(StrNmUnitData);
 
 structure StrEdge 
-: EDGE where type name = string and type data = string
+: EDGE where type data = string
 = EdgeFun(StrNmStrData);

@@ -187,7 +187,7 @@ structure StrIntName : STR_INT_NAMES =
 
 (* safe (string * int) names *)
 signature SSTR_INT_NAMES = SNAMES where type external_name = string * int;
-structure SStrIntName :> SSTR_INT_NAMES
+structure SStrIntName : SSTR_INT_NAMES
 = struct
   open StrIntName;
   type external_name = string * int;
@@ -202,7 +202,7 @@ structure IntName : INT_NAMES =
 
 (* safe int names *)
 signature SINT_NAMES = SNAMES where type external_name = int;
-structure SIntName :> SINT_NAMES
+structure SIntName : SINT_NAMES
 = struct
 open IntName;
 type external_name = int;

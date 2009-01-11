@@ -411,6 +411,9 @@ val print = Pretty.writeln o pretty;
 end;
 
 
+
+(* FIXME: make below work again and put into testing file *)
+(* 
 (* An instance of Basic Graph: strings at vertices and edges *)
 structure DB_StrRGraph = BasicRGraphFun(
   structure Vertex = StrVertex
@@ -471,3 +474,6 @@ val g = g |> ParamRGraph.new_named_edge ("R1") ()
 val _ = ParamRGraph.print g; 
 val _ = ParamRGraph.shortest_path g ("a") ("c"); 
 val _ = ParamRGraph.get_connected_vertices g ("a");
+
+
+*)
