@@ -14,6 +14,7 @@ signature NAME_AND_DATA
 = sig
 include NAMES
 include ORD_DATA
+val default_data : data
 end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
@@ -57,6 +58,7 @@ structure StrVertex
 open StrName;
 val default_name = "Va";
 open StrData;
+val default_data = "";
 end;
 
 structure UnitVertex 
@@ -65,6 +67,7 @@ structure UnitVertex
 open StrName;
 val default_name = "Va";
 open UnitData;
+val default_data = ();
 end;
 
 
@@ -74,6 +77,7 @@ structure UnitEdge
 open StrName;
 val default_name = "Ea";
 open UnitData;
+val default_data = ();
 end;
 
 structure StrEdge 
@@ -82,4 +86,5 @@ structure StrEdge
 open StrName;
 val default_name = "Ea";
 open StrData;
+val default_data = "";
 end;
