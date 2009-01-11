@@ -172,6 +172,6 @@ fun profile 0 f x = f x
 
 
 fun do_and_exit_or_die f = 
-    (PolyML.exception_trace f; OS.Process.exit OS.Process.success)
+    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
     handle _ => OS.Process.exit OS.Process.failure;
  
