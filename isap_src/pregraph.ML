@@ -19,8 +19,56 @@ end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 signature VERTEX = NAME_AND_DATA;
-signature EDGE = NAME_AND_DATA;
 
+signature EDGE = 
+sig 
+include NAME_AND_DATA;
+
+(* my own bool type for clarity *)
+datatype half = TargetEnd | SourceEnd;
+val other_half : half -> half (* not *)
+
+(* half edge name: half * name *)
+structure Hen : NAMES
+val edge_of_hen : Hen.name -> name;
+val mk_hen : half -> name -> Hen.name;
+val hen_is_src : Hen.name -> bool
+val hen_is_tgt : Hen.name -> bool
+val other_hen : Hen.name -> Hen.name (* swap: src <-> tgt *)
+
+end;
+
+
+functor EdgeFun(Nm : NAME_AND_DATA)
+: EDGE 
+= struct
+open Nm;
+
+(* half = bool, using my own datatype for clarity/readability *)
+datatype half = TargetEnd | SourceEnd;
+fun other_half TargetEnd = SourceEnd
+  | other_half SourceEnd = TargetEnd;
+
+structure Hen : NAMES = 
+  AddDataNameFun(
+    structure Nm = Nm
+    type data = half
+    (* false = source, true = target *)
+    fun ord_data (TargetEnd, TargetEnd) = EQUAL
+      | ord_data (TargetEnd, SourceEnd) = GREATER
+      | ord_data (SourceEnd, TargetEnd) = LESS
+      | ord_data (SourceEnd, SourceEnd) = EQUAL
+    fun pretty (TargetEnd,n) = Pretty.block [Pretty.str "->", Nm.pretty_name n]
+      | pretty (SourceEnd,n) = Pretty.block [Pretty.str "<-", Nm.pretty_name n]
+    val default_name = (TargetEnd, Nm.default_name));
+
+fun edge_of_hen ((h,en) : Hen.name) = en;
+fun mk_hen h e = ((h,e) : Hen.name);
+fun hen_is_src ((h,en) : Hen.name) = (SourceEnd = h);
+fun hen_is_tgt ((h,en) : Hen.name) = (TargetEnd = h);
+fun other_hen ((h,en) : Hen.name) = (other_half h, en);
+
+end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  Kinds of data *)
@@ -44,6 +92,24 @@ val data_ord = K EQUAL;
 val data_eq = K true;
 end;
 
+structure StrNmStrData 
+: NAME_AND_DATA where type name = string and type data = string
+= struct
+open StrName;
+val default_name = "a";
+open StrData;
+val default_data = "";
+end;
+
+structure StrNmUnitData 
+: NAME_AND_DATA where type name = string and type data = unit
+= struct
+open StrName;
+val default_name = "a";
+open UnitData;
+val default_data = ();
+end;
+
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  Some instances of edges and vertices *)
@@ -55,36 +121,21 @@ StrVertex.NSet.empty : StrVertex.Rnm.T
 structure StrVertex 
 : VERTEX where type name = string and type data = string
 = struct
-open StrName;
+open StrNmStrData;
 val default_name = "Va";
-open StrData;
-val default_data = "";
 end;
 
 structure UnitVertex 
 : VERTEX where type name = string and type data = unit
 = struct
-open StrName;
+open StrNmUnitData;
 val default_name = "Va";
-open UnitData;
-val default_data = ();
 end;
-
 
 structure UnitEdge 
 : EDGE where type name = string and type data = unit
-= struct
-open StrName;
-val default_name = "Ea";
-open UnitData;
-val default_data = ();
-end;
+= EdgeFun(StrNmUnitData);
 
 structure StrEdge 
 : EDGE where type name = string and type data = string
-= struct
-open StrName;
-val default_name = "Ea";
-open StrData;
-val default_data = "";
-end;
+= EdgeFun(StrNmStrData);
