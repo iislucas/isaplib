@@ -17,52 +17,44 @@ include ORD_DATA
 val default_data : data
 end;
 
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-signature VERTEX = NAME_AND_DATA;
+(* names for half edges and edge directions *)
+signature EHN_NAMES
+= sig
 
-signature EDGE = 
-sig 
-include NAME_AND_DATA;
-
-(* my own bool type for clarity *)
-datatype half = TargetEnd | SourceEnd;
-val other_half : half -> half (* not *)
-
-(* half edge name: half * name *)
-structure Hen : NAMES
-val edge_of_hen : Hen.name -> name;
-val mk_hen : half -> name -> Hen.name;
-val hen_is_src : Hen.name -> bool
-val hen_is_tgt : Hen.name -> bool
-val other_hen : Hen.name -> Hen.name (* swap: src <-> tgt *)
-
-val mk_src_hen : name -> Hen.name;
-val mk_tgt_hen : name -> Hen.name;
-
-(* val src_henset : NSet.T -> Hen.NSet.T;
-val tgt_henset : NSet.T -> Hen.NSet.T;
-
-val src_hentab : NTab.T -> Hen.NTab.T;
-val tgt_hentab : NTab.T -> Hen.NTab.T;
+(* my own bool type for clarity, 
+   Its used for two meaning: 1. direction, 2. half edge id. 
+   TargetEnd = normal direction, Target-end
+   SourceEnd = reversed direction, Source-end
 *)
+datatype halfid = TargetEnd | SourceEnd;
+val other_half : halfid -> halfid (* not *)
+
+type edgename
+include NAMES
+
+val get_ename : name -> edgename
+val get_halfid : name -> halfid
+val other : name -> name (* swap: src <-> tgt *)
+val mk_src : edgename -> name;
+val mk_tgt : edgename -> name;
+val is_src : name -> bool
+val is_tgt : name -> bool
 
 end;
 
+functor EhnFun(Nm : NAMES) 
+: EHN_NAMES 
+(* where type edgename = Nm.name *)
+= struct 
+  type edgename = Nm.name;
+  (* half = bool, using my own datatype for clarity/readability *)
+  datatype halfid = TargetEnd | SourceEnd;
+  fun other_half TargetEnd = SourceEnd
+    | other_half SourceEnd = TargetEnd;
 
-functor EdgeFun(Nm : NAME_AND_DATA)
-: EDGE 
-= struct
-open Nm;
-
-(* half = bool, using my own datatype for clarity/readability *)
-datatype half = TargetEnd | SourceEnd;
-fun other_half TargetEnd = SourceEnd
-  | other_half SourceEnd = TargetEnd;
-
-structure Hen : NAMES = 
-  AddDataNameFun(
+  structure EhnN = AddDataNameFun(
     structure Nm = Nm
-    type data = half
+    type data = halfid
     (* false = source, true = target *)
     fun ord_data (TargetEnd, TargetEnd) = EQUAL
       | ord_data (TargetEnd, SourceEnd) = GREATER
@@ -71,16 +63,50 @@ structure Hen : NAMES =
     fun pretty (TargetEnd,n) = Pretty.block [Pretty.str "->", Nm.pretty_name n]
       | pretty (SourceEnd,n) = Pretty.block [Pretty.str "<-", Nm.pretty_name n]
     val default_name = (TargetEnd, Nm.default_name));
+  open EhnN;
 
-fun edge_of_hen ((h,en) : Hen.name) = en;
-fun hen_is_src ((h,en) : Hen.name) = (SourceEnd = h);
-fun hen_is_tgt ((h,en) : Hen.name) = (TargetEnd = h);
-fun other_hen ((h,en) : Hen.name) = (other_half h, en);
+  fun get_ename ((h,en) : name) = en;
+  fun get_halfid ((h,en) : name) = h;
+  fun is_src ((h,en) : name) = (SourceEnd = h);
+  fun is_tgt ((h,en) : name) = (TargetEnd = h);
+  fun other ((h,en) : name) = (other_half h, en);
+      
+  fun mk h e = ((h,e) : name);
+  
+  val mk_src = mk SourceEnd;
+  val mk_tgt = mk TargetEnd;
+end;
 
-fun mk_hen h e = ((h,e) : Hen.name);
 
-val mk_src_hen = mk_hen SourceEnd;
-val mk_tgt_hen = mk_hen TargetEnd;
+
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
+signature VERTEX = NAME_AND_DATA;
+
+signature EDGE = 
+sig 
+include NAME_AND_DATA;
+
+structure Ehn : EHN_NAMES where type edgename = name; 
+
+val add_src_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
+val add_tgt_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
+
+end;
+
+
+
+
+functor EdgeFun(Nm : NAME_AND_DATA)
+ : EDGE
+= struct
+open Nm;
+
+structure Ehn = EhnFun(Nm); 
+
+val add_src_ehns = 
+    NSet.fold (Ehn.NSet.add o Ehn.mk_src);
+val add_tgt_ehns = 
+    NSet.fold (Ehn.NSet.add o Ehn.mk_tgt);
 
 end;
 
