@@ -19,6 +19,7 @@ where type Vertex.name = string
   and type Edge.data = string
 = DB_StrRGraph;
 
+in val _ = let 
 val g = StrRGraph.empty;
 val g = g |> StrRGraph.new_named_vertex ("a") ("");
 val g = g |> StrRGraph.new_named_vertex ("b") ("");
@@ -34,18 +35,6 @@ val _ = StrRGraph.shortest_path g ("a") ("c");
 
 val _ = StrRGraph.get_connected_vertices g ("a");
 
-
-structure DB_ParamRGraph = BasicRGraphFun(
-  structure Vertex = UnitVertex
-  and Edge = UnitEdge
-);
-
-structure ParamRGraph : BASIC_RGRAPH 
-where type Vertex.name = string
-  and type Vertex.data = unit
-  and type Edge.name = string
-  and type Edge.data = unit
-= DB_ParamRGraph;
 
 val g = ParamRGraph.empty;
 val g = g |> ParamRGraph.new_named_vertex ("a") ();

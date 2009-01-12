@@ -13,3 +13,4 @@
 
 use "nameset.ML";
 use "name_brel.ML";
+use "rgraph.ML";

@@ -411,3 +411,15 @@ val print = Pretty.writeln o pretty;
 end;
 
 
+(* basic parameter n-relation-graph *)
+structure DB_ParamRGraph = BasicRGraphFun(
+  structure Vertex = UnitVertex
+  and Edge = UnitEdge
+);
+
+structure ParamRGraph : BASIC_RGRAPH 
+where type Vertex.name = string
+  and type Vertex.data = unit
+  and type Edge.name = string
+  and type Edge.data = unit
+= DB_ParamRGraph;
