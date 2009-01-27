@@ -36,9 +36,9 @@ signature NAMES
   sharing NTab.Tab = Tab;
 
   structure Rnm : RENAMING 
-  where type name = name 
-  and type nset = NSet.T 
-  and type 'a nmap = 'a NTab.T
+  sharing type Rnm.name = name 
+  sharing type Rnm.nset = NSet.T 
+  sharing type Rnm.nmap = NTab.T (* note compound type... *)
 
   sharing type NTab.renaming = Rnm.T 
   sharing type NSet.renaming = Rnm.T;
