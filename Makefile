@@ -23,22 +23,22 @@ default: heaps/$(POLYML_ALL_HEAP)
 
 # make polyml heap
 
-heaps/polyml.polyml-heap: $(ML_SYSTEM_FILES)
-	echo 'PolyML.use "ML-Systems/polyml.ML"; SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; OS.Process.exit OS.Process.success;' | $(POLYML)
+heaps/$(POLYML_SYSTEM_HEAP): $(ML_SYSTEM_FILES)
+	echo 'PolyML.use "ML-Systems/polyml.ML"; PolyML.fullGC (); SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; OS.Process.exit OS.Process.success;' | $(POLYML)
 
 heaps/$(POLYML_BASIC_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_BASIC_SRC_FILES)
 	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; do_and_exit_or_die (fn () => (cd "basic"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_BASIC_HEAP)"));' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_BASIC_HEAP)"
 
 heaps/$(POLYML_ALL_HEAP): heaps/$(POLYML_BASIC_HEAP) $(ML_NAMES_SRC_FILES) $(ML_GRAPH_SRC_FILES)  $(ML_PARSER_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_BASIC_HEAP)"; do_and_exit_or_die (fn () => (cd "names"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; cd "../graph"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_ALL_HEAP)"));' | $(POLYML)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_BASIC_HEAP)"; do_and_exit_or_die (fn () => (cd "names"; PolyML.use "ROOT.ML"; cd "../graph"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_ALL_HEAP)"));' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ALL_HEAP)"
 
-run-$(POLYML_ALL_HEAP): heaps/$(POLYML_BASIC_HEAP)
-	(echo '(cd "names"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; cd "../graph"; PolyML.use "ROOT.ML"; cd "..");'; cat) | $(POLYML)
+run-$(POLYML_BASIC_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_BASIC_SRC_FILES)
+	(echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; cd "basic"; PolyML.use "ROOT.ML"; cd "..";'; cat) | $(POLYML)
 
-run-$(POLYML_BASIC_HEAP): heaps/$(POLYML_BASIC_HEAP)
-	./bin/polyml-basic
+run-$(POLYML_ALL_HEAP): heaps/$(POLYML_BASIC_HEAP) $(ML_NAMES_SRC_FILES) $(ML_GRAPH_SRC_FILES)  $(ML_PARSER_SRC_FILES)
+	(echo 'PolyML.SaveState.loadState "heaps/$(POLYML_BASIC_HEAP)"; cd "names"; PolyML.use "ROOT.ML"; cd "../graph"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd "..";'; cat) | $(POLYML)
 
 run-all: run-$(POLYML_ALL_HEAP)
 run-basic: run-$(POLYML_BASIC_HEAP)
