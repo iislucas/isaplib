@@ -1,9 +1,19 @@
 (* using this file should be equivalent to "make run-isap" *)
-cd "isa_src";
+PolyML.use "ML-Systems/polyml.ML";
+
+cd "basic";
 PolyML.use "ROOT.ML";
 cd "..";
 
-cd "isap_src";
+cd "concurrent";
+PolyML.use "ROOT.ML";
+cd "..";
+
+cd "names";
+PolyML.use "ROOT.ML";
+cd "..";
+
+cd "graph";
 PolyML.use "ROOT.ML";
 cd "..";
 

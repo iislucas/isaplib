@@ -1,5 +1,4 @@
 (*  Title:      Pure/ML-Systems/time_limit.ML
-    ID:         $Id: time_limit.ML,v 1.1 2007/09/24 11:54:57 wenzelm Exp $
     Author:     Makarius
 
 Dummy implementation of NJ's TimeLimit structure.

@@ -1,5 +1,4 @@
 (*  Title:      Pure/ML-Systems/alice.ML
-    ID:         $Id: alice.ML,v 1.24 2008/05/28 20:13:31 wenzelm Exp $
 
 Compatibility file for Alice 1.4.
 
@@ -213,15 +212,7 @@ struct
   end;
 end;
 
-structure Posix =
-struct
-  structure ProcEnv =
-  struct
-    fun getpid () = raise Fail "Posix.ProcEnv.getpoid undefined";
-  end;
-end;
-
-fun string_of_pid _ = raise Fail "string_of_pid undefined";
+fun process_id () = raise Fail "process_id undefined";
 
 fun getenv var =
   (case OS.Process.getEnv var of

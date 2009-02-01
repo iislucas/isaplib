@@ -1,16 +1,34 @@
 (*  Title:      Pure/ML-Systems/polyml.ML
-    ID:         $Id: polyml.ML,v 1.69 2008/05/14 09:05:11 wenzelm Exp $
 
-Compatibility wrapper for Poly/ML (after 5.1).
+Compatibility wrapper for Poly/ML 5.2 or later.
 *)
 
+open Thread;
 use "ML-Systems/polyml_common.ML";
-use "ML-Systems/multithreading_polyml.ML";
+
+(* Added for standalone polyml usage *)
+val ml_system = "polyml-5.2";
+fun do_and_exit_or_die f = 
+    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
+    handle _ => OS.Process.exit OS.Process.failure;
+
+(* back to Isabelle's stuff... *)
+if ml_system = "polyml-5.2"
+then use "ML-Systems/thread_dummy.ML"
+else use "ML-Systems/multithreading_polyml.ML";
 
 val pointer_eq = PolyML.pointerEq;
 
+fun share_common_data () = PolyML.shareCommonData PolyML.rootFunction;
+
 
 (* runtime compilation *)
+
+structure ML_NameSpace =
+struct
+  open PolyML.NameSpace;
+  val global = PolyML.globalNameSpace;
+end;
 
 local
 
@@ -20,7 +38,8 @@ fun drop_newline s =
 
 in
 
-fun use_text (tune: string -> string) str_of_pos (start_line, name) (print, err) verbose txt =
+fun isa_use_text (tune: string -> string) str_of_pos
+    name_space (start_line, name) (print, err) verbose txt =
   let
     val current_line = ref start_line;
     val in_buffer = ref (String.explode (tune txt));
@@ -39,7 +58,8 @@ fun use_text (tune: string -> string) str_of_pos (start_line, name) (print, err)
     val parameters =
      [PolyML.Compiler.CPOutStream put,
       PolyML.Compiler.CPLineNo (fn () => ! current_line),
-      PolyML.Compiler.CPErrorMessageProc (put o message)];
+      PolyML.Compiler.CPErrorMessageProc (put o message),
+      PolyML.Compiler.CPNameSpace name_space];
     val _ =
       (while not (List.null (! in_buffer)) do
         PolyML.compiler (get, parameters) ())
@@ -48,11 +68,13 @@ fun use_text (tune: string -> string) str_of_pos (start_line, name) (print, err)
         err (output ()); raise exn);
   in if verbose then print (output ()) else () end;
 
-fun use_file tune str_of_pos output verbose name =
+fun isa_use_file tune str_of_pos name_space output verbose name =
   let
     val instream = TextIO.openIn name;
     val txt = Exn.release (Exn.capture TextIO.inputAll instream before TextIO.closeIn instream);
-  in use_text tune str_of_pos (1, name) output verbose txt end;
+  in isa_use_text tune str_of_pos name_space (1, name) output verbose txt end;
+
+val use_text = isa_use_text;
+val use_file = isa_use_file;
 
 end;
-

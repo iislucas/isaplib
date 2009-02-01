@@ -1,15 +1,18 @@
 (*  Title:      Pure/ML-Systems/smlnj.ML
-    ID:         $Id: smlnj.ML,v 1.56 2008/05/14 09:09:07 wenzelm Exp $
 
 Compatibility file for Standard ML of New Jersey 110 or later.
 *)
+
+exception Interrupt;
 
 use "ML-Systems/proper_int.ML";
 use "ML-Systems/overloading_smlnj.ML";
 use "ML-Systems/exn.ML";
 use "ML-Systems/universal.ML";
+use "ML-Systems/thread_dummy.ML";
 use "ML-Systems/multithreading.ML";
 use "ML-Systems/system_shell.ML";
+use "ML-Systems/ml_name_space.ML";
 
 
 (*low-level pointer equality*)
@@ -111,7 +114,7 @@ fun install_pp (path, pp) = CompilerPPTable.install_pp path pp;
 
 (* ML command execution *)
 
-fun use_text (tune: string -> string) _ (line: int, name) (print, err) verbose txt =
+fun use_text (tune: string -> string) _ _ (line: int, name) (print, err) verbose txt =
   let
     val ref out_orig = Control.Print.out;
 
@@ -129,21 +132,19 @@ fun use_text (tune: string -> string) _ (line: int, name) (print, err) verbose t
     if verbose then print (output ()) else ()
   end;
 
-fun use_file tune str_of_pos output verbose name =
+fun use_file tune str_of_pos name_space output verbose name =
   let
     val instream = TextIO.openIn name;
     val txt = Exn.release (Exn.capture TextIO.inputAll instream before TextIO.closeIn instream);
-  in use_text tune str_of_pos (1, name) output verbose txt end;
+  in use_text tune str_of_pos name_space (1, name) output verbose txt end;
 
 fun forget_structure name =
-  use_text (fn x => x) (fn _ => "") (1, "ML") (TextIO.print, fn s => raise Fail s) false
+  use_text (fn x => x) (fn _ => "") () (1, "ML") (TextIO.print, fn s => raise Fail s) false
     ("structure " ^ name ^ " = struct end");
 
 
 
 (** interrupts **)
-
-exception Interrupt;
 
 local
 
@@ -185,45 +186,6 @@ struct
 end;
 
 
-(** Signal handling: emulation of the Poly/ML Signal structure. Note that types
-    Posix.Signal.signal and Signals.signal differ **)
-
-structure IsaSignal =
-struct
-
-datatype sig_handle = SIG_DFL | SIG_IGN | SIG_HANDLE of Signals.signal -> unit;
-
-(*From the SML/NJ documentation: "HANDLER(f) installs a handler for a
-  signal. When signal is delivered to the process, the execution state
-  of the current thread will be bundled up as a continuation k, then
-  f(signal,n,k) will be called. The number n is the number of times
-  signal has been signalled since the last time f was invoked for it."*)
-
-fun toAction SIG_DFL = Signals.DEFAULT
-  | toAction SIG_IGN = Signals.IGNORE
-  | toAction (SIG_HANDLE iu) =
-      Signals.HANDLER (fn (signo,_,cont) => (iu signo; cont));
-
-(*The types are correct, but I'm not sure about the semantics!*)
-fun fromAction Signals.DEFAULT = SIG_DFL
-  | fromAction Signals.IGNORE = SIG_IGN
-  | fromAction (Signals.HANDLER f) =
-      SIG_HANDLE (fn signo => SMLofNJ.Cont.callcc (fn k => (f (signo,0,k); ())));
-
-(*Poly/ML version has type  int * sig_handle -> sig_handle*)
-fun signal (signo, sh) = fromAction (Signals.setHandler (signo, toAction sh));
-
-val usr1 = UnixSignals.sigUSR1
-val usr2 = UnixSignals.sigUSR2
-val alrm = UnixSignals.sigALRM
-val chld = UnixSignals.sigCHLD
-val cont = UnixSignals.sigCONT
-val int = UnixSignals.sigINT
-val quit = UnixSignals.sigQUIT
-val term = UnixSignals.sigTERM
-
-end;
-
 
 (** OS related **)
 
@@ -239,8 +201,8 @@ val system_out = (fn (output, rc) => (output, mk_int rc)) o system_out;
 
 
 (*Convert a process ID to a decimal string (chiefly for tracing)*)
-fun string_of_pid pid =
-  Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord pid));
+fun process_id pid =
+  Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord (Posix.ProcEnv.getpid ())));
 
 
 (* getenv *)

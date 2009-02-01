@@ -1,10 +1,9 @@
 (*  Title:      Pure/ML-Systems/polyml_old_compiler5.ML
-    ID:         $Id: polyml_old_compiler5.ML,v 1.5 2008/05/14 09:09:07 wenzelm Exp $
 
 Runtime compilation -- for old PolyML.compilerEx (version 5.0, 5.1).
 *)
 
-fun use_text (tune: string -> string) _ (line, name) (print, err) verbose txt =
+fun use_text (tune: string -> string) _ _ (line, name) (print, err) verbose txt =
   let
     val in_buffer = ref (explode (tune txt));
     val out_buffer = ref ([]: string list);
@@ -26,9 +25,8 @@ fun use_text (tune: string -> string) _ (line, name) (print, err) verbose txt =
     if verbose then print (output ()) else ()
   end;
 
-fun use_file tune str_of_pos output verbose name =
+fun use_file tune str_of_pos name_space output verbose name =
   let
     val instream = TextIO.openIn name;
     val txt = Exn.release (Exn.capture TextIO.inputAll instream before TextIO.closeIn instream);
-  in use_text tune str_of_pos (1, name) output verbose txt end;
-
+  in use_text tune str_of_pos name_space (1, name) output verbose txt end;

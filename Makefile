@@ -1,46 +1,48 @@
 # Targets: 
 
-ML_ISA_SRC_FILES = $(shell ls isa_src/*.ML)
-ML_ISAP_SRC_FILES = $(shell ls isap_src/*.ML)
+ML_BASIC_SRC_FILES = $(shell ls basic/*.ML)
+ML_NAMES_SRC_FILES = $(shell ls names/*.ML names/test/*.ML)
+ML_GRAPH_SRC_FILES = $(shell ls graph/*.ML graph/test/*.ML)
+# ML_SEARCH_SRC_FILES = $(shell ls search/*.ML)
 ML_PARSER_SRC_FILES = $(shell ls parser/*.ML parser/examples/*.ML)
 ML_SYSTEM_FILES = $(shell ls ML-Systems/*.ML)
 
 
 
 POLYML=poly
-POLYML_SYSTEM_HEAP=polyml-5.2.polyml-heap
-POLYML_ISA_HEAP=isalib.polyml-heap
-POLYML_ISAP_HEAP=isaplib.polyml-heap
+POLYML_SYSTEM_HEAP=polyml.polyml-heap
+POLYML_BASIC_HEAP=basic.polyml-heap
+POLYML_NAMES_HEAP=names.polyml-heap
+POLYML_GRAPH_HEAP=graph.polyml-heap
+POLYML_SEARCH_HEAP=search.polyml-heap
+POLYML_ALL_HEAP=all.polyml-heap
 
-default: heaps/$(POLYML_ISAP_HEAP)
+default: heaps/$(POLYML_ALL_HEAP)
 
 ################
 
 # make polyml heap
 
-heaps/polyml-5.2.polyml-heap: $(ML_SYSTEM_FILES)
+heaps/polyml.polyml-heap: $(ML_SYSTEM_FILES)
 	echo 'PolyML.use "ML-Systems/polyml.ML"; SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; OS.Process.exit OS.Process.success;' | $(POLYML)
 
-heaps/polyml-5.1.polyml-heap: $(ML_SYSTEM_FILES)
-	echo 'PolyML.use "ML-Systems/polyml-5.1.ML"; SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; OS.Process.exit OS.Process.success;' | $(POLYML)
+heaps/$(POLYML_BASIC_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_BASIC_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; do_and_exit_or_die (fn () => (cd "basic"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_BASIC_HEAP)"));' | $(POLYML)
+	@echo "Built polyml heap: $(POLYML_BASIC_HEAP)"
 
-heaps/$(POLYML_ISA_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_ISA_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; do_and_exit_or_die (fn () => (cd "isa_src"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_ISA_HEAP)"));' | $(POLYML)
-	@echo "Built polyml heap: $(POLYML_ISA_HEAP)"
+heaps/$(POLYML_ALL_HEAP): heaps/$(POLYML_BASIC_HEAP) $(ML_NAMES_SRC_FILES) $(ML_GRAPH_SRC_FILES)  $(ML_PARSER_SRC_FILES)
+	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_BASIC_HEAP)"; do_and_exit_or_die (fn () => (cd "names"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; cd "../graph"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_ALL_HEAP)"));' | $(POLYML)
+	@echo "Built polyml heap: $(POLYML_ALL_HEAP)"
 
-heaps/$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP) $(ML_ISAP_SRC_FILES) $(ML_PARSER_SRC_FILES)
-	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; do_and_exit_or_die (fn () => (cd "isap_src"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_ISAP_HEAP)"));' | $(POLYML)
-	@echo "Built polyml heap: $(POLYML_ISAP_HEAP)"
+run-$(POLYML_ALL_HEAP): heaps/$(POLYML_BASIC_HEAP)
+	(echo '(cd "names"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd ".."; cd "../graph"; PolyML.use "ROOT.ML"; cd "..");'; cat) | $(POLYML)
 
-run-$(POLYML_ISAP_HEAP): heaps/$(POLYML_ISA_HEAP)
-	(echo 'PolyML.SaveState.loadState "heaps/$(POLYML_ISA_HEAP)"; cd "isap_src"; PolyML.use "ROOT.ML"; cd "../parser"; PolyML.use "ROOT.ML"; cd "..";'; cat) | $(POLYML)
+run-$(POLYML_BASIC_HEAP): heaps/$(POLYML_BASIC_HEAP)
+	./bin/polyml-basic
 
-run-$(POLYML_ISA_HEAP): heaps/$(POLYML_ISA_HEAP)
-	./bin/polyml-isalib
-
-run-isap: run-$(POLYML_ISAP_HEAP)
-run-isa: run-$(POLYML_ISA_HEAP)
-run: run-$(POLYML_ISAP_HEAP)
+run-all: run-$(POLYML_ALL_HEAP)
+run-basic: run-$(POLYML_BASIC_HEAP)
+run: run-$(POLYML_ALL_HEAP)
 
 clean: 
 	rm -f heaps/*.polyml-heap

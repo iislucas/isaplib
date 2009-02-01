@@ -1,14 +1,13 @@
 (*  Title:      Pure/ML-Systems/mosml.ML
-    ID:         $Id: mosml.ML,v 1.40 2008/05/28 19:06:17 wenzelm Exp $
     Author:     Lawrence C Paulson, Cambridge University Computer Laboratory
-    Copyright   1999  University of Cambridge
+    Author:     Makarius
 
 Compatibility file for Moscow ML 2.01
 
 NOTE: saving images does not work; may run it interactively as follows:
 
 $ cd Isabelle/src/Pure
-$ isabelle RAW_ML_SYSTEM
+$ isabelle-process RAW_ML_SYSTEM
 > val ml_system = "mosml";
 > use "ML-Systems/mosml.ML";
 > use "ROOT.ML";
@@ -27,6 +26,7 @@ val ml_system_fix_ints = false;
 fun forget_structure _ = ();
 
 load "Obj";
+load "Word";
 load "Bool";
 load "Int";
 load "Real";
@@ -35,11 +35,16 @@ load "OS";
 load "Process";
 load "FileSys";
 load "IO";
+load "CharVector";
+
+exception Interrupt;
 
 use "ML-Systems/exn.ML";
 use "ML-Systems/universal.ML";
+use "ML-Systems/thread_dummy.ML";
 use "ML-Systems/multithreading.ML";
 use "ML-Systems/time_limit.ML";
+use "ML-Systems/ml_name_space.ML";
 
 
 (*low-level pointer equality*)
@@ -50,6 +55,14 @@ in fun pointer_eq (x:'a, y:'a) = (cast x = cast y) end;
 structure IntInf =
 struct
   fun divMod (x, y) = (x div y, x mod y);
+
+  local
+    fun log 1 a = a
+      | log n a = log (n div 2) (a + 1);
+  in
+    fun log2 n = if n > 0 then log n 0 else raise Domain;
+  end;
+
   open Int;
 end;
 
@@ -83,7 +96,11 @@ end;
 structure OS =
 struct
   open OS
-  structure Process = Process
+  structure Process =
+  struct
+    open Process
+    fun sleep _ = raise Fail "OS.Process.sleep undefined"
+  end;
   structure FileSys = FileSys
 end;
 
@@ -152,13 +169,24 @@ struct
   fun inputLine is =
     let val s = TextIO.inputLine is
     in if s = "" then NONE else SOME s end;
+  fun getOutstream _ = ();
+  structure StreamIO =
+  struct
+    fun setBufferMode _ = ();
+  end
+end;
+
+structure IO =
+struct
+  open IO;
+  val BLOCK_BUF = ();
 end;
 
 
 (* ML command execution *)
 
 (*Can one redirect 'use' directly to an instream?*)
-fun use_text (tune: string -> string) _ _ _ _ txt =
+fun use_text (tune: string -> string) _ _ _ _ _ txt =
   let
     val tmp_name = FileSys.tmpName ();
     val tmp_file = TextIO.openOut tmp_name;
@@ -169,15 +197,13 @@ fun use_text (tune: string -> string) _ _ _ _ txt =
     FileSys.remove tmp_name
   end;
 
-fun use_file _ _ _ _ name = use name;
+fun use_file _ _ _ _ _ name = use name;
 
 
 
 (** interrupts **)      (*Note: may get into race conditions*)
 
 (* FIXME proper implementation available? *)
-
-exception Interrupt;
 
 fun interruptible f x = f x;
 fun uninterruptible f x = f (fn (g: 'c -> 'd) => g) x;
@@ -229,7 +255,7 @@ end;
 val cd = OS.FileSys.chDir;
 val pwd = OS.FileSys.getDir;
 
-val string_of_pid = Int.toString;
+val process_id = Int.toString o Posix.ProcEnv.getpid;
 
 fun getenv var =
   (case Process.getEnv var of

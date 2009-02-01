@@ -1,5 +1,4 @@
 (*  Title:      Pure/ML-Systems/polyml_old_basis.ML
-    ID:         $Id: polyml_old_basis.ML,v 1.1 2008/03/06 18:21:28 wenzelm Exp $
 
 Fixes for the old SML basis library (before Poly/ML 4.2.0).
 *)
@@ -19,17 +18,6 @@ structure Substring =
 struct
   open Substring;
   val full = all;
-end;
-
-structure Posix =
-struct
-  open Posix;
-  structure IO =
-  struct
-    open IO;
-    val mkTextReader = mkReader;
-    val mkTextWriter = mkWriter;
-  end;
 end;
 
 structure TextIO =

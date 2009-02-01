@@ -1,5 +1,4 @@
 (*  Title:      Pure/ML-Systems/system_shell.ML
-    ID:         $Id: system_shell.ML,v 1.2 2008/03/31 21:08:56 wenzelm Exp $
     Author:     Makarius
 
 Generic system shell processes (no provisions to propagate interrupts;

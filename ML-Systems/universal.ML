@@ -1,9 +1,8 @@
 (*  Title:      Pure/ML-Systems/universal.ML
-    ID:         $Id: universal.ML,v 1.1 2007/12/20 20:12:00 wenzelm Exp $
     Author:     Makarius
 
 Universal values via tagged union.  Emulates structure Universal
-in Poly/ML 5.1.
+from Poly/ML 5.1.
 *)
 
 signature UNIVERSAL =

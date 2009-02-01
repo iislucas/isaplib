@@ -1,5 +1,4 @@
 (*  Title:      Pure/ML-Systems/proper_int.ML
-    ID:         $Id: proper_int.ML,v 1.3 2007/09/16 13:36:57 wenzelm Exp $
     Author:     Makarius
 
 SML basis with type int representing proper integers, not machine
@@ -191,20 +190,5 @@ structure Time =
 struct
   open Time;
   fun fmt a b = Time.fmt (dest_int a) b;
-end;
-
-
-(* Posix *)
-
-structure Posix =
-struct
-  open Posix;
-  structure IO =
-  struct
-    open IO;
-    fun mkTextWriter {appendMode, chunkSize, fd, initBlkMode, name} =
-      IO.mkTextWriter {appendMode = appendMode, chunkSize = dest_int chunkSize,
-        fd = fd, initBlkMode = initBlkMode, name = name};
-  end;
 end;
 

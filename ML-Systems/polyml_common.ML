@@ -1,16 +1,15 @@
 (*  Title:      Pure/ML-Systems/polyml_common.ML
-    ID:         $Id: polyml_common.ML,v 1.4 2008/03/28 21:39:48 wenzelm Exp $
 
 Compatibility file for Poly/ML -- common part for 4.x and 5.x.
 *)
 
+exception Interrupt = SML90.Interrupt;
+
 use "ML-Systems/exn.ML";
-if List.exists (fn s => s = "Universal") (PolyML.Compiler.structureNames ()) then ()
-else use "ML-Systems/universal.ML";
 use "ML-Systems/multithreading.ML";
 use "ML-Systems/time_limit.ML";
 use "ML-Systems/system_shell.ML";
-
+use "ML-Systems/ml_name_space.ML";
 
 
 (** ML system and platform related **)
@@ -29,12 +28,11 @@ PolyML.Compiler.maxInlineSize := 80;
 (* old Poly/ML emulation *)
 
 local
-  fun exit 0 = (OS.Process.exit OS.Process.success): unit | exit _ = OS.Process.exit OS.Process.failure;
-  val orig_exit = exit;
+  val orig_exit = OS.Process.exit;
 in
   open PolyML;
   val exit = orig_exit;
-  fun quit () = exit 0;
+  fun quit () = exit OS.Process.success;
 end;
 
 
@@ -92,8 +90,6 @@ end;
 
 (** interrupts **)
 
-exception Interrupt = SML90.Interrupt;
-
 local
 
 val sig_int = 2;
@@ -124,32 +120,13 @@ end;
 
 (** OS related **)
 
-(* Posix patches *)
-
-(*This extension of the Poly/ML Signal structure is only necessary
-  because in SML/NJ, types Posix.Signal.signal and Signals.signal differ.*)
-structure IsaSignal =
-struct
-  open Signal
-  val usr1 = Posix.Signal.usr1
-  val usr2 = Posix.Signal.usr2
-  val alrm = Posix.Signal.alrm
-  val chld = Posix.Signal.chld
-  val cont = Posix.Signal.cont
-  val int  = Posix.Signal.int
-  val quit = Posix.Signal.quit
-end;
-
-
 (* current directory *)
 
 val cd = OS.FileSys.chDir;
 val pwd = OS.FileSys.getDir;
 
-
-(*Convert a process ID to a decimal string (chiefly for tracing)*)
-fun string_of_pid pid =
-  Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord pid));
+fun process_id () =
+  Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord (Posix.ProcEnv.getpid ())));
 
 
 (* getenv *)
@@ -170,8 +147,3 @@ fun profile 0 f x = f x
         val _ = RunCall.run_call1 RuntimeCalls.POLY_SYS_profiler 0;
       in Exn.release res end;
 
-
-fun do_and_exit_or_die f = 
-    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
-    handle _ => OS.Process.exit OS.Process.failure;
- 
