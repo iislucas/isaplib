@@ -1,5 +1,5 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      generic/gsearch.ML
+(*  Title:      search/gsearch.ML
     Author:     Lucas Dixon, University of Edinburgh
                 lucasd@dai.ed.ac.uk
     Modified:   25 Oct 2004: Lucas - generalised best first search to 

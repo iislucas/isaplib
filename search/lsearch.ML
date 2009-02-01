@@ -1,5 +1,5 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      generic/lsearch.ML
+(*  Title:      search/lsearch.ML
     Author:     Moa Johansson, University of Edinburgh
                 
     Created:    10 Aug 2005
