@@ -914,7 +914,7 @@ fun try_rename1 n1 n2 tr = (* optional result: SOME if no name clash *)
 fun fold f = fold_ranges (Basics.fold f o dest_range);
 fun fold_rev f = fold_ranges_rev (Basics.fold_rev f o dest_range);
 
-fun filter f s = fold delete s s;
+fun filter f s = fold (fn e => if (f e) then I else delete e) s s;
 
 exception found_exp 
 fun exists f ns = 
