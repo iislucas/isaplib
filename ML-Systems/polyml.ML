@@ -11,6 +11,24 @@ val ml_system = "polyml-5.2";
 fun do_and_exit_or_die f = 
     (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
     handle _ => OS.Process.exit OS.Process.failure;
+fun forget_all () = 
+    (map PolyML.Compiler.forgetSignature
+         (PolyML.Compiler.signatureNames());
+     map PolyML.Compiler.forgetType
+         (PolyML.Compiler.typeNames());
+     map PolyML.Compiler.forgetValue
+         (List.filter (fn s => s <> "run" orelse s <> "do_and_exit_or_die"
+                          orelse s <> "forget_all")
+                 (PolyML.Compiler.valueNames()));
+     map PolyML.Compiler.forgetStructure
+         (List.filter (fn s => s <> "PolyML") 
+                 (PolyML.Compiler.structureNames()));
+     ());
+
+(* 
+PolyML.Compiler.inlineFunctors := false;
+PolyML.Compiler.maxInlineSize := 40;
+*)
 
 (* back to Isabelle's stuff... *)
 if ml_system = "polyml-5.2"
