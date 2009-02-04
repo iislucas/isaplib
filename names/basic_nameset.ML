@@ -49,6 +49,9 @@ sig
   val get_first : T -> name option (* smallest name - log time *)
   val get_last : T -> name option (* largest name - log time *)
   
+  (* number of elements *)
+  val cardinality : T -> int
+
   (* fold over ranges *)
   val fold_ranges : ((name * name) -> 'a -> 'a) -> T -> 'a -> 'a
   val fold_ranges_rev : ((name * name) -> 'a -> 'a) -> T -> 'a -> 'a
@@ -88,8 +91,11 @@ sig
   val delete' : name -> T -> T (* raises empty_exp if name not in set *)
   val delete : name -> T -> T (* is identify if name not in set *)
   val try_delete : name -> T -> T option (* is NONE if name not in set  *)
+  
+  (* filter; function true to keep element *)
+  val filter : (name -> bool) -> T -> T
 
-  val delete1 : name -> T -> T (* for debgging only *)
+  val delete1 : name -> T -> T (* for debugging only *)
 
   val contains_range : T -> (name * name) -> bool
   val contains_range_exactly : T -> (name * name) -> bool
@@ -498,6 +504,10 @@ val add = add2;
 fun add_list l = fold add l;
 fun of_list l = assert_correct (add_list l empty);
 
+(* IMPROVE: implement efficient version, cached and/or computer from intervals *)
+val cardinality = length o list_of;
+
+
 (* lookup the range that a value is in. returns NONE if not in tree *)
 fun lookup tr s = 
     let 
@@ -904,6 +914,7 @@ fun try_rename1 n1 n2 tr = (* optional result: SOME if no name clash *)
 fun fold f = fold_ranges (Basics.fold f o dest_range);
 fun fold_rev f = fold_ranges_rev (Basics.fold_rev f o dest_range);
 
+fun filter f s = fold delete s s;
 
 exception found_exp 
 fun exists f ns = 
