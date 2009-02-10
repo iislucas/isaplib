@@ -24,8 +24,9 @@ sig
   val do_renaming : renaming -> 'a T -> 'a T
 end;
 
-(* instead, we end up with a second copy of the same code as in 
-   compound_renaming: very crappy *)
+(* see comments below: we end up with a second copy of the same code
+   as in compound_renaming: very crappy, better if we could share
+   ground function with free type *)
 functor NameTabFun(Nm : BASIC_NAMES) 
 : NAME_TAB
 = struct

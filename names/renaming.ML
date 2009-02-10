@@ -48,7 +48,8 @@ val lookup : T -> name -> name option;
 (* for doing renaming / creating an isomorphism *)
 val rename1 : name (* old name *)
              -> T (* renaming so far *)
-             -> (name option) * T (* clash avoiding new name and extended renaming *)
+             (* some new name (if clashed) and extended renaming *)
+             -> (name option) * T 
 
 (* for alpha-equivlance checking / isomorphism checking *)
 val try_rename1 : name (* old name *)
