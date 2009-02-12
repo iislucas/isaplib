@@ -4,13 +4,13 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
 (* datatype names *)
-structure Dn :> SNAMES where type external_name = string = SStrName;
+structure Dn :> SSTR_NAMES = SStrName;
 structure DnTab = Dn.NTab;
 (* consturctor names: or-choice names *)
-structure Cn :> SNAMES where type external_name = string = SStrName;
+structure Cn :> SSTR_NAMES = SStrName;
 structure CnTab = Cn.NTab;
 (* element names: and-choice names *)
-structure En :> SNAMES where type external_name = string = SStrName;
+structure En :> SSTR_NAMES = SStrName;
 structure EnTab = En.NTab;
 
 install_pp (make_pp ["Dn", "name"] (Pretty.pprint o Dn.pretty_name));
@@ -19,6 +19,6 @@ install_pp (make_pp ["En", "name"] (Pretty.pprint o En.pretty_name));
 
 
 (* Agenda element names *)
-structure An :> SNAMES where type external_name = int = SIntName;
+structure An :> SINT_NAMES = SIntName;
 install_pp (make_pp ["An", "name"] (Pretty.pprint o An.pretty_name));
 structure AnTab = An.NTab;

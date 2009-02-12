@@ -26,19 +26,19 @@ signature EHN_NAMES
    TargetEnd = normal direction, Target-end
    SourceEnd = reversed direction, Source-end
 *)
-datatype halfid = TargetEnd | SourceEnd;
-val other_half : halfid -> halfid (* not *)
+  datatype halfid = TargetEnd | SourceEnd;
+  val other_half : halfid -> halfid (* not *)
 
-type edgename
-include NAMES
+  type edgename;
+  include NAMES;
 
-val get_ename : name -> edgename
-val get_halfid : name -> halfid
-val other : name -> name (* swap: src <-> tgt *)
-val mk_src : edgename -> name;
-val mk_tgt : edgename -> name;
-val is_src : name -> bool
-val is_tgt : name -> bool
+  val get_ename : name -> edgename
+  val get_halfid : name -> halfid
+  val other : name -> name (* swap: src <-> tgt *)
+  val mk_src : edgename -> name;
+  val mk_tgt : edgename -> name;
+  val is_src : name -> bool
+  val is_tgt : name -> bool
 
 end;
 
@@ -159,23 +159,23 @@ if you make the signature constraint strict, you get:
 StrVertex.NSet.empty : StrVertex.Rnm.T
 *)
 structure StrVertex 
-: VERTEX where type data = string
+:> VERTEX where type data = string
 = struct
 open StrNmStrData;
 val default_name = mk "Va";
 end;
 
 structure UnitVertex 
-: VERTEX where type data = unit
+:> VERTEX where type data = unit
 = struct
 open StrNmUnitData;
 val default_name = mk "Va";
 end;
 
 structure UnitEdge 
-: EDGE where type data = unit
+:> EDGE where type data = unit
 = EdgeFun(StrNmUnitData);
 
 structure StrEdge 
-: EDGE where type data = string
+:> EDGE where type data = string
 = EdgeFun(StrNmStrData);

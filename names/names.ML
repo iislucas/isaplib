@@ -95,9 +95,9 @@ thus harder to confuse name types. *)
 signature SNAMES
 = sig
 include NAMES
-type external_name
-val mk : external_name -> name
-val dest : name -> external_name
+type src
+val mk : src -> name
+val dest : name -> src
 end;
 
 functor NamesFun(
@@ -169,15 +169,16 @@ and parsing the last alphanum to the int representation. This would
 give much faster suc, pred, and ord relationships. pretty printing and
 parsing from string would still be slowish, but would not really
 matter. *)
-signature SSTR_NAMES = SNAMES where type external_name = string;
+signature SSTR_NAMES = SNAMES where type src = string;
 
 (* safe strings as names *)
-structure SStrName : SSTR_NAMES
+structure SStrName :> SSTR_NAMES
 = struct
-open StrName;
-type external_name = string;
-val mk = I;
-val dest = I;
+structure S = NamesFun(structure Namer = StrSNamer val default_name = StrSNamer.StrName("a",0));
+open S;
+type src = string;
+val mk = StrSNamer.mk;
+val dest = StrSNamer.dest;
 end;
 
 
@@ -186,11 +187,11 @@ structure StrIntName : STR_INT_NAMES =
   NamesFun(structure Namer = StrIntNamer val default_name = ("a",0));
 
 (* safe (string * int) names *)
-signature SSTR_INT_NAMES = SNAMES where type external_name = string * int;
-structure SStrIntName : SSTR_INT_NAMES
+signature SSTR_INT_NAMES = SNAMES where type src = string * int;
+structure SStrIntName :> SSTR_INT_NAMES
 = struct
   open StrIntName;
-  type external_name = string * int;
+  type src = string * int;
   val mk = I;
   val dest = I;
 end;
@@ -201,11 +202,11 @@ structure IntName : INT_NAMES =
            val default_name = 0);
 
 (* safe int names *)
-signature SINT_NAMES = SNAMES where type external_name = int;
-structure SIntName : SINT_NAMES
+signature SINT_NAMES = SNAMES where type src = int;
+structure SIntName :> SINT_NAMES
 = struct
 open IntName;
-type external_name = int;
+type src = int;
 val mk = I;
 val dest = I;
 end;

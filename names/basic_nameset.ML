@@ -95,7 +95,7 @@ sig
   (* filter; function true to keep element *)
   val filter : (name -> bool) -> T -> T
 
-  val delete1 : name -> T -> T (* for debugging only *)
+  (* val delete1 : name -> T -> T  for debugging only *)
 
   val contains_range : T -> (name * name) -> bool
   val contains_range_exactly : T -> (name * name) -> bool
@@ -489,20 +489,19 @@ fun add' (s as (sp,sx,ss)) Empty = Br (1,(sx,sx),Empty,Empty)
                   in rebalance (Br (br_depth l newr,(b,t),l,newr)) end)  
       );
 
-(* 
-fun add s = add' (pred_or_same s, s, N.suc s);
-fun add s = assert_correct o add' (pred_or_same s, s, N.suc s); 
-*)
 
+fun add s = add' (pred_or_same s, s, N.suc s);
+(* fun add s = assert_correct o add' (pred_or_same s, s, N.suc s); *)
+
+(* 
 fun add2 s tr = 
     assert_correct (add' (pred_or_same s, s, N.suc s) tr) 
     handle bad_fnametab_exp (str,_) => raise add_exp (str, s, tr);
-
-val add = add2;
-
+val add = add2; *)
 
 fun add_list l = fold add l;
-fun of_list l = assert_correct (add_list l empty);
+(* fun of_list l = assert_correct (add_list l empty); *)
+fun of_list l = add_list l empty;
 
 (* IMPROVE: implement efficient version, cached and/or computer from intervals *)
 val cardinality = length o list_of;
@@ -647,7 +646,7 @@ fun add_range (v as (b,t)) Empty = Br (1,v,Empty,Empty)
 fun union_merge Empty tr = tr
   | union_merge (Br(d,v,l,r)) tr = 
     union_merge r (union_merge l (add_range v tr));
-val union_merge = assert_correct oo union_merge;
+(* val union_merge = assert_correct oo union_merge; *)
 
 
 
@@ -744,14 +743,13 @@ fun delete' s Empty = raise empty_exp "delete': no such element to delete"
 fun delete el set = delete' el set handle empty_exp _ => set;
 fun try_delete el set = SOME (delete' el set) handle empty_exp _ => NONE;
 
-val delete1 = delete;
-
+(* val delete1 = delete;
 fun delete2 s t = 
     assert_correct (delete1 s t)
     handle bad_fnametab_exp (msg,_) => raise delete_exp ("delete2 bug: " ^ msg, s, t)
          | bug0_exp msg => raise delete_exp ("delete2 bug: " ^ msg, s, t);
-
 val delete = delete2;
+*)
 
 (* pulls out the biggest element, also giving back new balanced tree,
    assumes initial true was well formed (especially balanced). *)
@@ -838,11 +836,11 @@ fun eq tr1 tr2 = case ord (tr1,tr2) of EQUAL => true | _ => false;
 (* subtract 1st from 2nd = fromthis - subtractthis *)
 fun subtract fromthis subtractthis =  
     fold delete (list_of subtractthis) fromthis;
-val subtract = assert_correct oo subtract;
+(* val subtract = assert_correct oo subtract; *)
 (* same as above but swaped arguments for curried folding *)
 fun remove_set subtractthis fromthis =  
     fold delete (list_of subtractthis) fromthis;
-val remove_set = assert_correct oo remove_set;
+(* val remove_set = assert_correct oo remove_set; *)
 
 (* IMPROVE: this is the inefficient version; write the efficient one ! *)
 fun intersect A B = 

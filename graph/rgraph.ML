@@ -94,7 +94,7 @@ functor BasicRGraphFun(
    structure Vertex : VERTEX
          and Edge : EDGE
 ) 
-(* : BASIC_GRAPH where type Vertex.data = Vertex.data and type Edge.data = Edge.data *)
+(* : BASIC_RGRAPH where type Vertex.data = Vertex.data and type Edge.data = Edge.data *)
 = struct
 
 structure Vertex = Vertex;
@@ -417,9 +417,10 @@ structure DB_ParamRGraph = BasicRGraphFun(
   and Edge = UnitEdge
 );
 
-structure ParamRGraph : BASIC_RGRAPH 
-where type Vertex.name = string
+ structure ParamRGraph : BASIC_RGRAPH 
+(*  where type Vertex.name = string
   and type Vertex.data = unit
   and type Edge.name = string
-  and type Edge.data = unit
+  and type Edge.data = unit *)
 = DB_ParamRGraph;
+

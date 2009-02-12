@@ -23,7 +23,100 @@
 "z"s to n +1 "a"s) and otherwise incrementing the last letter if its
 alpha. If not alpha, we add an "a" to the end of it. *)
 
-(* probably not good to use - slow - better to use SStrNamer *)
+(* names are string * int - int is incremeneted and represents 
+   the last lower-case alpha part of the string *)
+structure StrSNamer 
+(* : SNAMER *) (* where type src = string *)
+= struct
+
+type src = string 
+
+exception exp of string;
+
+datatype name = 
+         StrName of string * int (* int is printed as alpha *) 
+       | StrIntName of string * int; (* int is printed as int *)
+
+
+val char_root = (Char.ord #"a");
+val int_base = (Char.ord #"z") - (Char.ord #"a"); (* cannot be 0 *)
+
+(* integers as chrlist, working in the above base with the given root 
+   e.g. "" = 0, "a" = 1, "aa" = int_base + 1, "aaa" = int_base ^ 2 + 1, etc
+*)
+fun chrlist_of_int 0 l = l
+  | chrlist_of_int i l = 
+    let val (i2,c) = IntInf.quotRem (i, int_base) (* Maybe use Integer.div_mod ? what's the difference? *)
+    in chrlist_of_int i2 (Char.chr (char_root + c) :: l) end;
+
+fun int_of_chrlist [] a = a
+  | int_of_chrlist (c::l) a = 
+    (* maybe should check that c is in the int_base range? *)
+    let val i = (Char.ord c) - char_root
+    in int_of_chrlist l ((a * int_base) + i) end;
+
+(* accumulate the alpha chars at the start of a given string: we use
+this on a string that has been reversed so that we get all the alpha
+chars at the end of the string. *)
+fun is_digit c = (c >= #"0" andalso c <= #"9");
+fun is_alpha c = (c >= #"a" andalso c <= #"z");
+
+fun split_prefix chkf a [] = ([], a)
+  | split_prefix chkf a (l as (h :: t)) = 
+    if chkf h then split_prefix chkf (h::a) t
+    else (l, a);
+
+fun mk s = 
+    let val cl = String.explode s
+    in
+      case (rev cl) 
+       of [] => StrName (s,0) (* default is stringname... *)
+        | (c::cl2) => 
+          if is_alpha c then 
+            let val (sl,el) = split_prefix is_alpha [c] cl2
+            in StrName(String.implode (rev sl), int_of_chrlist el 0) end
+          else if is_digit c then 
+            let val (sl,el) = split_prefix is_digit [c] cl2
+            in StrIntName(String.implode (rev sl), 
+                          case el of [] => 0
+                                   | _ => the (Int.fromString (String.implode el))) end
+          else StrName (s,0) (* default for no postfix is string-postfix *)
+    end;
+
+fun dest (StrName (s,i)) = (s ^ (String.implode (chrlist_of_int i [])))
+  | dest (StrIntName (s,i)) = (s ^ (Int.toString i));
+
+val pretty = Pretty.str o dest; 
+
+fun suc' (a,b) = (a, b + 1);
+fun pred' (x as (a,0)) = NONE
+  | pred' (a,b) = SOME (a, b - 1);
+
+fun suc (StrName a) = StrName (suc' a)
+  | suc (StrIntName a) = StrIntName (suc' a);
+
+fun optappl f NONE = NONE
+  | optappl f (SOME x) = SOME (f x);
+
+fun pred (StrName a) = optappl StrName (pred' a)
+  | pred (StrIntName a) = optappl StrIntName (pred' a);
+
+(* check string order first, then integer suffix *)
+val ord' = Library.prod_ord String.compare Int.compare;
+
+fun ord (StrName a, StrName b) = ord' (a,b)
+  | ord (StrIntName a, StrIntName b) = ord' (a,b)
+  | ord (StrName _, StrIntName _) = LESS
+  | ord (StrIntName _, StrName _) = GREATER;
+
+fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
+
+end; (* structure *)
+
+
+
+
+(* NOTE: probably not good to use - very slow - better to use StrSNamer, defined above *)
 structure StrNamer 
 : NAMER 
 = struct
