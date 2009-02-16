@@ -59,10 +59,14 @@ val try_change1 : Dom.name (* old name *)
                   -> Cod.name (* new name *)
                   -> T (* renaming so far *)
                   -> T option (* new name and extended renaming *)
+(* as above, but raises exception *)
+exception add_exp of Dom.name * Cod.name * T
+val add : Dom.name -> Cod.name -> T -> T
 
 (* renaming names *)
 val try_rename1_dom : Dom.name -> Dom.name -> T -> T option
 val try_rename1_cod : Cod.name -> Cod.name -> T -> T option
+
 
 (* 
 val rename_dom : Dom.renaming -> T -> Dom.renaming * T
@@ -220,6 +224,14 @@ fun try_change1 oldn newn (cn as ChangeNames rep) =
                    else NONE
     end;
 
+(* as above but raise exception - for when we know that oldn/newn
+   are not already mapped to/from *)
+exception add_exp of Dom.name * Cod.name * T
+fun add oldn newn cn =
+    (case try_change1 oldn newn cn of 
+       NONE => raise add_exp (oldn, newn, cn)
+     | SOME cn2 => cn2);
+
 (* rename names *)
 fun try_rename1_dom n1 n2 (cn as ChangeNames rep) = 
     (case Dom.NTab.try_rename1 n1 n2 (#domf rep)
@@ -287,10 +299,10 @@ fun del_cod n (cn as ChangeNames rep) =
 (* pretty *)
 fun pretty (ChangeNames rep) = 
     Pretty.chunks 
-      [Pretty.str "ChangeNames{",
-       Pretty.block [Pretty.str "ignore: ", Dom.NSet.pretty (#ignore rep)],
-       Pretty.block [Pretty.str "avoids: ", Cod.NSet.pretty (#avoids rep)],
-       Pretty.block [Pretty.str "domf: ", Dom.NTab.pretty Cod.pretty_name (#domf rep)],
+      [Pretty.str "NameIso {",
+       Pretty.block [Pretty.str "  ignore: ", Dom.NSet.pretty (#ignore rep)],
+       Pretty.block [Pretty.str "  avoids: ", Cod.NSet.pretty (#avoids rep)],
+       Pretty.block [Pretty.str "  isof: ", Dom.NTab.pretty Cod.pretty_name (#domf rep)],
        Pretty.str "}"];
 
 val print = Pretty.writeln o pretty;

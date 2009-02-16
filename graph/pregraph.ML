@@ -35,10 +35,10 @@ signature EHN_NAMES
   val get_ename : name -> edgename
   val get_halfid : name -> halfid
   val other : name -> name (* swap: src <-> tgt *)
-  val mk_src : edgename -> name;
-  val mk_tgt : edgename -> name;
-  val is_src : name -> bool
-  val is_tgt : name -> bool
+  val mk_start : edgename -> name;
+  val mk_end : edgename -> name;
+  val is_start : name -> bool
+  val is_end : name -> bool
 
 end;
 
@@ -67,14 +67,14 @@ functor EhnFun(Nm : NAMES)
 
   fun get_ename ((h,en) : name) = en;
   fun get_halfid ((h,en) : name) = h;
-  fun is_src ((h,en) : name) = (SourceEnd = h);
-  fun is_tgt ((h,en) : name) = (TargetEnd = h);
+  fun is_start ((h,en) : name) = (SourceEnd = h);
+  fun is_end ((h,en) : name) = (TargetEnd = h);
   fun other ((h,en) : name) = (other_half h, en);
       
   fun mk h e = ((h,e) : name);
   
-  val mk_src = mk SourceEnd;
-  val mk_tgt = mk TargetEnd;
+  val mk_start = mk SourceEnd;
+  val mk_end = mk TargetEnd;
 end;
 
 
@@ -88,8 +88,8 @@ include NAME_AND_DATA;
 
 structure Ehn : EHN_NAMES where type edgename = name; 
 
-val add_src_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
-val add_tgt_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
+val add_start_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
+val add_end_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
 
 end;
 
@@ -103,10 +103,10 @@ open Nm;
 
 structure Ehn = EhnFun(Nm); 
 
-val add_src_ehns = 
-    NSet.fold (Ehn.NSet.add o Ehn.mk_src);
-val add_tgt_ehns = 
-    NSet.fold (Ehn.NSet.add o Ehn.mk_tgt);
+val add_start_ehns = 
+    NSet.fold (Ehn.NSet.add o Ehn.mk_start);
+val add_end_ehns = 
+    NSet.fold (Ehn.NSet.add o Ehn.mk_end);
 
 end;
 
@@ -174,8 +174,17 @@ end;
 
 structure UnitEdge 
 :> EDGE where type data = unit
-= EdgeFun(StrNmUnitData);
+= struct
+structure E = EdgeFun(StrNmUnitData);
+open E;
+val default_name = mk "Ea";
+end;
 
 structure StrEdge 
 :> EDGE where type data = string
-= EdgeFun(StrNmStrData);
+= struct
+structure E = EdgeFun(StrNmStrData);
+open E;
+val default_name = mk "Ea";
+end;
+

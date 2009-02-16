@@ -139,6 +139,9 @@ sig
   val pull_local_top : T -> (name * T) option;
   val pull_local_bot : T -> (name * T) option;
 
+  val del_local_top : T -> T;
+  val del_local_bot : T -> T;
+
   (* make the list of every element pulled out and paired with the rest:
      [1,2,3] => [(1,[2,3]), (2,[1,3]), (3,[1,2])]                     *)
   val pull_each : T -> (name * T) list
@@ -759,7 +762,11 @@ fun pull_local_top Empty = NONE
 fun pull_local_bot Empty = NONE
   | pull_local_bot (tr as Br(_,(b,t),_,_)) = SOME (b, delete b tr);
 
+fun del_local_top Empty = Empty
+  | del_local_top (tr as (Br(_,(b,t),_,_))) = delete t tr;
 
+fun del_local_bot Empty = Empty
+  | del_local_bot (tr as Br(_,(b,t),_,_)) = delete b tr;
     
 
 (* 

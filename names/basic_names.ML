@@ -26,10 +26,11 @@ signature BASIC_NAMES
   structure Tab : TABLE
   sharing NTab.Tab = Tab;
 
+(*   type nmap = name NTab.T *)
   structure Rnm : RENAMING 
   where type 'a nmap = 'a NTab.T
   and type name = name 
-  and type nset = NSet.T
+  and type nset = NSet.T 
 
   val default_name : name
   val pretty_name : name -> Pretty.T

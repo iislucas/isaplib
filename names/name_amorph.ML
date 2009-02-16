@@ -13,6 +13,8 @@ Note: Name Automorphisms
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+
+(* This *should* be our signature, but PolyML has buggy sharing... *)
 signature NAME_AMORPH = 
 sig 
   include NAME_ISO
@@ -23,6 +25,7 @@ end;
 functor NameAmorphFun(Nm : NAMES) 
 : NAME_AMORPH
 = struct 
+structure Nm = Nm;
 structure NameIso = NameIsoFun(
   structure Dom = Nm 
   structure Cod = Nm 

@@ -42,9 +42,12 @@ val char_root = (Char.ord #"a");
 val int_base = (Char.ord #"z") - (Char.ord #"a"); (* cannot be 0 *)
 
 (* integers as chrlist, working in the above base with the given root 
-   e.g. "" = 0, "a" = 1, "aa" = int_base + 1, "aaa" = int_base ^ 2 + 1, etc
+   e.g. "a" = 0, "b" = 1, "ab" = int_base + 1, "aab" = int_base ^ 2 + 1, etc
 *)
-fun chrlist_of_int 0 l = l
+(* FIXME: I'd rather have a = 1, b = 2, z = 26, aa = 27, etc, but then not
+   sure about zero - I guess we have to start from one? *)
+fun chrlist_of_int 0 [] = [#"a"]
+  | chrlist_of_int 0 l = l
   | chrlist_of_int i l = 
     let val (i2,c) = IntInf.quotRem (i, int_base) (* Maybe use Integer.div_mod ? what's the difference? *)
     in chrlist_of_int i2 (Char.chr (char_root + c) :: l) end;

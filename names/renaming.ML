@@ -20,6 +20,7 @@ signature RENAMING
 
 type name (* name *)
 type nset (* set of names *)
+(* type nmap *) (* mapping from names to names *)
 type 'a nmap (* mapping from names *)
 type T (* renaming *)
 
@@ -82,6 +83,7 @@ structure NSet = NTab.NSet;
 
 type name = NTab.name;
 type nset = NTab.NSet.T;
+(* type nmap = name NTab.T; *)
 type 'a nmap = 'a NTab.T;
 
 (* Invarients: 

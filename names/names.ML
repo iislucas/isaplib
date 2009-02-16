@@ -36,9 +36,15 @@ signature NAMES
   sharing NTab.Tab = Tab;
 
   structure Rnm : RENAMING 
-  sharing type Rnm.name = name 
+  where type 'a nmap = 'a NTab.T
+  and type name = name 
+  and type nset = NSet.T 
+
+  (* where type nmap = nmap *) (* note compound type; cannot use sharing *)
+
+(*   sharing type Rnm.name = name 
   sharing type Rnm.nset = NSet.T 
-  sharing type Rnm.nmap = NTab.T (* note compound type... *)
+*)
 
   sharing type NTab.renaming = Rnm.T 
   sharing type NSet.renaming = Rnm.T;
@@ -49,8 +55,8 @@ signature NAMES
   val name_eq : name * name -> bool
   val name_ord : name * name -> General.order
 
-  type renaming  
-  sharing type Rnm.T = renaming
+  type renaming = Rnm.T
+  (* sharing type Rnm.T = renaming *)
 
   val empty_renaming : renaming (* avoid these names *)
   val mk_renaming : NSet.T  (* ignore these *)
@@ -174,7 +180,8 @@ signature SSTR_NAMES = SNAMES where type src = string;
 (* safe strings as names *)
 structure SStrName :> SSTR_NAMES
 = struct
-structure S = NamesFun(structure Namer = StrSNamer val default_name = StrSNamer.StrName("a",0));
+structure S = NamesFun(structure Namer = StrSNamer 
+                       val default_name = StrSNamer.StrName("",0));
 open S;
 type src = string;
 val mk = StrSNamer.mk;

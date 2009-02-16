@@ -25,8 +25,9 @@ rename rn x = ((mk_renaming x rn), do_renaming (mk_renaming x rn) x)
 end;
 
 
-functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE) =
-struct
+functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
+: COMPOUND_RENAMING
+= struct
   structure Rnm = CR.Nm.Rnm;
   structure Nm = CR.Nm;
 
@@ -48,7 +49,6 @@ struct
 
 (* note: takes time of nset * ln(nset), 
    could be inverted to take time of avoids(rn) * ln(nset) *)
-
   fun rename rn x = 
       Nm.NSet.fold 
         (fn n => fn (rn2,x2) =>
@@ -56,7 +56,7 @@ struct
               (NONE, rn3) => (rn3,x2)
             | (SOME n2, rn3) => 
               (case CR.try_rename1 n n2 x2 
-                of NONE => raise Rnm.invalid_renaming_exp "rename"
+                of NONE => raise Rnm.invalid_renaming_exp "compound rename"
                  | SOME x3 => (rn3, x3)))
         (CR.get_nameset x) (rn,x);
 end;
