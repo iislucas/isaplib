@@ -22,6 +22,7 @@ structure Cod : NAMES (* codomain elements *)
 type T
 
 val empty : T
+val is_empty : T -> bool
 
 (* add?: union, intersection, ... *)
 
@@ -101,11 +102,13 @@ datatype T = BinRel of {
          codf : Dom.NSet.T Cod.NTab.T
 };
 
+fun get_domtab (BinRel rep) = #domf rep;
+fun get_codtab (BinRel rep) = #codf rep;
+
 val empty = BinRel {domf = Dom.NTab.empty,
                     codf = Cod.NTab.empty};
 
-fun get_domtab (BinRel rep) = #domf rep;
-fun get_codtab (BinRel rep) = #codf rep;
+val is_empty = Dom.NTab.is_element_empty o get_domtab;
 
 val get_domset = Dom.NTab.get_nameset o get_domtab;
 val get_codset = Cod.NTab.get_nameset o get_codtab;

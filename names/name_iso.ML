@@ -43,6 +43,7 @@ type T
 
 (* constructors *)
 val empty : T;
+val is_empty : T -> bool;
 
 (* other operations on the change name space *)
 val union_ignores : Dom.NSet.T -> T -> T 
@@ -152,6 +153,9 @@ fun union_avoids avoids' (ChangeNames rep) =
 (* get info/status of renaming *)
 fun get_avoids (ChangeNames rep) = (#avoids rep);
 fun get_domtab (ChangeNames rep) = (#domf rep);
+
+val is_empty = Dom.NTab.is_element_empty o get_domtab;
+
 fun get_codtab (ChangeNames rep) = (#codf rep);
 fun get_ignored (ChangeNames rep) = (#ignore rep);
 val get_cod_nset = Cod.NTab.get_nameset o get_codtab;
