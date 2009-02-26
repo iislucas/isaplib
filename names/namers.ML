@@ -38,25 +38,37 @@ datatype name =
        | StrIntName of string * int; (* int is printed as int *)
 
 
-val char_root = (Char.ord #"a");
-val int_base = (Char.ord #"z") - (Char.ord #"a"); (* cannot be 0 *)
+val bot_char = #"a"; (* top char *)
+val top_char = #"z"; (* top char *)
+val char_root = (Char.ord bot_char) - 1;
+val int_base = (Char.ord top_char) - char_root; (* cannot be 0 *)
 
 (* integers as chrlist, working in the above base with the given root 
    e.g. "a" = 0, "b" = 1, "ab" = int_base + 1, "aab" = int_base ^ 2 + 1, etc
 *)
-(* FIXME: I'd rather have a = 1, b = 2, z = 26, aa = 27, etc, but then not
-   sure about zero - I guess we have to start from one? *)
-fun chrlist_of_int 0 [] = [#"a"]
-  | chrlist_of_int 0 l = l
-  | chrlist_of_int i l = 
-    let val (i2,c) = IntInf.quotRem (i, int_base) (* Maybe use Integer.div_mod ? what's the difference? *)
-    in chrlist_of_int i2 (Char.chr (char_root + c) :: l) end;
+fun chrlist_of_int i = 
+    let 
+      fun chrlist_of' 0 l = l
+        | chrlist_of' i l = 
+          let val (q,r) = IntInf.quotRem (i, int_base) (* Maybe use Integer.div_mod ? what's the difference? *)
+          in if r = 0 then 
+               chrlist_of' (q - 1) (top_char::l)
+             else 
+               chrlist_of' q ((Char.chr (char_root + r)) :: l)
+          end
+    in chrlist_of' i [] end;
 
-fun int_of_chrlist [] a = a
-  | int_of_chrlist (c::l) a = 
-    (* maybe should check that c is in the int_base range? *)
-    let val i = (Char.ord c) - char_root
-    in int_of_chrlist l ((a * int_base) + i) end;
+(* assumes characters between a and z. *)
+(* IMPROVE? should check that c is in the int_base range? *)
+fun int_of_chrlist [] = 0
+  | int_of_chrlist (h::l) = 
+    let
+      val i0 = (Char.ord h) - char_root
+      fun int_of' [] a = a
+        | int_of' (c::l) a = 
+          let val i = (Char.ord c) - char_root
+          in int_of' l ((a * int_base) + i) end;
+    in (int_of' l i0) end;
 
 (* accumulate the alpha chars at the start of a given string: we use
 this on a string that has been reversed so that we get all the alpha
@@ -77,7 +89,7 @@ fun mk s =
         | (c::cl2) => 
           if is_alpha c then 
             let val (sl,el) = split_prefix is_alpha [c] cl2
-            in StrName(String.implode (rev sl), int_of_chrlist el 0) end
+            in StrName(String.implode (rev sl), int_of_chrlist el) end
           else if is_digit c then 
             let val (sl,el) = split_prefix is_digit [c] cl2
             in StrIntName(String.implode (rev sl), 
@@ -86,7 +98,7 @@ fun mk s =
           else StrName (s,0) (* default for no postfix is string-postfix *)
     end;
 
-fun dest (StrName (s,i)) = (s ^ (String.implode (chrlist_of_int i [])))
+fun dest (StrName (s,i)) = (s ^ (String.implode (chrlist_of_int i)))
   | dest (StrIntName (s,i)) = (s ^ (Int.toString i));
 
 val pretty = Pretty.str o dest; 
