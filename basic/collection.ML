@@ -29,6 +29,8 @@ val delete : obj -> T -> T (* raises UNDEF exp *)
 val remove : obj -> T -> T 
 
 val of_list : obj list -> T
+val list_of : T -> obj list
+
 val minus_set : T -> T -> T
 val union_set : T -> T -> T
 val intersect_set : T -> T -> T
@@ -37,21 +39,22 @@ val map : (obj -> obj) -> T -> T
 val fold : (obj -> 'a -> 'a) -> T -> 'a -> 'a
 val filter : (obj -> bool) -> T -> T
 
-val unionfst_f : ('a -> (obj * 'b)) -> (T * 'a) -> (T * 'b)
-
 val contains : T -> obj -> bool
-val dest : T -> obj list
 
-(* internal *)
+(* internal order *)
 val ord : obj * obj -> order
 
+(* *)
+val unionfst_f : ('a -> (obj * 'b)) -> (T * 'a) -> (T * 'b)
+
+(* pretty *)
 val pretty : (obj -> Pretty.T) -> T -> Pretty.T;
 (* val direct_print : T -> unit; *)
 
 end;
 
-
-functor CollectionFUN(Key : KEY) : COLLECTION= 
+(* IMPROVE: allow to take table as input - avoid creating many tablefun's *)
+functor CollectionFUN(Key : KEY) : COLLECTION = 
 struct 
 
 type obj = Key.key;
@@ -79,7 +82,8 @@ fun contains tb x =
 fun filter f tb = 
     Tab.fold (fn (x,()) => if f x then I else delete x) tb tb;
 
-val dest = Tab.keys;
+fun of_list l = fold union1 l empty;
+val list_of = Tab.keys;
 
 fun minus_set tb mtb =
     Tab.fold (Tab.delete_safe o fst) mtb tb;
@@ -89,15 +93,13 @@ val union_set : T -> T -> T = Tab.fold (union1 o fst);
 fun unionfst_f f (tb, x) = 
     let val (a,x2) = (f x) in (union1 a tb, x2) end;
 
-fun of_list l = fold union1 l empty;
-
 fun intersect_set tb1 tb2 = 
     Tab.fold (fn (x,()) => fn tb => 
               if contains tb2 x then addnew x tb
               else tb)
              tb1 empty;
 
-fun pretty pf c = Pretty.list "[" "]" (map pf (dest c));
+fun pretty pf c = Pretty.list "[" "]" (map pf (list_of c));
 (* val direct_print = Pretty.writeln o pretty (Pretty.str o PolyML.makestring); *)
 
 fun fold f = Tab.fold (f o fst);
