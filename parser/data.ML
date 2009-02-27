@@ -243,7 +243,7 @@ fun pretty_suppos (SupTyPos (n, cL)) =
        Pretty.list "[" "]" (map Cn.pretty_name cL),
        Pretty.str ")"];
 fun pretty_supset supset = 
-    Pretty.list "{" "}" (map pretty_suppos (SupTySet.dest supset));
+    Pretty.list "{" "}" (map pretty_suppos (SupTySet.list_of supset));
 val print_suppos = Pretty.writeln o pretty_suppos;
 val print_supset = Pretty.writeln o pretty_supset;
 
@@ -278,7 +278,7 @@ fun pretty_subpos (SubTyPos (n, cL)) =
        Pretty.list "[" "]" (map Cn.pretty_name cL),
        Pretty.str ")"];
 fun pretty_subset sbset = 
-    Pretty.list "{" "}" (map pretty_subpos (SubTySet.dest sbset));
+    Pretty.list "{" "}" (map pretty_subpos (SubTySet.list_of sbset));
 val print_subpos = Pretty.writeln o pretty_subpos;
 val print_subset = Pretty.writeln o pretty_subset;
 
@@ -905,7 +905,7 @@ fun pretty_andpos (AndPos ((parentn, e),NONE)) =
        Pretty.str ")"];
 
 fun pretty_andset andset = 
-    Pretty.list "{" "}" (map pretty_andpos (AndSet.dest andset));
+    Pretty.list "{" "}" (map pretty_andpos (AndSet.list_of andset));
 
 fun pretty_andptab andptab = 
     Pretty.chunks 
