@@ -136,7 +136,8 @@ fun cond_timeit flag msg e =
       val start = start_timing ();
       val result = Exn.capture e ();
       val end_msg = end_timing start;
-      val _ = warning (if msg = "" then end_msg else msg ^ "\n" ^ end_msg);
+      val _ = warning (if msg = "" then (#message end_msg) 
+                       else msg ^ "\n" ^ (#message end_msg));
     in Exn.release result end
   else e ();
 

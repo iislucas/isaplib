@@ -21,7 +21,7 @@ use "nametab.ML";
 use "names.ML"; 
 
 (* Binary Relations of finite name sets: good for dependencies *)
-use "name_iso.ML";(* name iso-morphisms *)
+use "name_iso.ML"; (* name iso-morphisms *)
 use "name_binrel.ML"; (* bin relations on names *)
 use "name_map.ML"; (* functions/mappings on names *)
 use "name_amorph.ML"; (* name auto-morphisms (name iso where dom = cod) *)
