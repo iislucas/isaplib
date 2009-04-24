@@ -26,7 +26,7 @@ use "ml_lex.ML";
 use "ml_parse.ML";
 
 (* from Isabelle/src/Generic *)
-use "secure.ML";
+(* use "secure.ML"; -- isabelle specific *)
 use "integer.ML";
 use "stack.ML";
 use "queue.ML";

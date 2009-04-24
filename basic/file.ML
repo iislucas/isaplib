@@ -12,11 +12,11 @@ sig
   val pwd: unit -> Path.T
   val full_path: Path.T -> Path.T
   val tmp_path: Path.T -> Path.T
-  val isabelle_tool: string -> int
+(*   val isabelle_tool: string -> int *)
   val system_command: string -> unit
-  eqtype ident
+  (* eqtype ident
   val rep_ident: ident -> string
-  val ident: Path.T -> ident option
+  val ident: Path.T -> ident option *)
   val exists: Path.T -> bool
   val check: Path.T -> unit
   val rm: Path.T -> unit
@@ -65,12 +65,13 @@ fun tmp_path path =
 
 (* system commands *)
 
-fun isabelle_tool cmd = system ("\"$ISABELLE_TOOL\" " ^ cmd);
+(* fun isabelle_tool cmd = system ("\"$ISABELLE_TOOL\" " ^ cmd); *)
 
-fun system_command cmd =
-  if system cmd <> 0 then error ("System command failed: " ^ cmd)
+fun system_command cmd = (OS.Process.system cmd; ());
+
+(*   if system cmd <> 0 then error ("System command failed: " ^ cmd)
   else ();
-
+*)
 
 (* file identification *)
 
@@ -88,6 +89,7 @@ fun update_cache (path, (time, id)) = CRITICAL (fn () =>
 
 end;
 
+(* 
 datatype ident = Ident of string;
 fun rep_ident (Ident s) = s;
 
@@ -109,7 +111,7 @@ fun ident path =
                   else error ("Failed to identify file " ^ quote (Path.implode path) ^ " by " ^ cmd)
                 end))))
   end;
-
+*)
 
 (* directory entries *)
 

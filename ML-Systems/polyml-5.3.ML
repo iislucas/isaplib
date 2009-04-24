@@ -33,9 +33,10 @@ PolyML.Compiler.maxInlineSize := 40;
 
 (* back to Isabelle's stuff... 
 if ml_system = "polyml-5.2"
-then use "ML-Systems/thread_dummy.ML"
-else *) 
-use "ML-Systems/multithreading_polyml.ML";
+then *)
+use "ML-Systems/thread_dummy.ML";
+(* else
+use "ML-Systems/multithreading_polyml.ML"; *)
 
 val pointer_eq = PolyML.pointerEq;
 

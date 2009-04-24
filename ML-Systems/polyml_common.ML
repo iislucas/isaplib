@@ -8,7 +8,7 @@ exception Interrupt = SML90.Interrupt;
 use "ML-Systems/exn.ML";
 use "ML-Systems/multithreading.ML";
 use "ML-Systems/time_limit.ML";
-use "ML-Systems/system_shell.ML";
+(* use "ML-Systems/system_shell.ML"; -- isabelle specific *)
 use "ML-Systems/ml_name_space.ML";
 
 
@@ -126,9 +126,10 @@ end;
 val cd = OS.FileSys.chDir;
 val pwd = OS.FileSys.getDir;
 
+(* 
 fun process_id () =
   Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord (Posix.ProcEnv.getpid ())));
-
+*)
 
 (* getenv *)
 

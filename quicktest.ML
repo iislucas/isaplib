@@ -1,5 +1,7 @@
+structure Posix = struct end; 
+
 (* using this file should be equivalent to "make run-isap" *)
-PolyML.use "ML-Systems/polyml-experimental.ML";
+PolyML.use "ML-Systems/polyml.ML";
 
 cd "basic";
 PolyML.use "ROOT.ML";
