@@ -40,6 +40,15 @@ signature NAMES
   and type name = name 
   and type nset = NSet.T 
 
+  (** types which want to be shared **) 
+  structure Sharing : sig 
+  type name = name
+  type 'a table = 'a Tab.table
+  type nset = NSet.T
+  type 'a ntab = 'a NTab.T
+  type renaming = Rnm.T
+  end
+  
   (* where type nmap = nmap *) (* note compound type; cannot use sharing *)
 
 (*   sharing type Rnm.name = name 
@@ -122,6 +131,15 @@ functor NamesFun(
   structure NSet = NameSetFun(Nm);
   structure NTab = NameTabFun(Nm);
 
+  (** types which want to be shared **) 
+  structure Sharing = struct 
+    type name = name
+    type 'a table = 'a Tab.table
+    type nset = NSet.T
+    type 'a ntab = 'a NTab.T
+    type renaming = Rnm.T
+  end
+  
   type renaming = Rnm.T
   val empty_renaming = Rnm.empty;
   val mk_renaming = Rnm.mk;

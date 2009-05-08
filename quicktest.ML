@@ -1,4 +1,7 @@
-structure Posix = struct end; 
+structure Posix = struct end; (* Avoid posix stuff: runnable in windows *)
+
+(* set save directory; *)
+PolyML.saveDirectory := SOME (OS.FileSys.getDir() ^ "/.polysave");
 
 (* using this file should be equivalent to "make run-isap" *)
 PolyML.use "ML-Systems/polyml.ML";

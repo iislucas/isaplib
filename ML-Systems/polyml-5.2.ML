@@ -6,6 +6,13 @@ Compatibility wrapper for Poly/ML 5.2 or later.
 open Thread;
 use "ML-Systems/polyml_common.ML";
 
+(* add save directory variable for PolyML-5.2.*)
+structure PolyML = 
+struct 
+open PolyML;
+val saveDirectory = ref (NONE : string option);
+end;
+
 (* Added for standalone polyml usage *)
 val ml_system = "polyml-5.2";
 fun do_and_exit_or_die f = 
@@ -17,11 +24,11 @@ fun forget_all () =
      map PolyML.Compiler.forgetType
          (PolyML.Compiler.typeNames());
      map PolyML.Compiler.forgetValue
-         (List.filter (fn s => s <> "run" orelse s <> "do_and_exit_or_die"
-                          orelse s <> "forget_all")
+         (List.filter (fn s => s <> "run" andalso s <> "do_and_exit_or_die"
+                          andalso s <> "forget_all")
                  (PolyML.Compiler.valueNames()));
      map PolyML.Compiler.forgetStructure
-         (List.filter (fn s => s <> "PolyML") 
+         (List.filter (fn s => s <> "PolyML" andalso s <> "OS") 
                  (PolyML.Compiler.structureNames()));
      ());
 
