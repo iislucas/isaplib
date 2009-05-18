@@ -8,6 +8,11 @@ val get_nameset : obj -> Nm.NSet.T (* get set of all names *)
 val try_rename1 : Nm.name -> Nm.name -> obj -> obj option (* rename 1 name *)
 end;
 
+
+(* IMPROVE: ADD: can also make compount renaming from pairwise
+compound renamings. *)
+
+
 (* generic signature for renaming within a datatype *)
 signature COMPOUND_RENAMING =
 sig
