@@ -10,12 +10,25 @@ signature ORD_DATA
   val data_eq : data * data -> bool
 end;
 
+(* to simplify sharing constraints *)
+signature NAME_AND_DATA_SHARING =
+sig
+include NAME_SHARING
+type data
+end;
+
+
 signature NAME_AND_DATA
 = sig
 include SSTR_NAMES
 include ORD_DATA
 val default_data : data
+structure SharingWithData : NAME_AND_DATA_SHARING where type data = data
+sharing Sharing = SharingWithData
 end;
+
+signature EHN_SHARING = 
+sig include NAME_SHARING; type halfid; end;
 
 (* names for half edges and edge directions *)
 signature EHN_NAMES
@@ -31,6 +44,8 @@ signature EHN_NAMES
 
   type edgename;
   include NAMES;
+  structure EhnSharing : EHN_SHARING where type halfid = halfid
+  sharing Sharing = EhnSharing;
 
   val get_ename : name -> edgename
   val get_halfid : name -> halfid
@@ -65,6 +80,8 @@ functor EhnFun(Nm : NAMES)
     val default_name = (TargetEnd, Nm.default_name));
   open EhnN;
 
+  structure EhnSharing = struct open Sharing; type halfid = halfid; end;
+  
   fun get_ename ((h,en) : name) = en;
   fun get_halfid ((h,en) : name) = h;
   fun is_start ((h,en) : name) = (SourceEnd = h);
@@ -82,6 +99,14 @@ end;
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 signature VERTEX = NAME_AND_DATA;
 
+(* Special Sharing sigs for Edges which include half-edge names *)
+
+signature EDGE_SHARING = 
+sig include NAME_SHARING; structure Ehn : EHN_SHARING; end;
+signature EDGE_AND_DATA_SHARING = 
+sig include EDGE_SHARING; type data; end;
+
+(* Edges *)
 signature EDGE = 
 sig 
 include NAME_AND_DATA;
@@ -90,6 +115,16 @@ structure Ehn : EHN_NAMES where type edgename = name;
 
 val add_start_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
 val add_end_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
+
+structure EdgeSharing : EDGE_SHARING 
+
+sharing Ehn.EhnSharing = EdgeSharing.Ehn;
+sharing Sharing = EdgeSharing;
+
+structure EdgeSharingWithData : EDGE_AND_DATA_SHARING 
+  where type data = data
+
+sharing EdgeSharing = EdgeSharingWithData;
 
 end;
 
@@ -107,6 +142,10 @@ val add_start_ehns =
     NSet.fold (Ehn.NSet.add o Ehn.mk_start);
 val add_end_ehns = 
     NSet.fold (Ehn.NSet.add o Ehn.mk_end);
+
+structure EdgeSharing = 
+  struct open Sharing; structure Ehn = Ehn.EhnSharing; end;
+structure EdgeSharingWithData = struct open EdgeSharing; type data = data; end;
 
 end;
 
@@ -139,6 +178,7 @@ open SStrName;
 val default_name = mk "a";
 open StrData;
 val default_data = "";
+structure SharingWithData = struct open Sharing; type data = data; end;
 end;
 
 structure StrNmUnitData 
@@ -148,6 +188,7 @@ open SStrName;
 val default_name = mk "a";
 open UnitData;
 val default_data = ();
+structure SharingWithData = struct open Sharing; type data = data; end;
 end;
 
 

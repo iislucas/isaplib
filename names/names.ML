@@ -18,6 +18,16 @@ of "n" are ignored.
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
+(* Types within a NAME structure, to ease writing of sharing constraints *)
+signature NAME_SHARING = 
+sig 
+  type name
+  type 'a table
+  type nset
+  type 'a ntab
+  type renaming
+end
+
 (* names + renaming *)
 signature NAMES
 = sig
@@ -41,13 +51,12 @@ signature NAMES
   and type nset = NSet.T 
 
   (** types which want to be shared **) 
-  structure Sharing : sig 
-  type name = name
-  type 'a table = 'a Tab.table
-  type nset = NSet.T
-  type 'a ntab = 'a NTab.T
-  type renaming = Rnm.T
-  end
+  structure Sharing : NAME_SHARING where
+    type name = name
+    and type 'a table = 'a Tab.table
+    and type nset = NSet.T
+    and type 'a ntab = 'a NTab.T
+    and type renaming = Rnm.T
   
   (* where type nmap = nmap *) (* note compound type; cannot use sharing *)
 
