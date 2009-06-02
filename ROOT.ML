@@ -18,7 +18,8 @@ cd "..";
 cd "graph";
 use "ROOT.ML";
 cd "..";
-
+(* 
 cd "parser";
 use "ROOT.ML";
 cd "..";
+*)

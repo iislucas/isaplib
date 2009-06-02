@@ -50,6 +50,9 @@ val union_ignores : Dom.NSet.T -> T -> T
 val union_avoids : Cod.NSet.T -> T -> T
 val avoid_ignores_image : T -> T;
 
+(* assumes two mappings are disjoint/compatible *)
+val union_merge : T -> T -> T
+
 (* for doing renaming/creating an isomorphism *)
 val change1 : Dom.name (* old name *)
              -> T (* renaming so far *)
@@ -171,7 +174,7 @@ fun update_avoids f (ChangeNames rep) =
     ChangeNames 
       {ignore = #ignore rep, avoids = f (#avoids rep),
        domf = #domf rep, codf = #codf rep};
-
+       
 (* implicit: T *)
 fun avoid_ignores_image cn = 
     update_avoids
@@ -179,6 +182,14 @@ fun avoid_ignores_image cn =
                      (get_ignored cn))
       cn;
 
+(* assumes compatable renamings; raises exception if not *)
+fun union_merge cn1 cn2 = 
+    ChangeNames 
+      {ignore = Dom.NSet.union_merge (get_ignored cn1) (get_ignored cn2), 
+       avoids = Cod.NSet.union_merge (get_avoids cn1) (get_avoids cn2),
+       domf = Dom.NTab.merge_disjoint (get_domtab cn1) (get_domtab cn2), 
+       codf = Cod.NTab.merge_disjoint (get_codtab cn1) (get_codtab cn2)};
+      
 (* add an old name to be changed to a new name *)
 fun change1 oldn (cn as ChangeNames rep) = 
     let val ignore = (#ignore rep) in

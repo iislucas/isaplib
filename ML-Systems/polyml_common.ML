@@ -29,8 +29,8 @@ PolyML.Compiler.maxInlineSize := 80;
 
 local
   val orig_exit = (fn x => OS.Process.exit OS.Process.success);
-in
   open PolyML;
+in
   val exit = orig_exit;
   fun quit () = exit 0;
 end;
@@ -139,8 +139,13 @@ fun getenv var =
   | SOME txt => txt);
 
 
-(* profile execution *)
+(** Runtime system **)
 
+val exception_trace = PolyML.exception_trace;
+val timing = PolyML.timing;
+val profiling = PolyML.profiling;
+
+(* profile execution *)
 fun profile 0 f x = f x
   | profile n f x =
       let

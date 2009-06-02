@@ -79,8 +79,8 @@ sig
   val add_range : name * name -> T -> T
 
   (* renaming *)
-  val rename1 : name -> name -> T -> (name * T)
-  val rename1_opt : name -> name -> T -> (name option * T) (* SOME if had to be renamed because of a clash *)
+  val rename1 : name -> name -> T -> (name * T) (* fst disappears, adds snd *)
+  val rename1_opt : name -> name -> T -> (name option * T) (* SOME if renamed to avoid a clash *)
   val try_rename1 : name -> name -> T -> T option (* NONE on name clash *)
 
   (* lookup *)

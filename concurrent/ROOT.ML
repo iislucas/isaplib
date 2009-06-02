@@ -3,7 +3,6 @@
 
 Concurrency within the ML runtime.
 *)
-
 use "simple_thread.ML";
 use "synchronized.ML";
 use "mailbox.ML";

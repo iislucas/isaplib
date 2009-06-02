@@ -56,6 +56,9 @@ val del_cod : Cod.name -> T -> T
 val add1 : Dom.name -> Cod.name -> T -> T
 val del1 : Dom.name -> Cod.name -> T -> T
 
+(* union of two relations *)
+val union_merge : T -> T -> T
+
 (* rename *)
 val rename1_dom : Dom.name -> Dom.name -> T -> (Dom.name * T)
 val rename1_cod : Cod.name -> Cod.name -> T -> (Cod.name * T)
@@ -182,7 +185,6 @@ fun del_many aset bset rel =
                        else Cod.NTab.update (b,newaset) batab2 end)
               bset batab);
 
-
 (* 1-many relations *)
 (* implicit: rel *)
 fun add_to_dom a bset = add_many (Dom.NSet.single a) bset;
@@ -194,6 +196,12 @@ fun del_from_cod b aset = del_many aset (Cod.NSet.single b);
 (* implicit: rel *)
 fun add1 a b = add_many  (Dom.NSet.single a) (Cod.NSet.single b);
 fun del1 a b = del_many (Dom.NSet.single a) (Cod.NSet.single b);
+
+(* union of two binary relations *)
+fun union_merge r1 r2 = 
+  r2 
+  |> Dom.NTab.fold (fn (a,bset) => add_to_dom a bset) (get_domtab r1)
+  |> Cod.NTab.fold (fn (b,aset) => add_to_cod b aset) (get_codtab r1)
 
 (* convert to/from lists *)
 val list_of = Dom.NTab.list_of o get_domtab;

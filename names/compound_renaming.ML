@@ -20,6 +20,7 @@ type renaming
 type obj
 (* assumes that existing renaming does not cause clashes,
    preserves non-clashing of renamings *)
+val empty_renaming : renaming
 val rename : renaming -> obj -> renaming * obj
 val mk_renaming : obj -> renaming -> renaming
 val do_renaming : renaming -> obj -> obj
@@ -39,6 +40,8 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
   type renaming = Rnm.T;
   type obj = CR.obj;
 
+  val empty_renaming = Rnm.empty;
+  
   fun do_renaming rn x = 
       Nm.NSet.fold 
         (fn n => fn x2 =>
