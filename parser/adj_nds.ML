@@ -303,9 +303,9 @@ val print = Pretty.writeln o pretty;
 end;
 
 
-install_pp (make_pp ["AdjNds", "T"] 
+(* install_pp (make_pp ["AdjNds", "T"] 
                     (Pretty.pprint o AdjNds.pretty));
-
+*)
 
 
 

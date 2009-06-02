@@ -1,10 +1,3 @@
-(* From IsaPlanner 
-System.use "tools/dbg.ML"; (* debugging tools *)
-System.use "tools/fnamer.ML"; (* idea of creating fresh names *)
-System.use "tools/namers.ML"; (* some things to choose names *)
-System.use "tools/fnametab.ML"; (* name tables which provide fresh names *)
-System.use "tools/collection.ML"; (* collections of things  *)
-*)
 (* basic tools for datatypes and parsing *)
 use "parser_lib.ML";
 

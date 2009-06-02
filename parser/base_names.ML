@@ -13,12 +13,15 @@ structure CnTab = Cn.NTab;
 structure En :> SSTR_NAMES = SStrName;
 structure EnTab = En.NTab;
 
+(* 
 install_pp (make_pp ["Dn", "name"] (Pretty.pprint o Dn.pretty_name));
 install_pp (make_pp ["Cn", "name"] (Pretty.pprint o Cn.pretty_name));
 install_pp (make_pp ["En", "name"] (Pretty.pprint o En.pretty_name));
-
+*)
 
 (* Agenda element names *)
 structure An :> SINT_NAMES = SIntName;
+(* 
 install_pp (make_pp ["An", "name"] (Pretty.pprint o An.pretty_name));
+*)
 structure AnTab = An.NTab;

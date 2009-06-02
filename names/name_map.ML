@@ -4,10 +4,10 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-    Name mappings (non-isomorphic functions on names)
+    Name mappings: (non-isomorphic) functions over finite sets of names
 
     Note: not necessarily surjective (inverse set is not always
-    defined), and not injective.
+    defined), and may not be injective either.
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
@@ -54,6 +54,9 @@ val del_cod : Cod.name -> T -> T
 (* adding mappings *)
 val add_to_dom : Dom.name -> Cod.name -> T -> T
 val add_to_cod : Cod.name -> Dom.NSet.T -> T -> T
+
+(* take union of two maps; assumes disjoint domains *)
+val union_merge : T -> T -> T
 
 (* renaming *)
 val rename1_dom : Dom.name -> Dom.name -> T -> (Dom.name * T)
@@ -122,6 +125,24 @@ fun update_codf f (NameMap rep) =
 
 val set_domtab = update_domf o K;
 val set_codtab = update_codf o K;
+
+fun union_merge f1 f2 = 
+    let 
+      fun merge_codfs c1 c2 =
+      Cod.NTab.fold
+        (fn (v as (n,a)) => fn c3 => 
+            case Cod.NTab.lookup c3 n
+             of NONE => Cod.NTab.update_new (n,a) c3
+              | SOME a2 => Cod.NTab.update (n,Dom.NSet.union_merge a a2) c3)
+        c1 c2;
+    in
+      NameMap { 
+        domf = Dom.NTab.merge_joint 
+           Cod.name_eq (get_domtab f1) (get_domtab f2),
+        codf = merge_codfs (get_codtab f1) (get_codtab f2)
+      }
+    end;
+
 
 (* implicit: m n *)
 val lookup_domf = Dom.NTab.lookup o get_domtab;

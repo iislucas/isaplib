@@ -577,5 +577,7 @@ end;
 
 structure ParseState : PARSE_STATE = DB_ParseState;
 
+(* 
 install_pp (make_pp ["ParseState", "T"] 
                     (Pretty.pprint o ParseState.pretty));
+*)
