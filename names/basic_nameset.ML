@@ -117,6 +117,7 @@ sig
   (* checking properties of all names *)
   val forall : (name -> bool) -> T -> bool
   val exists : (name -> bool) -> T -> bool
+  val get_exists : (name -> bool) -> T -> name option
 
   (* moving around the name set (log time) *)
   val next_smaller : T -> name -> name option
@@ -921,15 +922,20 @@ fun fold_rev f = fold_ranges_rev (Basics.fold_rev f o dest_range);
 
 fun filter f s = fold (fn e => if (f e) then I else delete e) s s;
 
-exception found_exp 
+exception found_exp of name;
+
 fun exists f ns = 
-    (fold (fn n => fn () => if (f n) then raise found_exp else ()) ns (); 
+    (fold (fn n => fn () => if (f n) then raise found_exp n else ()) ns (); 
      false)
-    handle found_exp => true;
+    handle found_exp _ => true;
+fun get_exists f ns = 
+    (fold (fn n => fn () => if (f n) then raise found_exp n else ()) ns (); 
+     NONE)
+    handle found_exp n => SOME n;
 fun forall f ns = 
-    (fold (fn n => fn () => if (f n) then () else raise found_exp) ns (); 
+    (fold (fn n => fn () => if (f n) then () else raise found_exp n) ns (); 
      true)
-    handle found_exp => false;
+    handle found_exp _ => false;
 
 
 (* {a,b,c,d} => [(a, {b,c,d}), (b, {a,c,d}), (c,{a,b,d}), ... ] *)
