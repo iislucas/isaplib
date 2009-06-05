@@ -1,5 +1,8 @@
 (* test all examples... *)
 
+use "prop_ill.ML";
+
+(* 
 (* direct BNFs; no morphisms *)
 use "minimal_cat.ML";
 use "animals.ML";
@@ -10,8 +13,11 @@ use "a_cat_option.ML";
 use "catlist.ML";
 use "spaced_cats.ML";
 
+
 (* use "catlist.ML"; *)
 use "arith_expr.ML";
+use "arith_expr2.ML";
 use "bnf.ML";
+*)
 
 writeln "All exmaples finished happily!";

@@ -24,6 +24,9 @@ signature ADJ_NDS
 
   (* has some awakened or sleeping - some possibility to merge *)
   val has_mergeable : T -> bool
+  
+  (* have mergable links and no delayed ones *)
+  val alive_and_no_stuck_links : T -> bool
 
   val get_awakened : T -> An.NSet.T
   val get_sleeping : T -> An.NSet.T
@@ -89,14 +92,14 @@ invarient: nds, dnds, ddnds are disjoint.
 datatype T = Adj of {
              (* nodes which should be checked now: current active agenda *)
              nds : An.NSet.T, 
-             (* they will announce when they become top and tell us *)
+             (* they will announce when they become top; and then link to us *)
              snds : An.NSet.T, 
-             (* we announce when we becomes toped. 
-                delayed until we are activated, we will add a link 
+             (* we link to these when we becomes toped. 
+                they are delayed until we are activated, we will add a link 
                 from us to them and us to them for each parent of our top. *)
              dnds : An.NSet.T, 
              (* double-delayed: waiting for us and them; when we reach 
-                top we will they every one of them to delayed for us. *)
+                top we will change every one of them to be delayed for us. *)
              ddnds : An.NSet.T 
              };
 
@@ -133,15 +136,21 @@ fun get_ddelayed (Adj rep) = #ddnds rep;
 
 
 (* if there are some awakened or sleeping, then we have some
-possibility to merge (when they become top) or when we our adjacency
-is considered. Delayed and ddelayed are not consiered, because those
+possibility to merge (when they become top) or when our adjacency
+is considered. Delayed and ddelayed are not considered, because those
 happend after we get top, and we only get top if we merge enough
 first. *)
 fun has_mergeable s = An.NSet.is_empty (get_awakened s) 
-                       andalso An.NSet.is_empty (get_sleeping s);
+                      andalso An.NSet.is_empty (get_sleeping s);
 
+(* has progress links and no delayed links *)
+fun alive_and_no_stuck_links nds = 
+    has_mergeable nds 
+    andalso An.NSet.is_empty (get_delayed nds)
+    andalso An.NSet.is_empty (get_ddelayed nds);
+    
+    
 (* utility functions *)
-
 fun update_all updf (Adj rep) = 
       Adj {nds = updf (#nds rep), 
            snds = updf (#snds rep),

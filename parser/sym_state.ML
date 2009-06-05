@@ -34,6 +34,9 @@ signature SYM_STATE
   val needs_more_left : T -> bool
   val needs_more_right : T -> bool
 
+  (* empty agenda on a side which needs more. *)
+  val prunable : T -> bool
+  
   (* nothing ever mergeable *)
   val empty_left_agenda : T -> bool
   val empty_right_agenda : T -> bool;
@@ -267,7 +270,7 @@ val get_maxrnd = maxrnd_of_intype o get_intype;
 fun lr_order (s1,s2) = 
     case AnTab.ord (get_maxlnd s1, get_maxlnd s2)
      of LESS => LESS
-      | MORE => MORE
+      | GREATER => GREATER
       | EQUAL => AnTab.ord (get_maxrnd s2, get_maxrnd s1);
 
 (* implicit f s *)
@@ -285,14 +288,20 @@ val set_elems = update_elems o K;
 val set_undernds = update_undernds o K;
 val set_parent_dname = update_parent_dname o K;
 
-(* check if the left/right agenda is empty (thing you can merge with in the future) *)
-val empty_left_agenda = AdjNds.has_mergeable o get_lnds;
-val empty_right_agenda = AdjNds.has_mergeable o get_rnds;
+(* check if the left/right agenda is empty (things you can merge with in the future) *)
+val empty_left_agenda = not o AdjNds.has_mergeable o get_lnds;
+val empty_right_agenda = not o AdjNds.has_mergeable o get_rnds;
 
 (* fun is_alive s = not (empty_left_agenda s andalso empty_right_agenda s); *)
-fun is_alive s = not (AdjNds.is_empty (get_lnds s) andalso AdjNds.is_empty (get_rnds s));
+(* Only used or pretty printing *)
+fun is_alive s = not (AdjNds.is_empty (get_lnds s) 
+                 andalso AdjNds.is_empty (get_rnds s));
 
-
+(* This node cannot make progress in any way *)
+fun prunable s = 
+    (needs_more_right s andalso empty_right_agenda s)
+    orelse 
+    (needs_more_left s andalso empty_left_agenda s);
 
 (* Well Formedness *)
 
@@ -352,7 +361,7 @@ fun get_min_and_max_of_elems s =
          | _ => NONE
     end;
 
-(* well formed, specific cases: 
+(* well formed, (it really is what the constructor says it is) specific cases: 
    Top: undernds all have entries
    LeftEdge: left-most element and all elements left of next are known. 
    RightEdge: as for left. 
@@ -441,9 +450,21 @@ fun is_well_formed' (s as Top _) = has_undernds_forall_elems s
                    has_all_undernds_in smallest biggest s)))
     end;
 
-fun is_well_formed s = 
-    only_elems_as_undernds s andalso is_well_formed' s;
+(* has alive links and no dead ones as appropriate for symbol type *)
+fun has_correct_adj_links (s as Middle _) = 
+  AdjNds.alive_and_no_stuck_links (get_lnds s) 
+  andalso AdjNds.alive_and_no_stuck_links (get_rnds s)
+| has_correct_adj_links (s as LeftEdge _) = 
+  AdjNds.alive_and_no_stuck_links (get_lnds s)
+| has_correct_adj_links (s as RightEdge _) = 
+  AdjNds.alive_and_no_stuck_links (get_rnds s)
+| has_correct_adj_links (s as Top _) = true;
 
+(* all well-formed properties *)
+fun is_well_formed s = 
+    has_correct_adj_links s 
+    andalso only_elems_as_undernds s 
+    andalso is_well_formed' s;
 
 (* implicit intype *)
 exception nothing_under_intype_exp of string;

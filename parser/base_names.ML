@@ -13,15 +13,22 @@ structure CnTab = Cn.NTab;
 structure En :> SSTR_NAMES = SStrName;
 structure EnTab = En.NTab;
 
-(* 
-install_pp (make_pp ["Dn", "name"] (Pretty.pprint o Dn.pretty_name));
-install_pp (make_pp ["Cn", "name"] (Pretty.pprint o Cn.pretty_name));
-install_pp (make_pp ["En", "name"] (Pretty.pprint o En.pretty_name));
-*)
+
+fun pprint_of_prettyf f depth pretty = 
+  PolyML.PrettyString o Pretty.string_of o f;
+
+PolyML.addPrettyPrinter (pprint_of_prettyf Dn.pretty_name);
+PolyML.addPrettyPrinter (pprint_of_prettyf En.pretty_name);
+PolyML.addPrettyPrinter (pprint_of_prettyf Cn.pretty_name);
 
 (* Agenda element names *)
 structure An :> SINT_NAMES = SIntName;
-(* 
-install_pp (make_pp ["An", "name"] (Pretty.pprint o An.pretty_name));
-*)
+PolyML.addPrettyPrinter (pprint_of_prettyf An.pretty_name);
+
+
+fun print_tab (depth : int) (printEl: 'a * int -> PolyML.pretty) (x : 'a An.NTab.T) =
+		PolyML.PrettyString "?'a An.NTab.T";
+
 structure AnTab = An.NTab;
+PolyML.addPrettyPrinter print_tab;          
+

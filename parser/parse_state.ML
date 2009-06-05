@@ -146,7 +146,8 @@ fun andptab_of_cx (Cx rep) = #andptab rep;
 
 (* state of a parser: context + symbols states + open symbols *)
 datatype T = 
-  State of {cx : cx,
+  State of {
+    cx : cx,
     symsts : SymState.T AnTab.T,
     opensts : An.NSet.T
   };
@@ -156,12 +157,15 @@ val base_name = An.default_name;
 
 (* basic constructor function *)
 fun init_state dcx = 
-    State {cx = mk_cx dcx, symsts = AnTab.empty, opensts = An.NSet.empty};
+    State {cx = mk_cx dcx, 
+      symsts = AnTab.empty, 
+      opensts = An.NSet.empty};
 
 (* basic gets *)
 fun get_opensts (State rep) = #opensts rep;
 fun get_sts (State rep) = #symsts rep;
 fun get_cx (State rep) = #cx rep;
+
 (* basic updates *)
 fun update_sts f (State rep) = 
     State {cx = #cx rep, symsts = f (#symsts rep), 
@@ -216,7 +220,7 @@ fun add_new_bottom_sym (dname, left, right) (st as State rep) =
     let 
       val andpset = 
           case DnTab.lookup (get_andptab st) dname of 
-            NONE => raise symbol_not_in_any_rule_exp ("add_new_bottom_sym", dname, st)
+            NONE => raise symbol_not_in_any_rule_exp ("add_new_bottom_sym: ", dname, st)
           | SOME andpset => andpset
       val (nextid, symsts') = AnTab.new_name base_name (#symsts rep);
       val s = SymState.mk_leaf (dname, nextid, left, right);
