@@ -118,6 +118,7 @@ sig
   val forall : (name -> bool) -> T -> bool
   val exists : (name -> bool) -> T -> bool
   val get_exists : (name -> bool) -> T -> name option
+  val search : (name -> 'a option) -> T -> 'a option
 
   (* moving around the name set (log time) *)
   val next_smaller : T -> name -> name option
@@ -932,6 +933,17 @@ fun get_exists f ns =
     (fold (fn n => fn () => if (f n) then raise found_exp n else ()) ns (); 
      NONE)
     handle found_exp n => SOME n;
+
+fun search f ns = 
+    let val r = ref NONE in
+    (fold (fn n => fn () => 
+           case (f n) 
+           of NONE => () 
+            | SOME x => (r := SOME x; raise found_exp n))
+          ns (); NONE)
+    handle found_exp n => !r
+    end;
+
 fun forall f ns = 
     (fold (fn n => fn () => if (f n) then () else raise found_exp n) ns (); 
      true)
