@@ -102,6 +102,16 @@ fun length (Block (_, _, _, len)) = len
   | length (Break (_, wd)) = wd;
 
 
+(* ML toplevel pretty printing *)
+(* 
+fun to_ML (Block (m, prts, ind, _)) = ML_Pretty.Block (m, map to_ML prts, ind)
+  | to_ML (String s) = ML_Pretty.String s
+  | to_ML (Break b) = ML_Pretty.Break b;
+
+fun from_ML (ML_Pretty.Block (m, prts, ind)) = block_markup m (ind, map from_ML prts)
+  | from_ML (ML_Pretty.String s) = String s
+  | from_ML (ML_Pretty.Break b) = Break b;
+*)
 
 (** derived operations to create formatting expressions **)
 

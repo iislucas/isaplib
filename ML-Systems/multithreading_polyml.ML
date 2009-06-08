@@ -1,14 +1,14 @@
 (*  Title:      Pure/ML-Systems/multithreading_polyml.ML
     Author:     Makarius
 
-Multithreading in Poly/ML 5.2 or later (cf. polyml/basis/Thread.sml).
+Multithreading in Poly/ML 5.2.1 or later (cf. polyml/basis/Thread.sml).
 *)
 
 signature MULTITHREADING_POLYML =
 sig
   val interruptible: ('a -> 'b) -> 'a -> 'b
   val uninterruptible: ((('c -> 'd) -> 'c -> 'd) -> 'a -> 'b) -> 'a -> 'b
-  val system_out: string -> string * int
+ (*  val system_out: string -> string * int *)
   structure TimeLimit: TIME_LIMIT
 end;
 
@@ -69,6 +69,9 @@ val no_interrupts =
 val regular_interrupts =
   [Thread.EnableBroadcastInterrupt true, Thread.InterruptState Thread.InterruptAsynchOnce];
 
+val restricted_interrupts =
+  [Thread.EnableBroadcastInterrupt false, Thread.InterruptState Thread.InterruptAsynchOnce];
+
 val safe_interrupts = map
   (fn Thread.InterruptState Thread.InterruptAsynch =>
       Thread.InterruptState Thread.InterruptAsynchOnce
@@ -77,11 +80,9 @@ val safe_interrupts = map
 fun with_attributes new_atts f x =
   let
     val orig_atts = safe_interrupts (Thread.getAttributes ());
-    fun restore () = Thread.setAttributes orig_atts;
-    val result =
-      (Thread.setAttributes (safe_interrupts new_atts);
-        Exn.Result (f orig_atts x) before restore ())
-      handle e => Exn.Exn e before restore ();
+    val result = Exn.capture (fn () =>
+      (Thread.setAttributes (safe_interrupts new_atts); f orig_atts x)) ();
+    val _ = Thread.setAttributes orig_atts;
   in Exn.release result end;
 
 fun interruptible f = with_attributes regular_interrupts (fn _ => f);
@@ -114,7 +115,7 @@ end;
 
 
 (* system shell processes, with propagation of interrupts *)
-
+(* 
 fun system_out script = uninterruptible (fn restore_attributes => fn () =>
   let
     val script_name = OS.FileSys.tmpName ();
@@ -175,7 +176,7 @@ fun system_out script = uninterruptible (fn restore_attributes => fn () =>
     val _ = Thread.interrupt system_thread handle Thread _ => ();
     val rc = (case ! result of Signal => raise Exn.Interrupt | Result rc => rc);
   in (output, rc) end) ();
-
+*)
 
 (* critical section -- may be nested within the same thread *)
 

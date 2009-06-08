@@ -91,11 +91,12 @@ datatype parser_state = PsrState of
 { lset : An.NSet.T, (* set of nodes touching left edge *)
   rset : An.NSet.T, (* set of nodes touching right edge *)
   st : ParseState.T, (* parse state *)
-  openlocs : OpenLocMap.T (* root positions to higher level symbol states *)
+  openls : OpenLocMap.T (* root positions to higher level symbol states *)
 }; (* state of parsing *)
 
 
-val init_state = PsrState {
+val init_state = 
+PsrState {
   lset = An.NSet.empty,
   rset = An.NSet.empty,
   st = ParseState.init_state base_dcx,
@@ -155,7 +156,7 @@ fun close_sym (is0 as (i,s)) (r as PsrState rep) =
       st = ParseState.del1_from_open i (#st rep),
       openls = OpenLocMap.del_cod i (#openls rep)
     };
-    
+
 fun new_syms (i,(leftedge, rightedge)) newids st2 (r as PsrState rep) = 
     PsrState { 
       lset = if leftedge then An.NSet.union_merge newids (#lset rep) 
@@ -163,7 +164,7 @@ fun new_syms (i,(leftedge, rightedge)) newids st2 (r as PsrState rep) =
       rset =if rightedge then An.NSet.union_merge newids (#rset rep) 
              else (#rset rep), 
       st = st2 |> ParseState.del1_from_open i
-               |> ParseState.union_to_open newids
+               |> ParseState.union_to_open newids,
       openls = (#openls rep) |> new_open_locs i newids
     };
     

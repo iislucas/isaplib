@@ -1,104 +1,59 @@
-(*  Title:      Pure/ML-Systems/polyml.ML
+(*  Title:      Pure/ML-Systems/polyml-experimental.ML
 
-Compatibility wrapper for Poly/ML 5.2 or later.
+Compatibility wrapper for Poly/ML 5.3 (SVN experimental).
 *)
 
 open Thread;
-use "ML-Systems/polyml_common.ML";
 
-(* Added for standalone polyml usage *)
-val ml_system = "polyml-5.3";
-
-fun do_and_exit_or_die f = 
-    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
-    handle _ => OS.Process.exit OS.Process.failure;
-fun forget_all () = 
-    (map PolyML.Compiler.forgetSignature
-         (PolyML.Compiler.signatureNames());
-     map PolyML.Compiler.forgetType
-         (PolyML.Compiler.typeNames());
-     map PolyML.Compiler.forgetValue
-         (List.filter (fn s => s <> "run" andalso s <> "do_and_exit_or_die"
-                          andalso s <> "forget_all")
-                 (PolyML.Compiler.valueNames()));
-     map PolyML.Compiler.forgetStructure
-         (List.filter (fn s => s <> "PolyML" andalso s <> "OS") 
-                 (PolyML.Compiler.structureNames()));
-     ());
-
-(* 
-PolyML.Compiler.inlineFunctors := false;
-PolyML.Compiler.maxInlineSize := 40;
-*)
-
-(* back to Isabelle's stuff... 
-if ml_system = "polyml-5.2"
-then *)
-use "ML-Systems/thread_dummy.ML";
-(* else
-use "ML-Systems/multithreading_polyml.ML"; *)
-
-val pointer_eq = PolyML.pointerEq;
-
-fun share_common_data () = PolyML.shareCommonData PolyML.shell;
-
-
-(* runtime compilation *)
-
-structure ML_NameSpace =
+structure ML_Name_Space =
 struct
   open PolyML.NameSpace;
+  type T = PolyML.NameSpace.nameSpace;
   val global = PolyML.globalNameSpace;
 end;
 
-local
+use "ML-Systems/polyml_common.ML";
+use "ML-Systems/multithreading_polyml.ML";
 
-fun drop_newline s =
-  if String.isSuffix "\n" s then String.substring (s, 0, size s - 1)
-  else s;
+val pointer_eq = PolyML.pointerEq;
 
-in
+fun share_common_data () = PolyML.shareCommonData PolyML.rootFunction;
 
-fun isa_use_text  (tune: string -> string) str_of_pos
-    name_space (start_line, name) (print, err) verbose txt =
+use "ML-Systems/compiler_polyml-5.3.ML";
+
+
+(* toplevel pretty printing *)
+
+val pretty_ml =
   let
-    val current_line = ref start_line;
-    val in_buffer = ref (String.explode (tune txt));
-    val out_buffer = ref ([]: string list);
-    fun output () = drop_newline (implode (rev (! out_buffer)));
+    fun convert len (PolyML.PrettyBlock (ind, _, context, prts)) =
+          let
+            fun property name default =
+              (case List.find (fn PolyML.ContextProperty (a, _) => name = a | _ => false) context of
+                SOME (PolyML.ContextProperty (_, b)) => b
+              | NONE => default);
+            val bg = property "begin" "";
+            val en = property "end" "";
+            val len' = property "length" len;
+          in ML_Pretty.Block ((bg, en), map (convert len') prts, ind) end
+      | convert len (PolyML.PrettyString s) =
+          ML_Pretty.String (s, case Int.fromString len of SOME i => i | NONE => size s)
+      | convert _ (PolyML.PrettyBreak (wd, _)) =
+          ML_Pretty.Break (if wd < 99999 then (false, wd) else (true, 2));
+  in convert "" end;
 
-    fun get () =
-      (case ! in_buffer of
-        [] => NONE
-      | c :: cs =>
-          (in_buffer := cs; if c = #"\n" then current_line := ! current_line + 1 else (); SOME c));
-    fun put s = out_buffer := s :: ! out_buffer;
-    fun put_message {message, hard, location = {startLine = line, ...}, context} =
-     (put (if hard then "Error: " else "Warning: ");
-      PolyML.prettyPrint (put, 76) message;
-      put (str_of_pos line name ^ "\n"));
+fun ml_pretty (ML_Pretty.Block ((bg, en), prts, ind)) =
+      let val context =
+        (if bg = "" then [] else [PolyML.ContextProperty ("begin", bg)]) @
+        (if en = "" then [] else [PolyML.ContextProperty ("end", en)])
+      in PolyML.PrettyBlock (ind, false, context, map ml_pretty prts) end
+  | ml_pretty (ML_Pretty.String (s, len)) =
+      if len = size s then PolyML.PrettyString s
+      else PolyML.PrettyBlock
+        (0, false, [PolyML.ContextProperty ("length", Int.toString len)], [PolyML.PrettyString s])
+  | ml_pretty (ML_Pretty.Break (false, wd)) = PolyML.PrettyBreak (wd, 0)
+  | ml_pretty (ML_Pretty.Break (true, _)) = PolyML.PrettyBreak (99999, 0);
 
-    val parameters =
-     [PolyML.Compiler.CPOutStream put,
-      PolyML.Compiler.CPLineNo (fn () => ! current_line),
-      PolyML.Compiler.CPErrorMessageProc put_message,
-      PolyML.Compiler.CPNameSpace name_space,
-      PolyML.Compiler.CPPrintInAlphabeticalOrder false];
-    val _ =
-      (while not (List.null (! in_buffer)) do
-        PolyML.compiler (get, parameters) ())
-      handle exn =>
-       (put ("Exception- " ^ General.exnMessage exn ^ " raised");
-        err (output ()); raise exn);
-  in if verbose then print (output ()) else () end;
-
-fun isa_use_file tune str_of_pos name_space output verbose name =
-  let
-    val instream = TextIO.openIn name;
-    val txt = Exn.release (Exn.capture TextIO.inputAll instream before TextIO.closeIn instream);
-  in isa_use_text tune str_of_pos name_space (1, name) output verbose txt end;
-
-val use_text = isa_use_text;
-val use_file = isa_use_file;
-
-end;
+fun toplevel_pp context (_: string list) pp =
+  use_text context (1, "pp") false
+    ("PolyML.addPrettyPrinter (fn _ => fn _ => ml_pretty o Pretty.to_ML o (" ^ pp ^ "))");

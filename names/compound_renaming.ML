@@ -41,7 +41,8 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
   type obj = CR.obj;
 
   val empty_renaming = Rnm.empty;
-  
+  val print_renaming = Rnm.print;
+
   fun do_renaming rn x = 
       Nm.NSet.fold 
         (fn n => fn x2 =>

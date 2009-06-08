@@ -1,20 +1,40 @@
 (*  Title:      Pure/ML-Systems/polyml_common.ML
 
-Compatibility file for Poly/ML -- common part for 4.x and 5.x.
+Compatibility file for Poly/ML -- common part for 5.x.
 *)
+
+fun do_and_exit_or_die f = 
+    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
+    handle _ => OS.Process.exit OS.Process.failure;
+fun forget_all () = 
+    (map PolyML.Compiler.forgetSignature
+         (PolyML.Compiler.signatureNames());
+     map PolyML.Compiler.forgetType
+         (PolyML.Compiler.typeNames());
+     map PolyML.Compiler.forgetValue
+         (List.filter (fn s => s <> "run" andalso s <> "do_and_exit_or_die"
+                          andalso s <> "forget_all")
+                 (PolyML.Compiler.valueNames()));
+     map PolyML.Compiler.forgetStructure
+         (List.filter (fn s => s <> "PolyML" andalso s <> "OS") 
+                 (PolyML.Compiler.structureNames()));
+     ());
+
 
 exception Interrupt = SML90.Interrupt;
 
 use "ML-Systems/exn.ML";
 use "ML-Systems/multithreading.ML";
 use "ML-Systems/time_limit.ML";
-(* use "ML-Systems/system_shell.ML"; -- isabelle specific *)
-use "ML-Systems/ml_name_space.ML";
-
+(* use "ML-Systems/system_shell.ML"; *)
+use "ML-Systems/ml_pretty.ML";
+use "ML-Systems/use_context.ML";
 
 (** ML system and platform related **)
 
 val forget_structure = PolyML.Compiler.forgetStructure;
+
+val _ = PolyML.Compiler.forgetValue "print";
 
 
 (* Compiler options *)
@@ -27,13 +47,7 @@ PolyML.Compiler.maxInlineSize := 80;
 
 (* old Poly/ML emulation *)
 
-local
-  val orig_exit = (fn x => OS.Process.exit OS.Process.success);
-  open PolyML;
-in
-  val exit = orig_exit;
-  fun quit () = exit 0;
-end;
+fun quit () = OS.Process.exit OS.Process.success;
 
 
 (* restore old-style character / string functions *)
@@ -73,19 +87,16 @@ fun check_timer timer =
 fun ml_prompts p1 p2 = (PolyML.Compiler.prompt1 := p1; PolyML.Compiler.prompt2 := p2);
 
 
-(* toplevel pretty printing (see also Pure/pure_setup.ML) *)
+(* print depth *)
 
-fun make_pp _ pprint (str, blk, brk, en) _ _ obj =
-  pprint obj (str, fn ind => blk (ind, false), fn wd => brk (wd, 0),
-    fn () => brk (99999, 0), en);
-
-(*print depth*)
 local
   val depth = ref 10;
 in
   fun get_print_depth () = ! depth;
   fun print_depth n = (depth := n; PolyML.print_depth n);
 end;
+
+val error_depth = PolyML.error_depth;
 
 
 
@@ -139,13 +150,13 @@ fun getenv var =
   | SOME txt => txt);
 
 
+
 (** Runtime system **)
 
 val exception_trace = PolyML.exception_trace;
 val timing = PolyML.timing;
 val profiling = PolyML.profiling;
 
-(* profile execution *)
 fun profile 0 f x = f x
   | profile n f x =
       let

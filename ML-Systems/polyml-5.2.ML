@@ -1,98 +1,24 @@
 (*  Title:      Pure/ML-Systems/polyml.ML
 
-Compatibility wrapper for Poly/ML 5.2 or later.
+Compatibility wrapper for Poly/ML 5.2 and 5.2.1.
 *)
 
 open Thread;
+
+structure ML_Name_Space =
+struct
+  open PolyML.NameSpace;
+  type T = PolyML.NameSpace.nameSpace;
+  val global = PolyML.globalNameSpace;
+end;
+
 use "ML-Systems/polyml_common.ML";
 
-(* Added for standalone polyml usage *)
-val ml_system = "polyml-5.2";
-fun do_and_exit_or_die f = 
-    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
-    handle _ => OS.Process.exit OS.Process.failure;
-fun forget_all () = 
-    (map PolyML.Compiler.forgetSignature
-         (PolyML.Compiler.signatureNames());
-     map PolyML.Compiler.forgetType
-         (PolyML.Compiler.typeNames());
-     map PolyML.Compiler.forgetValue
-         (List.filter (fn s => s <> "run" andalso s <> "do_and_exit_or_die"
-                          andalso s <> "forget_all")
-                 (PolyML.Compiler.valueNames()));
-     map PolyML.Compiler.forgetStructure
-         (List.filter (fn s => s <> "PolyML" andalso s <> "OS") 
-                 (PolyML.Compiler.structureNames()));
-     ());
-
-(* 
-PolyML.Compiler.inlineFunctors := false;
-PolyML.Compiler.maxInlineSize := 40;
-*)
-
-(* back to Isabelle's stuff... *)
-if ml_system = "polyml-5.2"
-then use "ML-Systems/thread_dummy.ML"
-else use "ML-Systems/multithreading_polyml.ML";
+use "ML-Systems/multithreading_polyml.ML";
 
 val pointer_eq = PolyML.pointerEq;
 
 fun share_common_data () = PolyML.shareCommonData PolyML.rootFunction;
 
-
-(* runtime compilation *)
-
-structure ML_NameSpace =
-struct
-  open PolyML.NameSpace;
-  val global = PolyML.globalNameSpace;
-end;
-
-local
-
-fun drop_newline s =
-  if String.isSuffix "\n" s then String.substring (s, 0, size s - 1)
-  else s;
-
-in
-
-fun isa_use_text (tune: string -> string) str_of_pos
-    name_space (start_line, name) (print, err) verbose txt =
-  let
-    val current_line = ref start_line;
-    val in_buffer = ref (String.explode (tune txt));
-    val out_buffer = ref ([]: string list);
-    fun output () = drop_newline (implode (rev (! out_buffer)));
-
-    fun get () =
-      (case ! in_buffer of
-        [] => NONE
-      | c :: cs =>
-          (in_buffer := cs; if c = #"\n" then current_line := ! current_line + 1 else (); SOME c));
-    fun put s = out_buffer := s :: ! out_buffer;
-    fun message (msg, is_err, line) =
-      (if is_err then "Error: " else "Warning: ") ^ drop_newline msg ^ str_of_pos line name ^ "\n";
-
-    val parameters =
-     [PolyML.Compiler.CPOutStream put,
-      PolyML.Compiler.CPLineNo (fn () => ! current_line),
-      PolyML.Compiler.CPErrorMessageProc (put o message),
-      PolyML.Compiler.CPNameSpace name_space];
-    val _ =
-      (while not (List.null (! in_buffer)) do
-        PolyML.compiler (get, parameters) ())
-      handle exn =>
-       (put ("Exception- " ^ General.exnMessage exn ^ " raised");
-        err (output ()); raise exn);
-  in if verbose then print (output ()) else () end;
-
-fun isa_use_file tune str_of_pos name_space output verbose name =
-  let
-    val instream = TextIO.openIn name;
-    val txt = Exn.release (Exn.capture TextIO.inputAll instream before TextIO.closeIn instream);
-  in isa_use_text tune str_of_pos name_space (1, name) output verbose txt end;
-
-val use_text = isa_use_text;
-val use_file = isa_use_file;
-
-end;
+use "ML-Systems/compiler_polyml-5.2.ML";
+use "ML-Systems/pp_polyml.ML";
