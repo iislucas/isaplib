@@ -58,6 +58,8 @@ sig
   (* fold all elements *)
   val fold : (name -> 'a -> 'a) -> T -> 'a -> 'a
   val fold_rev : (name -> 'a -> 'a) -> T -> 'a -> 'a
+  (* fold try, stop early if needed *)
+  (* val fold_try : (name -> 'a -> 'a option) -> T -> 'a -> 'a option *)
 
   (* toand from lists *)
   val add_to_rangelist : T -> (name * name) list -> (name * name) list
@@ -918,6 +920,11 @@ fun try_rename1 n1 n2 tr = (* optional result: SOME if no name clash *)
 
 
 (* fold over all elements *)
+fun fold_try f [] a = a
+  | fold_try f (h::t) a = 
+    (case f h a of NONE => NONE
+     | SOME a2 => fold_try f t a2);
+
 fun fold f = fold_ranges (Basics.fold f o dest_range);
 fun fold_rev f = fold_ranges_rev (Basics.fold_rev f o dest_range);
 

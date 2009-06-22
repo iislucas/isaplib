@@ -83,6 +83,10 @@ val get_codlist : T -> Cod.name list
 val get_domtab : T -> Cod.name Dom.NTab.T
 val get_codtab : T -> Dom.NSet.T Cod.NTab.T
 
+(* restrict to a given domain/codomain *)
+val restrict_dom_to : Dom.NSet.T -> T -> T
+val restrict_cod_to : Cod.NSet.T -> T -> T
+
 (* pretty printing *)
 val pretty : T -> Pretty.T
 val print : T -> unit
@@ -332,6 +336,22 @@ fun try_rename1_cod a1 a2 m =
                        Dom.NSet.fold (Dom.NTab.map_entry (K a2))
                                      domset domtab)))
     end;
+
+(* takes time prop to dom *)
+fun restrict_dom_to vs m = 
+    Dom.NSet.fold 
+      (fn d => fn m2 => if Dom.NSet.contains vs d then m2 
+        else del_dom d m2)
+      (get_domset m)
+      m;
+
+fun restrict_cod_to vs m = 
+    Cod.NSet.fold 
+      (fn n => fn m2 => if Cod.NSet.contains vs n then m2 
+        else del_cod n m2)
+      (get_codset m)
+      m;
+
 
 
 (* pretty printing *)
