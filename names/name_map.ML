@@ -38,6 +38,10 @@ val codf : T -> Cod.name -> Dom.NSet.T (* raise *)
 (* internal; partial function, NONE when there is no such set *)
 val lookup_domf : T -> Dom.name -> Cod.name option
 val lookup_codf : T -> Cod.name -> Dom.NSet.T option
+(* IMPROVE add: 
+val in_dom : T -> Dom.name -> bool
+val in_cod : T -> Cod.name -> bool
+*)
 
 (* add and delete many things *)
 (* val add_many_to_1cod : Dom.NSet.T -> Cod.name -> T -> T *)
