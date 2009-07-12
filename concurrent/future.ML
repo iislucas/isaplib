@@ -44,6 +44,7 @@ sig
   val join_result: 'a future -> 'a Exn.result
   val join: 'a future -> 'a
   val map: ('a -> 'b) -> 'a future -> 'b future
+  val interruptible_task: ('a -> 'b) -> 'a -> 'b
   val interrupt_task: string -> unit
   val cancel_group: group -> unit
   val cancel: 'a future -> unit
@@ -211,7 +212,8 @@ fun scheduler_next () = (*requires SYNCHRONIZED*)
     val _ = if continue then () else scheduler := NONE;
 
     val _ = notify_all ();
-    val _ = interruptible (fn () => wait_timeout (Time.fromSeconds 1)) ()
+    val _ = interruptible (fn () =>
+        wait_timeout (Time.fromMilliseconds (if null (! canceled) then 1000 else 50))) ()
       handle Exn.Interrupt => List.app do_cancel (Task_Queue.cancel_all (! queue));
   in continue end;
 
@@ -236,7 +238,7 @@ fun scheduler_check name = SYNCHRONIZED name (fn () =>
 fun future_job group (e: unit -> 'a) =
   let
     val result = ref (NONE: 'a Exn.result option);
-    val job = Multithreading.with_attributes (Thread.getAttributes ())
+    val job = Multithreading.with_attributes Multithreading.restricted_interrupts
       (fn _ => fn ok =>
         let
           val res = if ok then Exn.capture e () else Exn.Exn Exn.Interrupt;
@@ -274,17 +276,21 @@ local
 
 fun get_result x = the_default (Exn.Exn (SYS_ERROR "unfinished future")) (peek x);
 
-fun join_next pending = (*requires SYNCHRONIZED*)
-  if forall is_finished pending then NONE
+fun join_wait x =
+  while not (is_finished x)
+  do SYNCHRONIZED "join_wait" (fn () => wait ());
+
+fun join_next x = (*requires SYNCHRONIZED*)
+  if is_finished x then NONE
   else
     (case change_result queue Task_Queue.dequeue of
-      NONE => (worker_wait (); join_next pending)
+      NONE => (worker_wait (); join_next x)
     | some => some);
 
-fun join_loop name pending =
-  (case SYNCHRONIZED name (fn () => join_next pending) of
+fun join_loop x =
+  (case SYNCHRONIZED "join" (fn () => join_next x) of
     NONE => ()
-  | SOME work => (execute name work; join_loop name pending));
+  | SOME work => (execute "join" work; join_loop x));
 
 in
 
@@ -295,31 +301,10 @@ fun join_results xs =
       val _ = scheduler_check "join check";
       val _ = Multithreading.self_critical () andalso
         error "Cannot join future values within critical section";
-
-      fun join_deps _ [] = ()
-        | join_deps name deps =
-            (case SYNCHRONIZED name (fn () =>
-                change_result queue (Task_Queue.dequeue_towards deps)) of
-              NONE => ()
-            | SOME (work, deps') => (execute name work; join_deps name deps'));
-
       val _ =
-        (case thread_data () of
-          NONE =>
-            (*alien thread -- refrain from contending for resources*)
-            while not (forall is_finished xs)
-            do SYNCHRONIZED "join_thread" (fn () => wait ())
-        | SOME (name, task) =>
-            (*proper task -- actively work towards results*)
-            let
-              val pending = filter_out is_finished xs;
-              val deps = map task_of pending;
-              val _ = SYNCHRONIZED "join" (fn () =>
-                (change queue (Task_Queue.depend deps task); notify_all ()));
-              val _ = join_deps ("join_deps: " ^ name) deps;
-              val _ = join_loop ("join_loop: " ^ name) (filter_out is_finished pending);
-            in () end);
-
+        if is_some (thread_data ())
+        then List.app join_loop xs   (*proper task -- continue work*)
+        else List.app join_wait xs;  (*alien thread -- refrain from contending for resources*)
     in map get_result xs end) ();
 
 end;
@@ -349,6 +334,15 @@ fun map_future f x =
 
 
 (* cancellation *)
+
+fun interruptible_task f x =
+  if Multithreading.available then
+    Multithreading.with_attributes
+      (if is_some (thread_data ())
+       then Multithreading.restricted_interrupts
+       else Multithreading.regular_interrupts)
+      (fn _ => f) x
+  else interruptible f x;
 
 (*interrupt: permissive signal, may get ignored*)
 fun interrupt_task id = SYNCHRONIZED "interrupt"

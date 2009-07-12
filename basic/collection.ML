@@ -60,7 +60,7 @@ struct
 type obj = Key.key;
 
 val ord = Key.ord;
-structure Tab = TableFun(type key = Key.key val ord = Key.ord);
+structure Tab = Table(type key = Key.key val ord = Key.ord);
 
 exception DUP = Tab.DUP;
 exception UNDEF = Tab.UNDEF;

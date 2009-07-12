@@ -131,7 +131,7 @@ functor BasicNameTabFun(
 
 (*       (Library.prod_ord NSet.ord Library.int_ord) (a,b); *)
 
-  structure Tab = TableFun(type key = name val ord = ord );
+  structure Tab = Table(type key = name val ord = ord );
 
   datatype 'a T = 
            Tab of {names : NSet.T,

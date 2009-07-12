@@ -15,13 +15,13 @@ sig
   val is_empty: 'a T -> bool
   val keys: 'a T -> key list
   val dest: 'a T -> (key * key list) list
-  val get_first: (key * ('a * (key list * key list)) -> 'b option) -> 'a T -> 'b option
+  val get_first: key option -> (key * ('a * (key list * key list)) -> 'b option) ->
+    'a T -> 'b option
   val fold: (key * ('a * (key list * key list)) -> 'b -> 'b) -> 'a T -> 'b -> 'b
   val minimals: 'a T -> key list
   val maximals: 'a T -> key list
   val subgraph: (key -> bool) -> 'a T -> 'a T
   val map_nodes: ('a -> 'b) -> 'a T -> 'b T
-  val fold_map_nodes: (key * 'a -> 'b -> 'c * 'b) -> 'a T -> 'b -> 'c T * 'b
   val get_node: 'a T -> key -> 'a                                     (*exception UNDEF*)
   val map_node: key -> ('a -> 'a) -> 'a T -> 'a T
   val map_node_yield: key -> ('a -> 'b * 'a) -> 'a T -> 'b * 'a T
@@ -49,9 +49,10 @@ sig
   val topological_order: 'a T -> key list
   val add_edge_trans_acyclic: key * key -> 'a T -> 'a T               (*exception CYCLES*)
   val merge_trans_acyclic: ('a * 'a -> bool) -> 'a T * 'a T -> 'a T   (*exception CYCLES*)
+  val extend: (key -> 'a * key list) -> key -> 'a T -> 'a T
 end;
 
-functor GraphFun(Key: KEY): GRAPH =
+functor Graph(Key: KEY): GRAPH =
 struct
 
 (* keys *)
@@ -66,7 +67,7 @@ val remove_key = remove eq_key;
 
 (* tables and sets of keys *)
 
-structure Table = TableFun(Key);
+structure Table = Table(Key);
 type keys = unit Table.table;
 
 val empty_keys = Table.empty: keys;
@@ -88,7 +89,7 @@ fun is_empty (Graph tab) = Table.is_empty tab;
 fun keys (Graph tab) = Table.keys tab;
 fun dest (Graph tab) = map (fn (x, (_, (_, succs))) => (x, succs)) (Table.dest tab);
 
-fun get_first f (Graph tab) = Table.get_first f tab;
+fun get_first b f (Graph tab) = Table.get_first b f tab;
 fun fold_graph f (Graph tab) = Table.fold f tab;
 
 fun minimals G = fold_graph (fn (m, (_, ([], _))) => cons m | _ => I) G [];
@@ -115,9 +116,6 @@ fun map_entry_yield x f (G as Graph tab) =
 (* nodes *)
 
 fun map_nodes f (Graph tab) = Graph (Table.map (fn (i, ps) => (f i, ps)) tab);
-
-fun fold_map_nodes f (Graph tab) =
-  apfst Graph o Table.fold_map (fn (k, (i, ps)) => f (k, i) #> apfst (rpair ps)) tab;
 
 fun get_node G = #1 o get_entry G;
 
@@ -280,10 +278,26 @@ fun merge_trans_acyclic eq (G1, G2) =
   |> fold add_edge_trans_acyclic (diff_edges G2 G1);
 
 
+(* constructing graphs *)
+
+fun extend explore =
+  let
+    fun ext x G =
+      if can (get_entry G) x then G
+      else
+        let val (info, ys) = explore x in
+          G
+          |> new_node (x, info)
+          |> fold ext ys
+          |> fold (fn y => add_edge (x, y)) ys
+        end
+  in ext end;
+
+
 (*final declarations of this structure!*)
 val fold = fold_graph;
 
 end;
 
-structure Graph = GraphFun(type key = string val ord = fast_string_ord);
-structure IntGraph = GraphFun(type key = int val ord = int_ord);
+structure Graph = Graph(type key = string val ord = fast_string_ord);
+structure IntGraph = Graph(type key = int val ord = int_ord);

@@ -20,7 +20,7 @@ fun subloc_ord (AtAnds _, AtOrs _) = LESS
 fun ord (DPos a, DPos b) = 
     Library.prod_ord Dn.name_ord subloc_ord (a,b);
 
-structure Tab = TableFun(type key = T val ord = ord);
+structure Tab = Table(type key = T val ord = ord);
 structure Set = CollectionFUN(type key = T val ord = ord);
 
 fun mk_atands (n, (en,eset)) = DPos (n, AtAnds(en,eset));

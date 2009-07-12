@@ -24,21 +24,20 @@ sig
   val map': (key -> 'a -> 'b) -> 'a table -> 'b table
   val fold: (key * 'b -> 'a -> 'a) -> 'b table -> 'a -> 'a
   val fold_rev: (key * 'b -> 'a -> 'a) -> 'b table -> 'a -> 'a
-  val fold_map: (key * 'b -> 'a -> 'c * 'a) -> 'b table -> 'a -> 'c table * 'a
   val dest: 'a table -> (key * 'a) list
   val keys: 'a table -> key list
-  val exists: (key * 'a -> bool) -> 'a table -> bool
-  val forall: (key * 'a -> bool) -> 'a table -> bool
-  val get_first: (key * 'a -> 'b option) -> 'a table -> 'b option
   val min_key: 'a table -> key option
   val max_key: 'a table -> key option
-  val defined: 'a table -> key -> bool
+  val get_first: key option -> (key * 'a -> 'b option) -> 'a table -> 'b option
+  val exists: (key * 'a -> bool) -> 'a table -> bool
+  val forall: (key * 'a -> bool) -> 'a table -> bool
   val lookup: 'a table -> key -> 'a option
-  val update: (key * 'a) -> 'a table -> 'a table
-  val update_new: (key * 'a) -> 'a table -> 'a table                   (*exception DUP*)
+  val defined: 'a table -> key -> bool
+  val update: key * 'a -> 'a table -> 'a table
+  val update_new: key * 'a -> 'a table -> 'a table                     (*exception DUP*)
   val default: key * 'a -> 'a table -> 'a table
   val map_entry: key -> ('a -> 'a) -> 'a table -> 'a table
-  val map_default: (key * 'a) -> ('a -> 'a) -> 'a table -> 'a table
+  val map_default: key * 'a -> ('a -> 'a) -> 'a table -> 'a table
   val make: (key * 'a) list -> 'a table                                (*exception DUP*)
   val join: (key -> 'a * 'a -> 'a) (*exception DUP/SAME*) ->
     'a table * 'a table -> 'a table                                    (*exception DUP*)
@@ -49,7 +48,7 @@ sig
   val insert: ('a * 'a -> bool) -> key * 'a -> 'a table -> 'a table    (*exception DUP*)
   val remove: ('b * 'a -> bool) -> key * 'b -> 'a table -> 'a table
   val lookup_list: 'a list table -> key -> 'a list
-  val cons_list: (key * 'a) -> 'a list table -> 'a list table
+  val cons_list: key * 'a -> 'a list table -> 'a list table
   val insert_list: ('a * 'a -> bool) -> key * 'a -> 'a list table -> 'a list table
   val remove_list: ('b * 'a -> bool) -> key * 'b -> 'a list table -> 'a list table
   val update_list: ('a * 'a -> bool) -> key * 'a -> 'a list table -> 'a list table
@@ -59,7 +58,7 @@ sig
     'a list table * 'a list table -> 'a list table                     (*exception DUP*)
 end;
 
-functor TableFun(Key: KEY): TABLE =
+functor Table(Key: KEY): TABLE =
 struct
 
 
@@ -112,38 +111,8 @@ fun fold_rev_table f =
           fold left (f p1 (fold mid (f p2 (fold right x))));
   in fold end;
 
-fun fold_map_table f =
-  let
-    fun fold_map Empty s = (Empty, s)
-      | fold_map (Branch2 (left, p as (k, x), right)) s =
-          s
-          |> fold_map left
-          ||>> f p
-          ||>> fold_map right
-          |-> (fn ((l, e), r) => pair (Branch2 (l, (k, e), r)))
-      | fold_map (Branch3 (left, p1 as (k1, x1), mid, p2 as (k2, x2), right)) s =
-          s
-          |> fold_map left
-          ||>> f p1
-          ||>> fold_map mid
-          ||>> f p2
-          ||>> fold_map right
-          |-> (fn ((((l, e1), m), e2), r) => pair (Branch3 (l, (k1, e1), m, (k2, e2), r)))
-  in fold_map end;
-
 fun dest tab = fold_rev_table cons tab [];
 fun keys tab = fold_rev_table (cons o #1) tab [];
-
-fun get_first f tab =
-  let
-    exception FOUND of 'b option;
-    fun get entry () = (case f entry of NONE => () | some => raise FOUND some);
-  in (fold_table get tab (); NONE) handle FOUND res => res end;
-
-fun exists pred =
-  is_some o get_first (fn entry => if pred entry then SOME () else NONE);
-
-fun forall pred = not o exists (not o pred);
 
 
 (* min/max keys *)
@@ -159,6 +128,45 @@ fun max_key Empty = NONE
   | max_key (Branch3 (_, _, _, (k, _), Empty)) = SOME k
   | max_key (Branch2 (_, _, right)) = max_key right
   | max_key (Branch3 (_, _, _, _, right)) = max_key right;
+
+
+(* get_first *)
+
+fun get_first boundary f tab =
+  let
+    val check =
+      (case boundary of
+        NONE => K true
+      | SOME b => (fn k => Key.ord (b, k) = LESS));
+    fun apply (k, x) = if check k then f (k, x) else NONE;
+    fun get_bounded tb k = if check k then get tb else NONE
+    and get Empty = NONE
+      | get (Branch2 (left, (k, x), right)) =
+          (case get_bounded left k of
+            NONE =>
+              (case apply (k, x) of
+                NONE => get right
+              | some => some)
+          | some => some)
+      | get (Branch3 (left, (k1, x1), mid, (k2, x2), right)) =
+          (case get_bounded left k1 of
+            NONE =>
+              (case apply (k1, x1) of
+                NONE =>
+                  (case get_bounded mid k2 of
+                    NONE =>
+                      (case apply (k2, x2) of
+                        NONE => get right
+                      | some => some)
+                  | some => some)
+              | some => some)
+          | some => some);
+  in get tab end;
+
+fun exists pred =
+  is_some o get_first NONE (fn entry => if pred entry then SOME () else NONE);
+
+fun forall pred = not o exists (not o pred);
 
 
 (* lookup *)
@@ -366,7 +374,7 @@ fun make entries = fold update_new entries empty;
 
 fun join f (table1, table2) =
   let fun add (key, y) tab = modify key (fn NONE => y | SOME x => f key (x, y)) tab;
-  in fold_table add table2 table1 end;
+  in if pointer_eq (table1, table2) then table1 else fold_table add table2 table1 end;
 
 fun merge eq = join (fn key => fn xy => if eq xy then raise SAME else raise DUP key);
 
@@ -398,9 +406,11 @@ fun map f = map_table (K f);
 val map' = map_table;
 val fold = fold_table;
 val fold_rev = fold_rev_table;
-val fold_map = fold_map_table;
 
 end;
 
-structure Inttab = TableFun(type key = int val ord = int_ord);
-structure Symtab = TableFun(type key = string val ord = fast_string_ord);
+structure Inttab = Table(type key = int val ord = int_ord);
+structure Symtab = Table(type key = string val ord = fast_string_ord);
+structure Symreltab = Table(type key = string * string
+  val ord = prod_ord fast_string_ord fast_string_ord);
+
