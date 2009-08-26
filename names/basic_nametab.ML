@@ -70,7 +70,8 @@ sig
   val exists : ((name * 'a) -> bool) -> 'a T -> bool
 
   (* modifications *)
-  val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T
+  val safe_map_entry : ('a -> 'a) -> name -> 'a T -> 'a T (* *)
+  val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T (* raises Tab.UNDEF *)
   val map_all : ('a -> 'b) -> 'a T -> 'b T
   val map_all' : (name -> 'a -> 'b) -> 'a T -> 'b T
   val fold : ((name * 'a) -> 'b -> 'b) -> 'a T -> 'b -> 'b
@@ -169,10 +170,6 @@ functor BasicNameTabFun(
   fun ins (x as (n,a)) (Tab rep) = 
       (Tab{ names = NSet.ins_fresh n (#names rep),
             tab = Tab.update_new x (#tab rep) });
-
-  fun map_entry f n (Tab rep) = 
-      Tab{ names = #names rep,
-           tab = Tab.map_entry n f (#tab rep) };
 
   fun map_all f (Tab rep) = 
       Tab{ names = #names rep,
@@ -280,12 +277,23 @@ functor BasicNameTabFun(
                            tab = (#tab rep) |> Tab.delete n1
                                             |> Tab.update (n2,x) })));
 
-
   fun get (Tab rep) n =
       case Tab.lookup (#tab rep) n 
        of NONE => 
           raise Tab.UNDEF n
         | SOME x => x;
+
+  fun safe_map_entry f n (Tab rep) = 
+      Tab{ names = #names rep,
+           tab = Tab.map_entry n f (#tab rep) };
+
+  (* assumes NSet has same elements as tab *)
+  fun map_entry f n (Tab rep) = 
+      let val names = #names rep in
+      if NSet.contains names n then 
+        Tab{ names = names,
+             tab = Tab.map_entry n f (#tab rep) }
+      else raise Tab.UNDEF n end;
 
   (* FIXME & IMPROVE: may raise an exception if tab contains used
   names without entries: fix by adding a get_smaller to table.ML *)

@@ -4,7 +4,8 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-    Name mappings: (non-isomorphic) functions over finite sets of names
+    Name mappings (injective): (non-isomorphic) functions over
+    finite sets of names
 
     Note: not necessarily surjective (inverse set is not always
     defined), and may not be injective either.
@@ -38,10 +39,8 @@ val codf : T -> Cod.name -> Dom.NSet.T (* raise *)
 (* internal; partial function, NONE when there is no such set *)
 val lookup_domf : T -> Dom.name -> Cod.name option
 val lookup_codf : T -> Cod.name -> Dom.NSet.T option
-(* IMPROVE add: 
-val in_dom : T -> Dom.name -> bool
-val in_cod : T -> Cod.name -> bool
-*)
+val dom_contains : T -> Dom.name -> bool
+val cod_contains : T -> Cod.name -> bool
 
 (* add and delete many things *)
 (* val add_many_to_1cod : Dom.NSet.T -> Cod.name -> T -> T *)
@@ -155,6 +154,10 @@ fun union_merge f1 f2 =
 (* implicit: m n *)
 val lookup_domf = Dom.NTab.lookup o get_domtab;
 val lookup_codf = Cod.NTab.lookup o get_codtab;
+
+val dom_contains = Dom.NTab.contains_name o get_domtab;
+val cod_contains = Cod.NTab.contains_name o get_codtab;
+
 
 exception not_in_dom_exp of Dom.name * T;
 exception not_in_cod_exp of Cod.name * T;
