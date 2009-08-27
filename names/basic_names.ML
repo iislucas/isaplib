@@ -34,6 +34,7 @@ signature BASIC_NAMES
 
   val default_name : name
   val pretty_name : name -> Pretty.T
+  val string_of : name -> string
   val print_name : name -> unit
   val name_eq : name * name -> bool
   val name_ord : name * name -> General.order
@@ -46,6 +47,7 @@ functor BasicNameFun(structure Namer : NAMER
 = struct
 type name = Namer.name;
 val pretty_name = Namer.pretty;
+val string_of = Pretty.string_of o Namer.pretty;
 val print_name = Pretty.writeln o pretty_name;
 val name_ord = Namer.ord;
 fun name_eq ab = case (name_ord ab) of EQUAL => true | _ => false;
