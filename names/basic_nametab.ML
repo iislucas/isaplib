@@ -90,6 +90,7 @@ sig
   val keys : 'a T -> name list
   val values : 'a T -> 'a list
   val get_nameset : 'a T -> NSet.T;
+  val cardinality : 'a T -> int; (* of nameset *)
 
   (* abbreivations from internal structures *)
   val ord : name * name -> order
@@ -136,10 +137,11 @@ functor BasicNameTabFun(
 
   datatype 'a T = 
            Tab of {names : NSet.T,
-                   tab : 'a Tab.table}
+                   tab : 'a Tab.table};
 
   fun get_tab (Tab rep) = #tab rep;
   fun get_nameset (Tab rep) = #names rep;
+  fun cardinality ntab = NSet.cardinality (get_nameset ntab);
 
   val empty = Tab {names = NSet.empty,
                    tab = Tab.empty};
