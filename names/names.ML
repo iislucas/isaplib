@@ -69,6 +69,7 @@ signature NAMES
 
   val default_name : name
   val pretty_name : name -> Pretty.T
+  val string_of_name : name -> string
   val print_name : name -> unit
   val name_eq : name * name -> bool
   val name_ord : name * name -> General.order

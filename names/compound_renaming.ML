@@ -4,10 +4,13 @@ signature COMPOUND_RENAMABLE =
 sig
 structure Nm : BASIC_NAMES
 type obj
-val get_nameset : obj -> Nm.NSet.T (* get set of all names *)
-val try_rename1 : Nm.name -> Nm.name -> obj -> obj option (* rename 1 name *)
-end;
 
+(* get set of all names *)
+val get_nameset : obj -> Nm.NSet.T 
+
+(* rename 1 name *)
+val try_rename1 : Nm.name -> Nm.name -> obj -> obj option 
+end;
 
 (* IMPROVE: ADD: can also make compount renaming from pairwise
 compound renamings. *)
@@ -68,7 +71,39 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
                 of NONE => raise Rnm.invalid_renaming_exp "compound rename"
                  | SOME x3 => (rn3, x3)))
         (CR.get_nameset x) (rn,x);
+        
+end;
+
+(*
+signature ALPHA_CONVABLE
+= sig 
+include COMPOUND_RENAMABLE;
+
+( * fold over two objects as far as they have the same structure 
+   assumes f is applied to each pair of names; returns NONE is structure doesn't 
+   match.
+* )
+val fold_2obj_names : (Nm.name * Nm.name -> 'a -> 'a) 
+                      -> obj * obj -> 'a -> 'a option
+                      
 end;
 
 
+functor AlphaFun(S : ALPHA) 
+= struct
+
+exception stop_exp of unit;
+
+fun alpha (objs as (obj1,obj2)) rn = 
+    (S.fold_2obj_names 
+       (fn (n1,n2) => fn rnm => 
+          case S.try_rename1 n1 n2 rnm
+            of NONE => raise stop_exp()
+             | SOME rnm2 => rnm2) 
+       objs
+       rn) 
+     handle stop_exp _ => NONE;
+
+end;
+*)
 

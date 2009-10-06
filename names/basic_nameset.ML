@@ -960,6 +960,18 @@ fun forall f ns =
 (* {a,b,c,d} => [(a, {b,c,d}), (b, {a,c,d}), (c,{a,b,d}), ... ] *)
 fun pull_each nset = fold (fn n => fn l => (n,delete n nset)::l) nset [];
 
+(*
+exception stop_exp of unit;
+( * NOTE: not used;
+  IMPROVE: provide more efficient set based 2obj fold * )
+fun fold_2obj_names f (obj1,obj2) a = 
+   (SOME o snd ooo fold)
+   (fn n1 => 
+    (fn ([], a') => raise stop_exp ()
+      | (n2::Ns, a') => (Ns,f (n1,n2) a'))) 
+    obj1 (list_of obj2, a)
+    handle stop_exp _ => NONE
+*)
 
 end; (* structure *)
 
