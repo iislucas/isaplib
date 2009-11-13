@@ -71,9 +71,10 @@ structure BasicIntName : BASIC_NAMES where type name = int
 
 structure BasicStrIntName : BASIC_NAMES where type name = string * int
 = BasicNameFun(structure Namer = StrIntNamer val default_name = ("a",0));
-
+*)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  PolyML pretty printing *)
+(*
 install_pp (make_pp ["BasicStrName", "NSet", "T"] (Pretty.pprint o BasicIntName.NSet.pretty));
 install_pp (make_pp ["BasicStrName", "NSet", "T"] (Pretty.pprint o BasicStrName.NSet.pretty));
 install_pp (make_pp ["BasicStrIntName", "NSet", "T"] (Pretty.pprint o BasicStrIntName.NSet.pretty));

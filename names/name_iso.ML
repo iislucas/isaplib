@@ -29,6 +29,14 @@ a table of renamings (the name translation used).
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+signature NAME_ISO_SHARING = (* all types for sharing *)
+sig
+  structure Dom : NAMES_SHARING
+  structure Cod : NAMES_SHARING
+  type T
+end;
+
+
 signature NAME_ISO 
 = sig
 
@@ -100,6 +108,11 @@ val get_codtab : T -> Dom.name Cod.NTab.T
 (* pretty printing *)
 val pretty : T -> Pretty.T
 val print : T -> unit;
+
+structure Sharing : NAME_ISO_SHARING
+sharing type Sharing.T = T
+sharing Sharing.Dom = Dom.Sharing
+sharing Sharing.Cod = Cod.Sharing
 
 end;
 
@@ -321,5 +334,13 @@ fun pretty (ChangeNames rep) =
        Pretty.str "}"];
 
 val print = Pretty.writeln o pretty;
+
+
+(* *)
+structure Sharing = struct
+  structure Dom = Dom.Sharing
+  structure Cod = Cod.Sharing
+  type T = T;
+end;
 
 end;

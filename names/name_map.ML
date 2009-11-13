@@ -12,6 +12,13 @@
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+signature NAME_MAP_SHARING = (* all types for sharing *)
+sig
+  structure Dom : NAMES_SHARING
+  structure Cod : NAMES_SHARING
+  type T
+end;
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 signature NAME_MAP = 
 sig 
 structure Dom : NAMES (* domain elements *)
@@ -93,6 +100,12 @@ val restrict_cod_to : Cod.NSet.T -> T -> T
 (* pretty printing *)
 val pretty : T -> Pretty.T
 val print : T -> unit
+
+structure Sharing : NAME_MAP_SHARING
+sharing Sharing.Dom = Dom.Sharing
+sharing Sharing.Cod = Cod.Sharing
+sharing type T = T;
+
 end;
 
 (* *)
@@ -371,5 +384,13 @@ fun pretty m =
                    Cod.NTab.pretty Dom.NSet.pretty (get_codtab m)],
      Pretty.str "}"];
 val print = Pretty.writeln o pretty;
+
+(* *)
+structure Sharing = 
+struct
+  structure Dom = Dom.Sharing
+  structure Cod = Cod.Sharing
+  type T = T
+end;
 
 end;

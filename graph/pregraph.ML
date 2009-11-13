@@ -13,7 +13,7 @@ end;
 (* to simplify sharing constraints *)
 signature NAME_AND_DATA_SHARING =
 sig
-include NAME_SHARING
+include NAMES_SHARING
 type data
 end;
 
@@ -28,7 +28,7 @@ sharing Sharing = SharingWithData
 end;
 
 signature EHN_SHARING = 
-sig include NAME_SHARING; type halfid; end;
+sig include NAMES_SHARING; type halfid; end;
 
 (* names for half edges and edge directions *)
 signature EHN_NAMES
@@ -102,7 +102,7 @@ signature VERTEX = NAME_AND_DATA;
 (* Special Sharing sigs for Edges which include half-edge names *)
 
 signature EDGE_SHARING = 
-sig include NAME_SHARING; structure Ehn : EHN_SHARING; end;
+sig include NAMES_SHARING; structure Ehn : EHN_SHARING; end;
 signature EDGE_AND_DATA_SHARING = 
 sig include EDGE_SHARING; type data; end;
 

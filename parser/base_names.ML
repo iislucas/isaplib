@@ -13,10 +13,10 @@ structure CnTab = Cn.NTab;
 structure En :> SSTR_NAMES = SStrName;
 structure EnTab = En.NTab;
 
-
+(* 
 fun pprint_of_prettyf f depth pretty = 
   PolyML.PrettyString o Pretty.string_of o f;
-(* 
+
 PolyML.addPrettyPrinter (pprint_of_prettyf Dn.pretty_name);
 PolyML.addPrettyPrinter (pprint_of_prettyf En.pretty_name);
 PolyML.addPrettyPrinter (pprint_of_prettyf Cn.pretty_name);

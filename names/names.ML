@@ -19,7 +19,7 @@ of "n" are ignored.
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
 (* Types within a NAME structure, to ease writing of sharing constraints *)
-signature NAME_SHARING = 
+signature NAMES_SHARING = 
 sig 
   type name
   type 'a table
@@ -49,20 +49,6 @@ signature NAMES
   where type 'a nmap = 'a NTab.T
   and type name = name 
   and type nset = NSet.T 
-
-  (** types which want to be shared **) 
-  structure Sharing : NAME_SHARING where
-    type name = name
-    and type 'a table = 'a Tab.table
-    and type nset = NSet.T
-    and type 'a ntab = 'a NTab.T
-    and type renaming = Rnm.T
-  
-  (* where type nmap = nmap *) (* note compound type; cannot use sharing *)
-
-(*   sharing type Rnm.name = name 
-  sharing type Rnm.nset = NSet.T 
-*)
 
   sharing type NTab.renaming = Rnm.T 
   sharing type NSet.renaming = Rnm.T;
@@ -111,6 +97,22 @@ signature NAMES
 
   val pretty_renaming : renaming -> Pretty.T
   val print_renaming : renaming -> unit
+
+
+  (** types which want to be shared **) 
+  structure Sharing : NAMES_SHARING where
+    type name = name
+    and type 'a table = 'a Tab.table
+    and type nset = NSet.T
+    and type 'a ntab = 'a NTab.T
+    and type renaming = Rnm.T
+
+  (* where type nmap = nmap *) (* note compound type; cannot use sharing *)
+
+(*   sharing type Rnm.name = name 
+  sharing type Rnm.nset = NSet.T 
+*)
+
 end;
 
 (* Safe String Names; isomorphic strings, named hidden under a
@@ -140,15 +142,6 @@ functor NamesFun(
 
   structure NSet = NameSetFun(Nm);
   structure NTab = NameTabFun(Nm);
-
-  (** types which want to be shared **) 
-  structure Sharing = struct 
-    type name = name
-    type 'a table = 'a Tab.table
-    type nset = NSet.T
-    type 'a ntab = 'a NTab.T
-    type renaming = Rnm.T
-  end
   
   type renaming = Rnm.T
   val empty_renaming = Rnm.empty;
@@ -168,6 +161,15 @@ functor NamesFun(
 
   val pretty_renaming = Rnm.pretty;
   val print_renaming = Rnm.print;
+
+  (** types which want to be shared **) 
+  structure Sharing = struct 
+    type name = name
+    type 'a table = 'a Tab.table
+    type nset = NSet.T
+    type 'a ntab = 'a NTab.T
+    type renaming = Rnm.T
+  end
 end;
 
 (* add data to a names type - makes new names type with extra data *)

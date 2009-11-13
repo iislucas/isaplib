@@ -13,7 +13,6 @@ Note: Name Automorphisms
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-
 (* This *should* be our signature, but PolyML has buggy sharing... *)
 signature NAME_AMORPH = 
 sig 
