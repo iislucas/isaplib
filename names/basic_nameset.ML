@@ -942,13 +942,13 @@ fun get_exists f ns =
     handle found_exp n => SOME n;
 
 fun search f ns = 
-    let val r = ref NONE in
-    (fold (fn n => fn () => 
+    let exception found_data of 'a in
+      (fold (fn n => fn () => 
            case (f n) 
            of NONE => () 
-            | SOME x => (r := SOME x; raise found_exp n))
+            | SOME x => raise found_data x)
           ns (); NONE)
-    handle found_exp n => !r
+    handle found_data r => SOME r
     end;
 
 fun forall f ns = 
