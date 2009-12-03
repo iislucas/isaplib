@@ -92,6 +92,7 @@ val lookup_domf : T -> Dom.name -> Cod.name option
 val lookup_codf : T -> Cod.name -> Dom.name option
 
 (* removing entries *)
+(* delete an element from the domain (and the corresponding one from cod) *)
 val del_dom : Dom.name -> T -> T
 val del_cod : Cod.name -> T -> T
 
@@ -298,7 +299,7 @@ fun try_rename1_cod n1 n2 (cn as ChangeNames rep) =
       | NONE => NONE);
 
 
-(* delete an element from the domain *)
+(* delete an element from the domain (and the corresponding one from cod) *)
 fun del_dom n (cn as ChangeNames rep) = 
     let val dom1 = (#domf rep) val cod1 = (#codf rep)
     in 

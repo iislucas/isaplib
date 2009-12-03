@@ -53,11 +53,12 @@ val cod_contains : T -> Cod.name -> bool
 (* val add_many_to_1cod : Dom.NSet.T -> Cod.name -> T -> T *)
 (* val del_many_from_1cod : Cod.name -> Dom.NSet.T -> T -> T *)
 
-(* remove things *)
+(* remove things preserving surjectivity: delete unmapped cod elements *)
 val surj_del_dom' : Dom.name -> T 
                    -> (Cod.name option (* removed this from cod *)
                        * T)
 val surj_del_dom : Dom.name -> T -> T
+(* basic delete: leaves unampped elements in the map *)
 val del_dom : Dom.name -> T -> T
 val del_cod : Cod.name -> T -> T
 
