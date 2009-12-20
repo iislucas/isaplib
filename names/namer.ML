@@ -51,6 +51,8 @@ type name = data * N.name;
 fun suc (d,n) = (d, N.suc n);
 fun pred (d,n) = 
     (case N.pred n of NONE => NONE | SOME n' => SOME (d, n'));
+(* order must be this way around! Else break Suc operation on names, 
+   which breaks name tables. *)
 val ord = Library.prod_ord ord_data N.ord;
 fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
 val pretty = pretty;

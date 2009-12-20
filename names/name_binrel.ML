@@ -11,7 +11,7 @@
     (objects with order and fresh construction operations)
     (e.g. two way linked dependencies on names)
 
-    POSSIBLE IMPROVEMENT: lazy updates? 
+    POSSIBLE IMPROVEMENT: lazy updates? allow unrelated elements? 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 signature NAME_BINREL 
@@ -38,7 +38,8 @@ val codf : T -> Cod.name -> Dom.NSet.T (* is empty is none *)
 val lookup_domf : T -> Dom.name -> Cod.NSet.T option
 val lookup_codf : T -> Cod.name -> Dom.NSet.T option
 
-(* add and delete many binary relations *)
+(* add and delete many binary relations; 
+   all deletes also remove disconnected elements *)
 val add_many : Dom.NSet.T -> Cod.NSet.T -> T -> T
 val del_many : Dom.NSet.T -> Cod.NSet.T -> T -> T
 
@@ -194,7 +195,7 @@ fun del_from_cod b aset = del_many aset (Cod.NSet.single b);
 
 (* 1-1 relations *)
 (* implicit: rel *)
-fun add1 a b = add_many  (Dom.NSet.single a) (Cod.NSet.single b);
+fun add1 a b = add_many (Dom.NSet.single a) (Cod.NSet.single b);
 fun del1 a b = del_many (Dom.NSet.single a) (Cod.NSet.single b);
 
 (* union of two binary relations *)
@@ -215,21 +216,12 @@ fun of_rawlist l = fold (fn (a,b) => add1 a b) l empty;
 fun del_dom a1 rel = 
     (case Dom.NTab.lookup (get_domtab rel) a1 of 
        NONE => rel
-     | SOME changedbs => 
-       rel |> update_domf (Dom.NTab.delete a1)
-       |> update_codf (fn batab => 
-                          Cod.NSet.fold 
-                            (Cod.NTab.map_entry (Dom.NSet.delete a1))
-                            changedbs batab))
+     | SOME changedbs => rel |> del_from_dom a1 changedbs);
+
 fun del_cod b1 rel = 
     (case Cod.NTab.lookup (get_codtab rel) b1 of 
        NONE => rel
-     | SOME changedas => 
-       rel |> update_codf (Cod.NTab.delete b1)
-           |> update_domf (fn abtab => 
-                              Dom.NSet.fold 
-                                (Dom.NTab.map_entry (Cod.NSet.delete b1))
-                                changedas abtab));
+     | SOME changedas => rel |> del_from_cod b1 changedas);
 
 (* renaming *)
 
