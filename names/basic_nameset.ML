@@ -2,13 +2,13 @@
 (*  Title:      basic_nameset.ML
     Author:     Lucas Dixon
                 lucas.dixon@ed.ac.uk
-                Initially written Oct 2005, Last Updated 29 Jan 2008   *)
+                Oct 2005 - 2010                                        *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
     Used to get new nice fresh names (quickly). With a slight
     adaptation, it can also be thought of as a memory management where
-    names are memory spaces.
+    names are memory locations.
 
     A descrete interval table (for fresh names): a specialised, AVL
     tree inspired, representation for holding intervals and getting
@@ -115,6 +115,10 @@ sig
   val remove_set : T -> T -> T (* subtraction = (snd - fst) *)
   val intersect : T -> T -> T (* intersection *)
   val contrast : T -> T -> (T * T * T) (* in only left, in both, in only right*)
+
+  (* set predicates *)
+  val nonempty_intersect : T -> T -> bool (* intersection is not empty *)
+
 
   (* checking properties of all names *)
   val forall : (name -> bool) -> T -> bool
@@ -853,10 +857,21 @@ fun remove_set subtractthis fromthis =
     fold delete (list_of subtractthis) fromthis;
 (* val remove_set = assert_correct oo remove_set; *)
 
-(* IMPROVE: this is the inefficient version; write the efficient one ! *)
+(* IMPROVE: this is the inefficient version; write the efficient one based on
+   the intervals ! *)
 fun intersect A B = 
     fold (fn a => if contains B a then I else delete a) (list_of A) A;
 
+
+(* IMPROVE: this is the inefficient version; write the efficient one based on
+   the intervals ! *)
+fun nonempty_intersect A B = 
+    let exception stop of unit
+    in
+      (fold (fn a => fn () => 
+            if contains B a then raise stop () else ()) (list_of A) (); false)
+      handle stop () => true
+    end;
 
 (* contrast: compute leftonly tree, intersection and
    right-only tree. IMPROVE: make efficient version. *)
