@@ -13,6 +13,13 @@
 
     POSSIBLE IMPROVEMENT: lazy updates? allow unrelated elements? 
 *)
+signature NAME_BINREL_SHARING
+= sig
+structure Dom : NAMES_SHARING
+structure Cod : NAMES_SHARING
+type T
+end;
+
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 signature NAME_BINREL 
 = sig
@@ -87,6 +94,12 @@ val get_codtab : T -> Dom.NSet.T Cod.NTab.T
 (* pretty printing *)
 val pretty : T -> Pretty.T
 val print : T -> unit
+
+(* sharing substruct *)
+structure Sharing : NAME_BINREL_SHARING
+sharing Sharing.Dom = Dom.Sharing
+sharing Sharing.Cod = Cod.Sharing
+sharing type T = T;
 
 end;
 
@@ -344,6 +357,42 @@ fun pretty rel =
      Pretty.str "}"];
 val print = Pretty.writeln o pretty;
 
+
+structure Sharing = struct
+  structure Dom = Dom.Sharing;
+  structure Cod = Cod.Sharing;
+  type T = T;
+end; (* sharing struct *)
+
 end;
 
 
+(*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*)
+(* two (more) instances of type-distinct binary relations 
+   (sharing Dom and Cod) *)
+signature TWO_CONV_NAME_BINRELS
+= sig
+structure R : NAME_BINREL
+structure A : NAME_BINREL
+structure B : NAME_BINREL
+val coerceRA :  R.T -> A.T
+val coerceRB :  R.T -> B.T
+val coerceAR :  A.T -> R.T
+val coerceBR :  B.T -> R.T
+sharing A.Dom.Sharing = R.Dom.Sharing
+sharing A.Cod.Sharing = R.Cod.Sharing
+sharing B.Dom.Sharing = R.Dom.Sharing
+sharing B.Cod.Sharing = R.Cod.Sharing
+end;
+
+
+functor TwoRelsFun(R : NAME_BINREL) : TWO_CONV_NAME_BINRELS
+= struct
+  structure R = R;
+  structure A = R;
+  structure B = R;
+  fun coerceRB (x : R.T) = x;
+  fun coerceRA (x : R.T) = x;
+  fun coerceAR x  = (x : R.T);
+  fun coerceBR x = (x : R.T);
+end;
