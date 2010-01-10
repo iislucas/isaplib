@@ -27,7 +27,7 @@ signature BASIC_NAMES
   sharing NTab.Tab = Tab;
 
 (*   type nmap = name NTab.T *)
-  structure Rnm : RENAMING 
+  structure Rnm : BASIC_RENAMING 
   where type 'a nmap = 'a NTab.T
   and type name = name 
   and type nset = NSet.T 
@@ -56,7 +56,7 @@ structure Namer = Namer;
 structure NSet = BasicNameSetFun(Namer);
 structure NTab = BasicNameTabFun(structure NSet = NSet and Namer = Namer);
 structure Tab = NTab.Tab;
-structure Rnm = RenamingFun(structure NTab = NTab and Namer = Namer);
+structure Rnm = BasicRenamingFun(structure NTab = NTab and Namer = Namer);
 end;
 
 

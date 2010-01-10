@@ -7,17 +7,18 @@ use "namers.ML"; (* instances of namer, StrName, etc *)
 
 use "basic_nameset.ML"; (* basic sets of names *)  
 use "basic_nametab.ML"; (* name tables which provide fresh names *)
-use "renaming.ML"; (* renaming, based on tables and sets *)
+use "basic_renaming.ML"; (* renaming, based on tables and sets *)
 
 (* generic Name structure; provies nametables, namesets and collections *)
 use "basic_names.ML";
 use "compound_renaming.ML"; (* renaming within datatypes *)
+use "renaming.ML"; (* renamings which can be renamed *)
 
 (* as above, but with renaming *)
 use "nameset.ML"; 
 use "nametab.ML"; 
 
-(* names + renaming for them *)
+(* names + renaming for them, their tables, sets, and renamings *)
 use "names.ML"; 
 
 (* Binary Relations of finite name sets: good for dependencies *)

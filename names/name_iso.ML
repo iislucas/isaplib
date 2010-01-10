@@ -110,6 +110,17 @@ val get_codtab : T -> Dom.name Cod.NTab.T
 val pretty : T -> Pretty.T
 val print : T -> unit;
 
+(* internal representation *)
+val constr : {ignore : Dom.NSet.T, (* These names are not renamed/changed *)
+          avoids : Cod.NSet.T, (* Nothing is allowed to be renamed to these *)
+          domf : Cod.name Dom.NTab.T, (* mapping from old to new names *)
+          codf : Dom.name Cod.NTab.T} -> T
+val destr : T -> {ignore : Dom.NSet.T, 
+          avoids : Cod.NSet.T, 
+          domf : Cod.name Dom.NTab.T,
+          codf : Dom.name Cod.NTab.T} 
+
+(* sharing *)
 structure Sharing : NAME_ISO_SHARING
 sharing type Sharing.T = T
 sharing Sharing.Dom = Dom.Sharing
@@ -145,6 +156,10 @@ datatype T = ChangeNames of
           avoids : Cod.NSet.T, (* Nothing is allowed to be renamed to these *)
           domf : Cod.name Dom.NTab.T, (* mapping from old to new names *)
           codf : Dom.name Cod.NTab.T}; (* mapping from new names to their old name *)
+
+
+val constr = ChangeNames;
+fun destr (ChangeNames rep) = rep;
 
 (* the empty changing of names that does nothing *)
 val empty =

@@ -79,7 +79,7 @@ signature NAMES
                    * renaming (* extended renaming *)
 
   (* for alpha conversion *)
-  val try_rename1 : name (* old name *)
+  val try_compose_rename1 : name (* old name *)
                     -> name (* new name *)
                     -> renaming (* renaming so far *)
                     -> renaming option (* (optional) extended renaming *)
@@ -140,6 +140,7 @@ functor NamesFun(
 
   open Nm;
 
+  structure Rnm = RenamingFun(Nm);
   structure NSet = NameSetFun(Nm);
   structure NTab = NameTabFun(Nm);
   
@@ -149,7 +150,7 @@ functor NamesFun(
   val renaming_of_avoidset = Rnm.mk_from_avoidset;
 
   val rename1 = Rnm.rename1;
-  val try_rename1 = Rnm.try_rename1;
+  val try_compose_rename1 = Rnm.try_compose_rename1;
 
   val union_ignores_to_renaming = Rnm.union_ignores; 
   val union_avoids_to_renaming = Rnm.union_avoids; 

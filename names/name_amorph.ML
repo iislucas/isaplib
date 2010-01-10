@@ -13,21 +13,45 @@ Note: Name Automorphisms
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-(* This *should* be our signature, but PolyML has buggy sharing... *)
 signature NAME_AMORPH = 
 sig 
   include NAME_ISO
-  sharing Dom = Cod
+  sharing Sharing.Dom = Sharing.Cod
+
+  (* renamings are trivially name automorphisms *)
+  val of_rnm : Dom.Rnm.T -> T
+  val rnm_of : T -> Dom.Rnm.T
 end;
 
 (* Name endomorphisms *)
 functor NameAmorphFun(Nm : NAMES) 
 : NAME_AMORPH
 = struct 
-structure Nm = Nm;
-structure NameIso = NameIsoFun(
-  structure Dom = Nm 
-  structure Cod = Nm 
-  val translate_name = I) : NAME_ISO;
-open NameIso;
+  structure Nm = Nm;
+  structure NameIso = NameIsoFun(
+    structure Dom = Nm 
+    structure Cod = Nm 
+    val translate_name = I) : NAME_ISO;
+  open NameIso;
+
+  fun of_rnm rn = 
+      let val rep = (Dom.Rnm.destr rn)
+      in
+        constr {ignore = #ignore rep,
+            avoids = #avoids rep,
+            domf = #nmap rep,
+            codf = 
+              Dom.NTab.fold (fn (n1,n2) => Cod.NTab.doadd (n2,n1)) 
+                (#nmap rep) Cod.NTab.empty} 
+      end;
+
+  fun rnm_of a = 
+      let val rep = (destr a)
+      in
+        Dom.Rnm.constr {ignore = #ignore rep,
+                    avoids = #avoids rep,
+                    new = Dom.NSet.empty,
+                    nmap = #domf rep}
+      end;
+
 end;
