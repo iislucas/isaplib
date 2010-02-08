@@ -1,2 +1,2 @@
-use "nameset.ML";
-use "name_brel.ML";
+PolyML.Project.make "nameset.ML";
+PolyML.Project.make "name_brel.ML";

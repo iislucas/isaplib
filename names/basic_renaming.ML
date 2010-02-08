@@ -39,6 +39,9 @@ val mk : nset (* do not create new fresh names for these *)
 (* avoid these *)
 val mk_from_avoidset : nset -> T
 
+(* rename these *)
+val mk_from_nmap : name nmap -> T
+
 (* lookup if we have been renamed *)
 val lookup : T -> name -> name option;
 
@@ -68,6 +71,7 @@ val set_newnames : nset -> T -> T
 
 (* internals of renaming *)
 val get_ignored : T -> nset
+val set_ignored : nset -> T -> T
 val get_avoids : T -> nset
 val get_nmap : T -> name nmap
 
@@ -109,14 +113,15 @@ type 'a nmap = 'a NTab.T;
 (* Invarients: 
    ignore <= avoids - (dom(rn) + range(rn)); 
    new <= avoids - dom(rn); 
-   new = range(rn); 
+   new <= range(rn); 
    dom(rn) <= avoids; 
    range(rn) <= avoids 
 *)
 datatype T = Renaming of 
-         {ignore : NSet.T, (* considered to already be renamed, so not renamed again *)
-          new : NSet.T, (* these are the newly generated names, range of nmap *)
-          avoids : NSet.T, (* Nothing is allowed to be renamed to these *)
+         {ignore : NSet.T, (* part of context: ignored and not renamed *)
+          new : NSet.T, (* these are the newly generated names, 
+                           a subset of the range of nmap *)
+          avoids : NSet.T, (* nothing is new allowed to be renamed to these *)
           nmap : name NTab.T}; (* mapping from old to new names *)
 
 val constr = Renaming;
@@ -128,6 +133,12 @@ val empty =
               new = NSet.empty,
               avoids = NSet.empty,
               nmap = NTab.empty };
+
+fun mk_from_nmap nmap = 
+    Renaming {ignore = NSet.empty,
+              new = NSet.empty,
+              avoids = NTab.get_nameset nmap,
+              nmap = nmap};
 
 fun update_newnames f (Renaming rep) =
     Renaming {ignore = #ignore rep,
@@ -141,7 +152,14 @@ fun update_nmap f (Renaming rep) =
               avoids = #avoids rep,
               nmap = f (#nmap rep) };
 
+fun update_ignored f (Renaming rep) =
+    Renaming {ignore = f (#ignore rep),
+              new = #new rep,
+              avoids = #avoids rep,
+              nmap = #nmap rep };
+
 val set_newnames = update_newnames o K;
+val set_ignored = update_ignored o K;
 
 (* *)
 fun union_ignores ignores' (Renaming rep) = 

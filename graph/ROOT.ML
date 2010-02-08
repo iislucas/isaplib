@@ -1,7 +1,7 @@
-use "pregraph.ML";
-use "rgraph.ML";
+PolyML.Project.make "pregraph.ML";
+PolyML.Project.make "rgraph.ML";
 
 (* testing *)
 cd "test";
-use "ROOT.ML";
+PolyML.Project.make "ROOT.ML";
 cd "..";

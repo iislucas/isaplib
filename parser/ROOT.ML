@@ -1,22 +1,22 @@
 (* basic tools for datatypes and parsing *)
-use "parser_lib.ML";
+PolyML.Project.make "parser_lib.ML";
 
 (* basic datatypes *)
-use "base_names.ML";
-use "base_data.ML";
-use "data_pos.ML"; (* possible positions in a data type *)
-use "data.ML";
+PolyML.Project.make "base_names.ML";
+PolyML.Project.make "base_data.ML";
+PolyML.Project.make "data_pos.ML"; (* possible positions in a data type *)
+PolyML.Project.make "data.ML";
 (* parsing *)
-use "adj_nds.ML";
-use "sym_state.ML";
-use "parse_state.ML";
-use "parser.ML";
-use "lr_parser.ML";
+PolyML.Project.make "adj_nds.ML";
+PolyML.Project.make "sym_state.ML";
+PolyML.Project.make "parse_state.ML";
+PolyML.Project.make "parser.ML";
+PolyML.Project.make "lr_parser.ML";
 (* tools *)
-use "bnf_morpisms.ML"; (* such as elim epsilon from grammar *)
-use "bnf_function.ML"; (* functions to help defining bnfs *)
+PolyML.Project.make "bnf_morpisms.ML"; (* such as elim epsilon from grammar *)
+PolyML.Project.make "bnf_function.ML"; (* functions to help defining bnfs *)
 
 (* testing/examples... *)
 cd "examples";
-use "ROOT.ML";
+PolyML.Project.make "ROOT.ML";
 cd "..";

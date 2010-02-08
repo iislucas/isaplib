@@ -1,23 +1,23 @@
 (* test all examples... *)
 
-use "prop_ill.ML";
+PolyML.Project.make "prop_ill.ML";
 
 (* 
 (* direct BNFs; no morphisms *)
-use "minimal_cat.ML";
-use "animals.ML";
-use "cat1list.ML";
+PolyML.Project.make "minimal_cat.ML";
+PolyML.Project.make "animals.ML";
+PolyML.Project.make "cat1list.ML";
 
 (* BNFS with epsilon-elim morphisms *)
-use "a_cat_option.ML";
-use "catlist.ML";
-use "spaced_cats.ML";
+PolyML.Project.make "a_cat_option.ML";
+PolyML.Project.make "catlist.ML";
+PolyML.Project.make "spaced_cats.ML";
 
 
-(* use "catlist.ML"; *)
-use "arith_expr.ML";
-use "arith_expr2.ML";
-use "bnf.ML";
+(* PolyML.Project.make "catlist.ML"; *)
+PolyML.Project.make "arith_expr.ML";
+PolyML.Project.make "arith_expr2.ML";
+PolyML.Project.make "bnf.ML";
 *)
 
 writeln "All exmaples finished happily!";

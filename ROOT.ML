@@ -3,21 +3,26 @@ structure Posix = struct end; (* Avoid posix stuff: runnable in windows *)
 (* using this file should be equivalent to "make run-isap" *)
 use "ML-Systems/polyml.ML";
 
-cd "basic";
+cd "project";
 use "ROOT.ML";
+cd "..";
+
+cd "basic";
+PolyML.Project.make "ROOT.ML";
 cd "..";
 
 cd "concurrent";
-use "ROOT.ML";
+PolyML.Project.make "ROOT.ML";
 cd "..";
 
 cd "names";
-use "ROOT.ML";
+PolyML.Project.make "ROOT.ML";
 cd "..";
 
 cd "graph";
-use "ROOT.ML";
+PolyML.Project.make "ROOT.ML";
 cd "..";
+
 
 (*
 cd "parser";

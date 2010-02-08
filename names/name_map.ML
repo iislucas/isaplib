@@ -4,7 +4,7 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-    Name mappings (injective): (non-isomorphic) functions over
+    Name mappings (injective): (not-necessarily-isomorphic) functions over
     finite sets of names
 
     Note: not necessarily surjective (inverse set is not always
@@ -105,7 +105,7 @@ val print : T -> unit
 structure Sharing : NAME_MAP_SHARING
 sharing Sharing.Dom = Dom.Sharing
 sharing Sharing.Cod = Cod.Sharing
-sharing type T = T;
+sharing type Sharing.T = T;
 
 end;
 

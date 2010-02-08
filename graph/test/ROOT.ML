@@ -1,1 +1,1 @@
-use "rgraph.ML";
+PolyML.Project.make "rgraph.ML";

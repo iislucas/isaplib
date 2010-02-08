@@ -1,3 +1,3 @@
-use "gsearch.ML";
-use "msearch.ML";
-use "lsearch.ML";
+PolyML.Project.make "gsearch.ML";
+PolyML.Project.make "msearch.ML";
+PolyML.Project.make "lsearch.ML";

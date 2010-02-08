@@ -618,7 +618,7 @@ fun grow_right s Empty = (s,Empty)
 fun min_name n n2 = case N.ord (n,n2) of LESS => n | _ => n2;
 fun max_name n n2 = case N.ord (n,n2) of LESS => n2 | _ => n;
 
-(* without rebalancing *)
+(* with rebalancing *)
 fun add_range (v as (b,t)) Empty = Br (1,v,Empty,Empty)
   | add_range (v as (b,t)) (tr as Br (d,v2 as (b2,t2),l,r)) = 
     rebalance 
@@ -651,7 +651,6 @@ fun add_range (v as (b,t)) Empty = Br (1,v,Empty,Empty)
                             (min_name b b2,t'),l,r') end
                    | _ => (* within this node *)
                      tr)));
-
 
 (* ? THINK: is this the most efficient way ? *)
 fun union_merge Empty tr = tr

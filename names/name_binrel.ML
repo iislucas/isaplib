@@ -99,7 +99,7 @@ val print : T -> unit
 structure Sharing : NAME_BINREL_SHARING
 sharing Sharing.Dom = Dom.Sharing
 sharing Sharing.Cod = Cod.Sharing
-sharing type T = T;
+sharing type Sharing.T = T;
 
 end;
 
