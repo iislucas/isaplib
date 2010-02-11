@@ -68,6 +68,7 @@ sig
   (* quantifier checks *)
   val forall : ((name * 'a) -> bool) -> 'a T -> bool
   val exists : ((name * 'a) -> bool) -> 'a T -> bool
+  val find : ((name * 'a) -> bool) -> 'a T -> (name * 'a) option
 
   (* modifications *)
   val safe_map_entry : ('a -> 'a) -> name -> 'a T -> 'a T (* *)
@@ -186,6 +187,13 @@ functor BasicNameTabFun(
   fun exists f (Tab rep) = Tab.exists f (#tab rep);
   fun forall f (Tab rep) = Tab.forall f (#tab rep);
 
+  fun find (f : name * 'a -> bool) t = 
+      let exception found_exp of name * 'a;
+      in 
+        (exists (fn nx => if f nx then raise found_exp nx else false) 
+                t; NONE)
+        handle found_exp nx => SOME nx
+      end;
 
   fun update (x as (n,a)) (Tab rep) = 
       Tab{ names = NSet.add n (#names rep),
