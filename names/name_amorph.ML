@@ -13,6 +13,8 @@ Note: Name Automorphisms
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+(* sharing substuff issue: would like to make a subtype of ISO for automorphism that adds the Dom=Cod constraint. 
+*)
 signature NAME_AMORPH = 
 sig 
   include NAME_ISO

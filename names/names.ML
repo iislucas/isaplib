@@ -26,7 +26,7 @@ sig
   type nset
   type 'a ntab
   type renaming
-end
+end;
 
 (* names + renaming *)
 signature NAMES

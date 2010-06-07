@@ -15,16 +15,38 @@ signature NAME_AND_DATA_SHARING =
 sig
 include NAMES_SHARING
 type data
+structure Map : NAME_MAP_SHARING
+structure Amorph : NAME_ISO_SHARING
+sharing Amorph.Dom = Amorph.Cod
+sharing Map.Dom = Amorph.Dom
+sharing Map.Cod = Amorph.Dom
+
+(* it would be nice to have a syntax for 'this' sturcture, 
+   save myself the lines below... I guess resolving recursion would need a little thought. 
+   This issue is a bit deeper really: we need a language to specify signatures and their relations sensibly. 
+
+   Below is essentially: "this.NAMES_SHARING = Map.Dom"
+*)
+sharing type name = Map.Dom.name;
+sharing type table = Map.Dom.table;
+sharing type nset = Map.Dom.nset
+sharing type ntab = Map.Dom.ntab
+sharing type renaming = Map.Dom.renaming;
+
 end;
 
 
 signature NAME_AND_DATA
 = sig
-include SSTR_NAMES
-include ORD_DATA
-val default_data : data
-structure SharingWithData : NAME_AND_DATA_SHARING where type data = data
-sharing Sharing = SharingWithData
+  include SSTR_NAMES
+  include ORD_DATA
+  val default_data : data
+  structure SharingWithData : NAME_AND_DATA_SHARING where type data = data
+  sharing Sharing = SharingWithData;
+  structure Map : NAME_MAP;
+  sharing SharingWithData.Map = Map.Sharing;
+  structure Amorph : NAME_AMORPH;
+  sharing SharingWithData.Amorph = Amorph.Sharing;
 end;
 
 signature EHN_SHARING = 
@@ -102,9 +124,17 @@ signature VERTEX = NAME_AND_DATA;
 (* Special Sharing sigs for Edges which include half-edge names *)
 
 signature EDGE_SHARING = 
-sig include NAMES_SHARING; structure Ehn : EHN_SHARING; end;
+sig 
+  include NAMES_SHARING; structure Ehn : EHN_SHARING; 
+end;
+
+(* a classic case of multiple ways to express this, and a nice one that uses multiple overlapping inheritence: 
+include EDGE_SHARING + NAME_AND_DATA
+*)
 signature EDGE_AND_DATA_SHARING = 
-sig include EDGE_SHARING; type data; end;
+sig 
+  include NAME_AND_DATA_SHARING; structure Ehn : EHN_SHARING; 
+end;
 
 (* Edges *)
 signature EDGE = 
@@ -125,6 +155,8 @@ structure EdgeSharingWithData : EDGE_AND_DATA_SHARING
   where type data = data
 
 sharing EdgeSharing = EdgeSharingWithData;
+sharing Map.Sharing = EdgeSharingWithData.Map;
+sharing Amorph.Sharing = EdgeSharingWithData.Amorph;
 
 end;
 
@@ -143,9 +175,16 @@ val add_start_ehns =
 val add_end_ehns = 
     NSet.fold (Ehn.NSet.add o Ehn.mk_end);
 
-structure EdgeSharing = 
-  struct open Sharing; structure Ehn = Ehn.EhnSharing; end;
-structure EdgeSharingWithData = struct open EdgeSharing; type data = data; end;
+structure EdgeSharing = struct 
+  open Sharing; 
+  structure Ehn = Ehn.EhnSharing; 
+end;
+structure EdgeSharingWithData = struct 
+  open EdgeSharing; 
+  type data = data; 
+  structure Map = Map.Sharing;
+  structure Amorph = Amorph.Sharing;
+end;
 
 end;
 
@@ -178,7 +217,13 @@ open SStrName;
 val default_name = mk "a";
 open StrData;
 val default_data = "";
-structure SharingWithData = struct open Sharing; type data = data; end;
+structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
+structure Amorph = NameAmorphFun(SStrName);
+structure SharingWithData = struct 
+  open Sharing; type data = data; 
+  structure Map = Map.Sharing;
+  structure Amorph = Amorph.Sharing;
+  end;
 end;
 
 structure StrNmUnitData 
@@ -188,7 +233,13 @@ open SStrName;
 val default_name = mk "a";
 open UnitData;
 val default_data = ();
-structure SharingWithData = struct open Sharing; type data = data; end;
+structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
+structure Amorph = NameAmorphFun(SStrName);
+structure SharingWithData = struct 
+  open Sharing; type data = data; 
+  structure Map = Map.Sharing;
+  structure Amorph = Amorph.Sharing;
+  end;
 end;
 
 
