@@ -33,8 +33,9 @@ val is_empty : T -> bool
 
 (* add?: union, intersection, ... *)
 
-(* get/lookup *)
-val contains : T -> (Dom.name * Cod.name) -> bool
+(* is the pair in the relation? *)
+val contains : T -> (Dom.name * Cod.name) -> bool 
+(* lookup: gives NONE if the domain is not even in the relation *)
 val lookup : T -> (Dom.name * Cod.name) -> bool option
 
 (* getting related sets of names (domain and codomain functions) *)
@@ -155,6 +156,7 @@ fun lookup rel (a,b) =
     (case lookup_domf rel a 
       of NONE => NONE
        | SOME bset => SOME (Cod.NSet.contains bset b));
+
 
 (* add and remove things from the binary relation. *)
 fun add_many aset bset rel = 

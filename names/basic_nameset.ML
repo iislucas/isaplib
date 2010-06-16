@@ -66,7 +66,7 @@ sig
   val list_of : T -> name list
   val of_list : name list -> T
 
-  (* a fresh name *)
+  (* make a fresh name, based on a given name *)
   val new :  T -> name -> name
 
   (* adding a name *)
