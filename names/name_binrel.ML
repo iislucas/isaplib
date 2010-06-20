@@ -39,8 +39,8 @@ val contains : T -> (Dom.name * Cod.name) -> bool
 val lookup : T -> (Dom.name * Cod.name) -> bool option
 
 (* getting related sets of names (domain and codomain functions) *)
-val domf : T -> Dom.name -> Cod.NSet.T (* is empty is none *)
-val codf : T -> Cod.name -> Dom.NSet.T (* is empty is none *)
+val domf : T -> Dom.name -> Cod.NSet.T (* is empty if none *)
+val codf : T -> Cod.name -> Dom.NSet.T (* is empty if none *)
 
 (* internal; partial function, NONE when there is no such set *)
 val lookup_domf : T -> Dom.name -> Cod.NSet.T option
