@@ -66,6 +66,10 @@ val del_cod : Cod.name -> T -> T
 val add_to_dom : Dom.name -> Cod.name -> T -> T
 val add_to_cod : Cod.name -> Dom.NSet.T -> T -> T
 
+(* extend/update existing map with *)
+val extend_cod_by1 : Dom.name -> Cod.name -> T -> T
+val extend_cod_by : Dom.NSet.T -> Cod.name -> T -> T
+
 (* take union of two maps; assumes disjoint domains *)
 val union_merge : T -> T -> T
 
@@ -204,6 +208,20 @@ fun add_many_to_1cod aset b m =
            | SOME oldaset => 
              Cod.NTab.update (b,Dom.NSet.union_merge aset oldaset) batab2
            );
+
+(*  note: remaps aset if previously mapped *)
+fun extend_cod_by aset b m = 
+    let val aset0 = case lookup_codf m b of NONE => Dom.NSet.empty
+                                          | SOME aset0 => aset0
+    in
+      m |> update_domf (Dom.NSet.fold
+                          (fn a => Dom.NTab.update (a,b)) aset)
+        |> update_codf (Cod.NTab.update (b,Dom.NSet.union_merge aset aset0))
+    end;
+
+val extend_cod_by1 = extend_cod_by o Dom.NSet.single;
+
+
 
 (* delete many elements *)
 fun surj_del_dom' a m = 
