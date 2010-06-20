@@ -88,6 +88,7 @@ sig
 
   (* get all *)
   val list_of : 'a T -> (name * 'a) list
+  val of_list : (name * 'a) list -> 'a T (* raises exception *)
   val keys : 'a T -> name list
   val values : 'a T -> 'a list
   val get_nameset : 'a T -> NSet.T;
@@ -182,19 +183,6 @@ functor BasicNameTabFun(
       Tab{ names = #names rep,
            tab = Tab.map' f (#tab rep) };
 
-  fun fold f (Tab rep) = Tab.fold f (#tab rep);
-
-  fun exists f (Tab rep) = Tab.exists f (#tab rep);
-  fun forall f (Tab rep) = Tab.forall f (#tab rep);
-
-  fun find (f : name * 'a -> bool) t = 
-      let exception found_exp of name * 'a;
-      in 
-        (exists (fn nx => if f nx then raise found_exp nx else false) 
-                t; NONE)
-        handle found_exp nx => SOME nx
-      end;
-
   fun update (x as (n,a)) (Tab rep) = 
       Tab{ names = NSet.add n (#names rep),
            tab = Tab.update x (#tab rep) };
@@ -202,6 +190,8 @@ functor BasicNameTabFun(
   fun update_new (x as (n,a)) (Tab rep) = 
       Tab{ names = NSet.add n (#names rep),
            tab = Tab.update_new x (#tab rep) };
+
+  fun of_list l = fold update_new l empty;
 
   fun delete n (Tab rep) = 
       Tab{ names = NSet.delete n (#names rep),
@@ -344,6 +334,22 @@ functor BasicNameTabFun(
       (case lookup_smallest tb 
         of NONE => NONE
          | SOME (v as (n,_)) => SOME (v, delete n tb));
+
+
+  fun fold f (Tab rep) = Tab.fold f (#tab rep);
+
+  fun exists f (Tab rep) = Tab.exists f (#tab rep);
+  fun forall f (Tab rep) = Tab.forall f (#tab rep);
+
+  fun find (f : name * 'a -> bool) t = 
+      let exception found_exp of name * 'a;
+      in 
+        (exists (fn nx => if f nx then raise found_exp nx else false) 
+                t; NONE)
+        handle found_exp nx => SOME nx
+      end;
+
+
 
   (* getting all entries... *)
   fun list_of (Tab rep) = Tab.fold cons (#tab rep) [];
