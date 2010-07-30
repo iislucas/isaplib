@@ -313,17 +313,18 @@ fun rename1_dom a1 a2 m =
         end
     end;
 
+(* NONE on name clash *)
 fun try_rename1_dom a1 a2 m = 
     let val domtab = get_domtab m
-    in case Dom.NTab.try_rename1 a1 a2 domtab of 
-         NONE => NONE
+    in case Dom.NTab.try_rename1 a1 a2 domtab of (* try to update domain *)
+         NONE => NONE (* name clash *)
        | SOME domtab2 => 
          (case Dom.NTab.lookup domtab a1 of 
-            NONE => SOME m
+            NONE => SOME m (* nothing in codomain *)
           | SOME b => 
             SOME (m |> set_domtab domtab2
-                      |> update_codf 
-                      (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a2) b)))
+                    |> update_codf (* update codomain also *)
+                        (Cod.NTab.map_entry (snd o Dom.NSet.rename1 a1 a2) b)))
     end;
 
 (* rename codomain element *)    

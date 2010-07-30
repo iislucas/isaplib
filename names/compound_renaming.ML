@@ -19,7 +19,7 @@ compound renamings. *)
 (* generic signature for renaming within a datatype *)
 signature COMPOUND_RENAMING =
 sig
-type renaming
+type renaming (* see basic renaming for more code to make renamings *)
 type obj
 (* assumes that existing renaming does not cause clashes,
    preserves non-clashing of renamings *)

@@ -97,8 +97,8 @@ functor EhnFun(Nm : NAMES)
       | ord_data (TargetEnd, SourceEnd) = GREATER
       | ord_data (SourceEnd, TargetEnd) = LESS
       | ord_data (SourceEnd, SourceEnd) = EQUAL
-    fun pretty (TargetEnd,n) = Pretty.block [Pretty.str "to:", Nm.pretty_name n]
-      | pretty (SourceEnd,n) = Pretty.block [Pretty.str "from:", Nm.pretty_name n]
+    fun pretty (TargetEnd,n) = Pretty.block [Pretty.str "tgt:", Nm.pretty_name n]
+      | pretty (SourceEnd,n) = Pretty.block [Pretty.str "src:", Nm.pretty_name n]
     val default_name = (TargetEnd, Nm.default_name));
   open EhnN;
 

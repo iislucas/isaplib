@@ -48,7 +48,7 @@ sig
   (* renaming *)
   val rename1 : name -> name -> 'a T -> (name * 'a T)
   val rename1_opt : name -> name -> 'a T -> (name option * 'a T) (* new name given back only if different from suggested new name *) 
-  val try_rename1 : name -> name -> 'a T -> 'a T option
+  val try_rename1 : name -> name -> 'a T -> 'a T option (* NONE on name clash *)
 
   (* lookup *)
   val get : 'a T -> name -> 'a (* raises Tab.UNDEF *)
@@ -266,6 +266,7 @@ functor BasicNameTabFun(
              end
       end;
 
+  (* NONE on name clash *)
   fun try_rename1 n1 n2 (Tab rep) = 
       (case NSet.try_rename1 n1 n2 (#names rep) 
         of NONE => NONE

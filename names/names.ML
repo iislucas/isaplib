@@ -100,8 +100,8 @@ signature NAMES
 
 
   (** types which want to be shared **) 
-  structure Sharing : NAMES_SHARING where
-    type name = name
+  structure Sharing : NAMES_SHARING
+  where type name = name
     and type 'a table = 'a Tab.table
     and type nset = NSet.T
     and type 'a ntab = 'a NTab.T
