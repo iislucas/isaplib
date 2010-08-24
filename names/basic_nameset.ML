@@ -61,10 +61,13 @@ sig
   (* fold try, stop early if needed *)
   (* val fold_try : (name -> 'a -> 'a option) -> T -> 'a -> 'a option *)
 
-  (* toand from lists *)
+  (* to and from lists *)
   val add_to_rangelist : T -> (name * name) list -> (name * name) list
   val list_of : T -> name list
   val of_list : name list -> T
+  
+  (* to seq *)
+  val seq_of : T -> name Seq.seq
 
   (* make a fresh name, based on a given name *)
   val new :  T -> name -> name
@@ -560,6 +563,13 @@ fun next_bigger tr s =
                           | _ => SOME (N.suc s)))
     in next' tr end;
 
+(* give back a lazy list of all used names *)
+fun seq_of tr = let fun proceed  NONE    = Seq.empty
+                      | proceed (SOME n) = Seq.make (
+                          fn()=>SOME (n,(proceed (next_bigger tr n)))
+                        )
+                in proceed (get_min tr) end;
+    
 (* adding new elements *)
 fun add_new a tr = 
     case lookup tr a of 
