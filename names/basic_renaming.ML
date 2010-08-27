@@ -44,6 +44,7 @@ val mk_from_nmap : name nmap -> T
 
 (* lookup if we have been renamed *)
 val lookup : T -> name -> name option;
+val get : T -> name -> name; (* raises NTab.Tab.UNDEF *)
 
 (* for doing renaming / creating an isomorphism *)
 val rename1 : name (* old name *)
@@ -65,6 +66,8 @@ val try_compose_rename1 : name (* old name *)
              -> T (* renaming so far *)
              -> T option (* (if possible) extended renaming *)
 
+val do_compose_rename1 : name -> name -> T -> T (* raises invalid_renaming_exp *)
+
 (* cached info about new names created during renaming *)
 val get_newnames : T -> nset
 val set_newnames : nset -> T -> T
@@ -84,11 +87,11 @@ val constr : {ignore : nset, (* considered to already be renamed, so not renamed
           avoids : nset, (* Nothing is allowed to be renamed to these *)
           nmap : name nmap} (* mapping from old to new names *)
          -> T
-val destr : T -> {ignore : nset, new : nset, avoids : nset, nmap : name nmap} 
+val destr : T -> {ignore : nset, new : nset, avoids : nset, nmap : name nmap};
 
 
 (* pretty *)
-val pretty : T -> Pretty.T
+val pretty : T -> Pretty.T;
 val print : T -> unit;
 
 end;
@@ -191,6 +194,7 @@ fun get_nmap (Renaming rep) = (#nmap rep);
 fun get_ignored (Renaming rep) = (#ignore rep);
 
 val lookup = NTab.lookup o get_nmap;
+val get = NTab.get o get_nmap;
 
 (* rename an old name *)
 fun rename1 oldn (rn as Renaming rep) = 
@@ -234,7 +238,7 @@ fun try_rename1_renaming n1 n2 (Renaming rep) =
                          new = the (NSet.try_rename1 n1 n2 (#new rep)),
                          nmap = the (NTab.try_rename1 n1 n2 (#nmap rep))});
 
-
+(* add oldn => newn to the renaming, as long as it doesn't clash, and isn't part of the avoid set *)
 fun try_compose_rename1 oldn newn (rn as Renaming rep) =
     let val nmap = (#nmap rep) in 
       case NTab.lookup nmap oldn of
@@ -252,6 +256,10 @@ fun try_compose_rename1 oldn newn (rn as Renaming rep) =
                    else NONE (* maybe should raise a name clash here? *)
     end;
 
+fun do_compose_rename1 oldn newn rn = 
+    (case try_compose_rename1 oldn newn rn of NONE => 
+       raise invalid_renaming_exp "do_compose_rename1: already renamed differently"
+     | SOME rn2 => rn2);
 
 (* pretty *)
 fun pretty (Renaming rep) = 
