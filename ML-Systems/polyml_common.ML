@@ -12,7 +12,9 @@ fun forget_all () =
      map PolyML.Compiler.forgetType
          (PolyML.Compiler.typeNames());
      map PolyML.Compiler.forgetValue
-         (List.filter (fn s => s <> "run" andalso s <> "do_and_exit_or_die"
+         (List.filter (fn s => s <> "run" 
+                          andalso s <> "main"
+                          andalso s <> "do_and_exit_or_die"
                           andalso s <> "forget_all")
                  (PolyML.Compiler.valueNames()));
      map PolyML.Compiler.forgetStructure
