@@ -91,6 +91,10 @@ val codf : T -> Cod.name -> Dom.name
 val lookup_domf : T -> Dom.name -> Cod.name option
 val lookup_codf : T -> Cod.name -> Dom.name option
 
+val dom_contains : T -> Dom.name -> bool
+val cod_contains : T -> Cod.name -> bool
+
+
 (* removing entries *)
 (* delete an element from the domain (and the corresponding one from cod) *)
 val del_dom : Dom.name -> T -> T
@@ -192,6 +196,9 @@ fun get_codtab (ChangeNames rep) = (#codf rep);
 fun get_ignored (ChangeNames rep) = (#ignore rep);
 val get_cod_nset = Cod.NTab.get_nameset o get_codtab;
 val get_dom_nset = Dom.NTab.get_nameset o get_domtab;
+
+val dom_contains = Dom.NTab.contains o get_domtab;
+val cod_contains = Cod.NTab.contains o get_codtab;
 
 val domf = Dom.NTab.get o get_domtab;
 val codf = Cod.NTab.get o get_codtab;
