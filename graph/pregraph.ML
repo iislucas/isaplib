@@ -10,6 +10,17 @@ signature ORD_DATA
   val data_eq : data * data -> bool
 end;
 
+signature UNIFIABLE_DATA
+= sig
+  include ORD_DATA
+  type unif
+  val unif_empty : unif
+  val unif_compose : unif * unif -> unif
+  val data_unify : data * data -> unif -> unif option
+  val pretty_unif : unif -> Pretty.T
+  val print_unif : unif -> unit
+end;
+
 (* to simplify sharing constraints *)
 signature NAME_AND_DATA_SHARING =
 sig
@@ -35,6 +46,12 @@ sharing type renaming = Map.Dom.renaming;
 
 end;
 
+signature NAME_AND_UNIFIABLE_DATA_SHARING =
+sig
+include NAME_AND_DATA_SHARING
+type unif
+
+end;
 
 signature NAME_AND_DATA
 = sig
@@ -42,6 +59,19 @@ signature NAME_AND_DATA
   include ORD_DATA
   val default_data : data
   structure SharingWithData : NAME_AND_DATA_SHARING where type data = data
+  sharing Sharing = SharingWithData;
+  structure Map : NAME_MAP;
+  sharing SharingWithData.Map = Map.Sharing;
+  structure Amorph : NAME_AMORPH;
+  sharing SharingWithData.Amorph = Amorph.Sharing;
+end;
+
+signature NAME_AND_UNIFIABLE_DATA
+= sig
+  include SSTR_NAMES
+  include UNIFIABLE_DATA
+  val default_data : data
+  structure SharingWithData : NAME_AND_UNIFIABLE_DATA_SHARING where type data = data
   sharing Sharing = SharingWithData;
   structure Map : NAME_MAP;
   sharing SharingWithData.Map = Map.Sharing;
@@ -119,7 +149,7 @@ end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-signature VERTEX = NAME_AND_DATA;
+signature VERTEX = NAME_AND_UNIFIABLE_DATA;
 
 (* Special Sharing sigs for Edges which include half-edge names *)
 
@@ -136,10 +166,15 @@ sig
   include NAME_AND_DATA_SHARING; structure Ehn : EHN_SHARING; 
 end;
 
+signature EDGE_AND_UNIFIABLE_DATA_SHARING = 
+sig 
+  include NAME_AND_UNIFIABLE_DATA_SHARING; structure Ehn : EHN_SHARING; 
+end;
+
 (* Edges *)
 signature EDGE = 
 sig 
-include NAME_AND_DATA;
+include NAME_AND_UNIFIABLE_DATA;
 
 structure Ehn : EHN_NAMES where type edgename = name; 
 
@@ -151,7 +186,7 @@ structure EdgeSharing : EDGE_SHARING
 sharing Ehn.EhnSharing = EdgeSharing.Ehn;
 sharing Sharing = EdgeSharing;
 
-structure EdgeSharingWithData : EDGE_AND_DATA_SHARING 
+structure EdgeSharingWithData : EDGE_AND_UNIFIABLE_DATA_SHARING 
   where type data = data
 
 sharing EdgeSharing = EdgeSharingWithData;
@@ -163,7 +198,7 @@ end;
 
 
 
-functor EdgeFun(Nm : NAME_AND_DATA)
+functor EdgeFun(Nm : NAME_AND_UNIFIABLE_DATA)
  : EDGE
 = struct
 open Nm;
@@ -182,6 +217,7 @@ end;
 structure EdgeSharingWithData = struct 
   open EdgeSharing; 
   type data = data; 
+  type unif = unif;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
 end;
@@ -192,26 +228,38 @@ end;
 (*  Kinds of data *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 
-structure StrData : ORD_DATA where type data = string 
+structure StrData : UNIFIABLE_DATA where type data = string 
 = struct 
 type data = string
 val pretty_data = Pretty.str;
 val print_data = Pretty.writeln o pretty_data;
 val data_ord = String.compare;
 fun data_eq (a,b) = (a = (b : string));
+type unif = unit
+val unif_empty = ();
+fun unif_compose _ = ();
+fun data_unify x _ = if data_eq x then SOME () else NONE;
+fun pretty_unif _ = Pretty.str "()";
+val print_unif = Pretty.writeln o pretty_unif;
 end;
 
-structure UnitData : ORD_DATA where type data = unit 
+structure UnitData : UNIFIABLE_DATA where type data = unit 
 = struct 
 type data = unit
 val pretty_data = K (Pretty.str "");
 val print_data = Pretty.writeln o pretty_data;
 val data_ord = K EQUAL;
 val data_eq = K true;
+type unif = unit
+val unif_empty = ();
+fun unif_compose _ = ();
+fun data_unify _ _ = SOME ()
+fun pretty_unif _ = Pretty.str "()";
+val print_unif = Pretty.writeln o pretty_unif;
 end;
 
 structure StrNmStrData 
-: NAME_AND_DATA where type data = string
+: NAME_AND_UNIFIABLE_DATA where type data = string
 = struct
 open SStrName;
 val default_name = mk "a";
@@ -220,14 +268,14 @@ val default_data = "";
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
 structure Amorph = NameAmorphFun(SStrName);
 structure SharingWithData = struct 
-  open Sharing; type data = data; 
+  open Sharing; type data = data; type unif = unit;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
   end;
 end;
 
 structure StrNmUnitData 
-: NAME_AND_DATA where type data = unit
+: NAME_AND_UNIFIABLE_DATA where type data = unit
 = struct
 open SStrName;
 val default_name = mk "a";
@@ -236,7 +284,7 @@ val default_data = ();
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
 structure Amorph = NameAmorphFun(SStrName);
 structure SharingWithData = struct 
-  open Sharing; type data = data; 
+  open Sharing; type data = data; type unif = unit;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
   end;
@@ -251,7 +299,7 @@ if you make the signature constraint strict, you get:
 StrVertex.NSet.empty : StrVertex.Rnm.T
 *)
 structure StrVertex 
-:> VERTEX where type data = string
+:> VERTEX where type data = string and type unif = unit
 = struct
 open StrNmStrData;
 val default_name = mk "Va";

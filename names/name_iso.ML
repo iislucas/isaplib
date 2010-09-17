@@ -37,7 +37,7 @@ sig
 end;
 
 
-signature NAME_ISO 
+signature NAME_ISO
 = sig
 
 structure Dom : NAMES
@@ -48,6 +48,10 @@ val translate_name : Dom.name -> Cod.name
 
 (* type of name-change / isomorphism *)
 type T
+
+(* data *)
+type data
+val empty_data : data;
 
 (* constructors *)
 val empty : T;
@@ -110,6 +114,8 @@ val get_avoids : T -> Cod.NSet.T
 val get_domtab : T -> Cod.name Dom.NTab.T
 val get_codtab : T -> Dom.name Cod.NTab.T
 
+val get_data : T -> data
+
 (* pretty printing *)
 val pretty : T -> Pretty.T
 val print : T -> unit;
@@ -118,11 +124,13 @@ val print : T -> unit;
 val constr : {ignore : Dom.NSet.T, (* These names are not renamed/changed *)
           avoids : Cod.NSet.T, (* Nothing is allowed to be renamed to these *)
           domf : Cod.name Dom.NTab.T, (* mapping from old to new names *)
-          codf : Dom.name Cod.NTab.T} -> T
+          codf : Dom.name Cod.NTab.T,
+          data : data} -> T
 val destr : T -> {ignore : Dom.NSet.T, 
           avoids : Cod.NSet.T, 
           domf : Cod.name Dom.NTab.T,
-          codf : Dom.name Cod.NTab.T} 
+          codf : Dom.name Cod.NTab.T,
+          data : data} 
 
 (* sharing *)
 structure Sharing : NAME_ISO_SHARING
@@ -134,17 +142,21 @@ end;
 
 
 (* *)
-functor NameIsoFun(structure Dom : NAMES 
+functor NameIsoWithDataFun(structure Dom : NAMES 
   structure Cod : NAMES 
-  val translate_name : Dom.name -> Cod.name) 
+  val translate_name : Dom.name -> Cod.name
+  type data
+  val empty_data : data) 
 : NAME_ISO
 = struct
 
 structure Dom = Dom;
 structure Cod = Cod;
 val translate_name = translate_name;
+type data = data;
+val empty_data = empty_data;
 
-(* Invarients: 
+(* Invariants: 
    ignore <= avoids - (dom(cn) + range(cn)); 
    cod <= avoids - dom(cn); 
    cod = range(cn); 
@@ -159,7 +171,8 @@ datatype T = ChangeNames of
          {ignore : Dom.NSet.T, (* These names are not renamed/changed *)
           avoids : Cod.NSet.T, (* Nothing is allowed to be renamed to these *)
           domf : Cod.name Dom.NTab.T, (* mapping from old to new names *)
-          codf : Dom.name Cod.NTab.T}; (* mapping from new names to their old name *)
+          codf : Dom.name Cod.NTab.T, (* mapping from new names to their old name *)
+          data : data}; (* misc. data associated *)
 
 
 val constr = ChangeNames;
@@ -170,25 +183,29 @@ val empty =
     ChangeNames {ignore = Dom.NSet.empty,
                  avoids = Cod.NSet.empty,
                  domf = Dom.NTab.empty,
-                 codf = Cod.NTab.empty};
+                 codf = Cod.NTab.empty,
+                 data = empty_data};
 
 fun union_ignores ignores' (ChangeNames rep) = 
     ChangeNames 
       {ignore = Dom.NSet.union_merge ignores' (#ignore rep),
        avoids = #avoids rep,
        domf = #domf rep, 
-       codf = #codf rep};
+       codf = #codf rep,
+       data = #data rep};
 
 fun union_avoids avoids' (ChangeNames rep) = 
     ChangeNames 
       {ignore = #ignore rep,
        avoids = Cod.NSet.union_merge avoids' (#avoids rep),
        domf = #domf rep, 
-       codf = #codf rep};
+       codf = #codf rep,
+       data = #data rep};
 
 (* get info/status of renaming *)
 fun get_avoids (ChangeNames rep) = (#avoids rep);
 fun get_domtab (ChangeNames rep) = (#domf rep);
+fun get_data (ChangeNames rep) = (#data rep);
 
 val is_empty = Dom.NTab.is_element_empty o get_domtab;
 
@@ -209,7 +226,7 @@ val lookup_codf = Cod.NTab.lookup o get_codtab;
 fun update_avoids f (ChangeNames rep) = 
     ChangeNames 
       {ignore = #ignore rep, avoids = f (#avoids rep),
-       domf = #domf rep, codf = #codf rep};
+       domf = #domf rep, codf = #codf rep, data = #data rep};
        
 (* implicit: T *)
 fun avoid_ignores_image cn = 
@@ -224,7 +241,8 @@ fun union_merge cn1 cn2 =
       {ignore = Dom.NSet.union_merge (get_ignored cn1) (get_ignored cn2), 
        avoids = Cod.NSet.union_merge (get_avoids cn1) (get_avoids cn2),
        domf = Dom.NTab.merge_disjoint (get_domtab cn1) (get_domtab cn2), 
-       codf = Cod.NTab.merge_disjoint (get_codtab cn1) (get_codtab cn2)};
+       codf = Cod.NTab.merge_disjoint (get_codtab cn1) (get_codtab cn2),
+       data = get_data cn1}; (* todo: merge data somehow? *)
       
 (* add an old name to be changed to a new name *)
 fun change1 oldn (cn as ChangeNames rep) = 
@@ -244,13 +262,15 @@ fun change1 oldn (cn as ChangeNames rep) =
                      ChangeNames {ignore = ignore, 
                                   avoids = avoids2,
                                   domf = Dom.NTab.ins (oldn,n2) domf,
-                                  codf = Cod.NTab.ins (n2,oldn) (#codf rep) }) 
+                                  codf = Cod.NTab.ins (n2,oldn) (#codf rep),
+                                  data = #data rep}) 
                  end
                else (NONE, 
                      ChangeNames {ignore = ignore, 
                                   avoids = Cod.NSet.ins_fresh maybe_newn avoids, 
                                   domf = Dom.NTab.ins (oldn,maybe_newn) domf,
-                                  codf = Cod.NTab.ins (maybe_newn,oldn) (#codf rep) })
+                                  codf = Cod.NTab.ins (maybe_newn,oldn) (#codf rep),
+                                  data = #data rep })
              end
            | SOME n2 => (SOME n2, cn))
         end
@@ -269,7 +289,8 @@ fun try_change1 oldn newn (cn as ChangeNames rep) =
                (ChangeNames {ignore = (#ignore rep), 
                              avoids = Cod.NSet.ins_fresh newn avoids, 
                              domf = Dom.NTab.ins (oldn,newn) domf,
-                             codf = Cod.NTab.ins (newn,oldn) (#codf rep) }))
+                             codf = Cod.NTab.ins (newn,oldn) (#codf rep),
+                             data = #data rep }))
         end
       | SOME n2 => if Cod.name_eq (n2, newn) then SOME cn
                    else NONE
@@ -297,7 +318,8 @@ fun try_rename1_dom n1 n2 (cn as ChangeNames rep) =
            SOME (ChangeNames {ignore = ignore2, 
                               avoids = #avoids rep, 
                               domf = dom2,
-                              codf = cod2 })
+                              codf = cod2,
+                              data = #data rep })
          end
        | NONE => NONE)
       | NONE => NONE);
@@ -315,7 +337,8 @@ fun try_rename1_cod n1 n2 (cn as ChangeNames rep) =
            SOME (ChangeNames {ignore = #ignore rep,
                               avoids = avoids2,
                               domf = dom2,
-                              codf = cod2 })
+                              codf = cod2,
+                              data = #data rep })
          end
         | NONE => NONE)
       | NONE => NONE);
@@ -331,7 +354,8 @@ fun del_dom n (cn as ChangeNames rep) =
         ChangeNames {ignore = Dom.NSet.delete n (#ignore rep),
                      avoids = Cod.NSet.delete codn (#avoids rep),
                      domf = Dom.NTab.delete n dom1,
-                     codf = Cod.NTab.delete codn cod1}
+                     codf = Cod.NTab.delete codn cod1,
+                     data = #data rep }
     end;
 
 fun del_cod n (cn as ChangeNames rep) = 
@@ -343,7 +367,8 @@ fun del_cod n (cn as ChangeNames rep) =
         ChangeNames {ignore = Dom.NSet.delete domn (#ignore rep),
                      avoids = Cod.NSet.delete n (#avoids rep),
                      domf = Dom.NTab.delete domn dom1,
-                     codf = Cod.NTab.delete n cod1}
+                     codf = Cod.NTab.delete n cod1,
+                     data = #data rep }
     end;
 
 
@@ -367,3 +392,12 @@ structure Sharing = struct
 end;
 
 end;
+
+functor NameIsoFun(structure Dom : NAMES 
+  structure Cod : NAMES 
+  val translate_name : Dom.name -> Cod.name) 
+: NAME_ISO
+= NameIsoWithDataFun(structure Dom = Dom and Cod = Cod
+  val translate_name = translate_name
+  type data = unit
+  val empty_data = () );

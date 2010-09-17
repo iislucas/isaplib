@@ -26,14 +26,18 @@ sig
 end;
 
 (* Name endomorphisms *)
-functor NameAmorphFun(Nm : NAMES) 
+functor NameAmorphWithDataFun(structure Nm : NAMES
+  type data
+  val empty_data : data) 
 : NAME_AMORPH
 = struct 
   structure Nm = Nm;
-  structure NameIso = NameIsoFun(
+  structure NameIso = NameIsoWithDataFun(
     structure Dom = Nm 
     structure Cod = Nm 
-    val translate_name = I) : NAME_ISO;
+    val translate_name = I
+    type data = data
+    val empty_data = empty_data) : NAME_ISO;
   open NameIso;
 
   fun of_rnm rn = 
@@ -44,7 +48,8 @@ functor NameAmorphFun(Nm : NAMES)
             domf = #nmap rep,
             codf = 
               Dom.NTab.fold (fn (n1,n2) => Cod.NTab.doadd (n2,n1)) 
-                (#nmap rep) Cod.NTab.empty} 
+                (#nmap rep) Cod.NTab.empty,
+            data = empty_data} 
       end;
 
   fun rnm_of a = 
@@ -57,3 +62,10 @@ functor NameAmorphFun(Nm : NAMES)
       end;
 
 end;
+
+functor NameAmorphFun(Nm : NAMES)
+: NAME_AMORPH
+= NameAmorphWithDataFun(structure Nm = Nm
+  type data = unit
+  val empty_data = ());
+  
