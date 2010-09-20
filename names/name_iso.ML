@@ -18,7 +18,7 @@ Renaming =aprox=
   CHANGE_NAMES where Dom = Cod, 
                and translate_name = identify function. 
 
-ChangeNames are less efficient than renaming in that we also store in
+Iso are less efficient than renaming in that we also store in
 the inverse name mapping. This allows renaming of the domain and
 codomain elements, but slightly slows down the adding of names to the
 name change type.
@@ -167,7 +167,7 @@ val empty_data = empty_data;
 (* THINK: maybe have a set of old/newnames for which the translation
 was direct and didn't result in a name clash: like ignores for
 renaming? *)
-datatype T = ChangeNames of 
+datatype T = Iso of 
          {ignore : Dom.NSet.T, (* These names are not renamed/changed *)
           avoids : Cod.NSet.T, (* Nothing is allowed to be renamed to these *)
           domf : Cod.name Dom.NTab.T, (* mapping from old to new names *)
@@ -175,27 +175,27 @@ datatype T = ChangeNames of
           data : data}; (* misc. data associated *)
 
 
-val constr = ChangeNames;
-fun destr (ChangeNames rep) = rep;
+val constr = Iso;
+fun destr (Iso rep) = rep;
 
 (* the empty changing of names that does nothing *)
 val empty =
-    ChangeNames {ignore = Dom.NSet.empty,
+    Iso {ignore = Dom.NSet.empty,
                  avoids = Cod.NSet.empty,
                  domf = Dom.NTab.empty,
                  codf = Cod.NTab.empty,
                  data = empty_data};
 
-fun union_ignores ignores' (ChangeNames rep) = 
-    ChangeNames 
+fun union_ignores ignores' (Iso rep) = 
+    Iso 
       {ignore = Dom.NSet.union_merge ignores' (#ignore rep),
        avoids = #avoids rep,
        domf = #domf rep, 
        codf = #codf rep,
        data = #data rep};
 
-fun union_avoids avoids' (ChangeNames rep) = 
-    ChangeNames 
+fun union_avoids avoids' (Iso rep) = 
+    Iso 
       {ignore = #ignore rep,
        avoids = Cod.NSet.union_merge avoids' (#avoids rep),
        domf = #domf rep, 
@@ -203,14 +203,14 @@ fun union_avoids avoids' (ChangeNames rep) =
        data = #data rep};
 
 (* get info/status of renaming *)
-fun get_avoids (ChangeNames rep) = (#avoids rep);
-fun get_domtab (ChangeNames rep) = (#domf rep);
-fun get_data (ChangeNames rep) = (#data rep);
+fun get_avoids (Iso rep) = (#avoids rep);
+fun get_domtab (Iso rep) = (#domf rep);
+fun get_data (Iso rep) = (#data rep);
 
 val is_empty = Dom.NTab.is_element_empty o get_domtab;
 
-fun get_codtab (ChangeNames rep) = (#codf rep);
-fun get_ignored (ChangeNames rep) = (#ignore rep);
+fun get_codtab (Iso rep) = (#codf rep);
+fun get_ignored (Iso rep) = (#ignore rep);
 val get_cod_nset = Cod.NTab.get_nameset o get_codtab;
 val get_dom_nset = Dom.NTab.get_nameset o get_domtab;
 
@@ -223,8 +223,8 @@ val codf = Cod.NTab.get o get_codtab;
 val lookup_domf = Dom.NTab.lookup o get_domtab;
 val lookup_codf = Cod.NTab.lookup o get_codtab;
 
-fun update_avoids f (ChangeNames rep) = 
-    ChangeNames 
+fun update_avoids f (Iso rep) = 
+    Iso 
       {ignore = #ignore rep, avoids = f (#avoids rep),
        domf = #domf rep, codf = #codf rep, data = #data rep};
        
@@ -237,7 +237,7 @@ fun avoid_ignores_image cn =
 
 (* assumes compatable renamings; raises exception if not *)
 fun union_merge cn1 cn2 = 
-    ChangeNames 
+    Iso 
       {ignore = Dom.NSet.union_merge (get_ignored cn1) (get_ignored cn2), 
        avoids = Cod.NSet.union_merge (get_avoids cn1) (get_avoids cn2),
        domf = Dom.NTab.merge_disjoint (get_domtab cn1) (get_domtab cn2), 
@@ -245,7 +245,7 @@ fun union_merge cn1 cn2 =
        data = get_data cn1}; (* todo: merge data somehow? *)
       
 (* add an old name to be changed to a new name *)
-fun change1 oldn (cn as ChangeNames rep) = 
+fun change1 oldn (cn as Iso rep) = 
     let val ignore = (#ignore rep) in
       if Dom.NSet.contains ignore oldn then (NONE, cn) (* ignore it *)
       else 
@@ -259,14 +259,14 @@ fun change1 oldn (cn as ChangeNames rep) =
                if Cod.NSet.contains avoids maybe_newn then (* rename it! *)
                  let val (n2,avoids2) = (Cod.NSet.add_new maybe_newn avoids)
                  in (SOME n2, 
-                     ChangeNames {ignore = ignore, 
+                     Iso {ignore = ignore, 
                                   avoids = avoids2,
                                   domf = Dom.NTab.ins (oldn,n2) domf,
                                   codf = Cod.NTab.ins (n2,oldn) (#codf rep),
                                   data = #data rep}) 
                  end
                else (NONE, 
-                     ChangeNames {ignore = ignore, 
+                     Iso {ignore = ignore, 
                                   avoids = Cod.NSet.ins_fresh maybe_newn avoids, 
                                   domf = Dom.NTab.ins (oldn,maybe_newn) domf,
                                   codf = Cod.NTab.ins (maybe_newn,oldn) (#codf rep),
@@ -278,7 +278,7 @@ fun change1 oldn (cn as ChangeNames rep) =
 
 
 (* rename an old name *)
-fun try_change1 oldn newn (cn as ChangeNames rep) =
+fun try_change1 oldn newn (cn as Iso rep) =
     let val domf = (#domf rep) in 
       case Dom.NTab.lookup domf oldn of
         NONE => 
@@ -286,7 +286,7 @@ fun try_change1 oldn newn (cn as ChangeNames rep) =
           if Cod.NSet.contains avoids newn then NONE
           else 
             (SOME 
-               (ChangeNames {ignore = (#ignore rep), 
+               (Iso {ignore = (#ignore rep), 
                              avoids = Cod.NSet.ins_fresh newn avoids, 
                              domf = Dom.NTab.ins (oldn,newn) domf,
                              codf = Cod.NTab.ins (newn,oldn) (#codf rep),
@@ -305,7 +305,7 @@ fun add oldn newn cn =
      | SOME cn2 => cn2);
 
 (* rename names *)
-fun try_rename1_dom n1 n2 (cn as ChangeNames rep) = 
+fun try_rename1_dom n1 n2 (cn as Iso rep) = 
     (case Dom.NTab.try_rename1 n1 n2 (#domf rep)
      of SOME dom2 =>
      (case Dom.NSet.try_rename1 n1 n2 (#ignore rep)
@@ -315,7 +315,7 @@ fun try_rename1_dom n1 n2 (cn as ChangeNames rep) =
                    NONE => (#codf rep)
                  | SOME codn => (Cod.NTab.update (codn, n2) (#codf rep))
          in
-           SOME (ChangeNames {ignore = ignore2, 
+           SOME (Iso {ignore = ignore2, 
                               avoids = #avoids rep, 
                               domf = dom2,
                               codf = cod2,
@@ -324,7 +324,7 @@ fun try_rename1_dom n1 n2 (cn as ChangeNames rep) =
        | NONE => NONE)
       | NONE => NONE);
 
-fun try_rename1_cod n1 n2 (cn as ChangeNames rep) = 
+fun try_rename1_cod n1 n2 (cn as Iso rep) = 
     (case Cod.NTab.try_rename1 n1 n2 (#codf rep)
      of SOME cod2 =>
      (case Cod.NSet.try_rename1 n1 n2 (#avoids rep)
@@ -334,7 +334,7 @@ fun try_rename1_cod n1 n2 (cn as ChangeNames rep) =
                    NONE => (#domf rep)
                  | SOME domn => Dom.NTab.update (domn,n2) (#domf rep)
          in
-           SOME (ChangeNames {ignore = #ignore rep,
+           SOME (Iso {ignore = #ignore rep,
                               avoids = avoids2,
                               domf = dom2,
                               codf = cod2,
@@ -345,26 +345,26 @@ fun try_rename1_cod n1 n2 (cn as ChangeNames rep) =
 
 
 (* delete an element from the domain (and the corresponding one from cod) *)
-fun del_dom n (cn as ChangeNames rep) = 
+fun del_dom n (cn as Iso rep) = 
     let val dom1 = (#domf rep) val cod1 = (#codf rep)
     in 
       case Dom.NTab.lookup dom1 n of 
         NONE => cn
       | SOME codn => 
-        ChangeNames {ignore = Dom.NSet.delete n (#ignore rep),
+        Iso {ignore = Dom.NSet.delete n (#ignore rep),
                      avoids = Cod.NSet.delete codn (#avoids rep),
                      domf = Dom.NTab.delete n dom1,
                      codf = Cod.NTab.delete codn cod1,
                      data = #data rep }
     end;
 
-fun del_cod n (cn as ChangeNames rep) = 
+fun del_cod n (cn as Iso rep) = 
     let val dom1 = (#domf rep) val cod1 = (#codf rep)
     in 
       case Cod.NTab.lookup cod1 n of 
         NONE => cn
       | SOME domn => 
-        ChangeNames {ignore = Dom.NSet.delete domn (#ignore rep),
+        Iso {ignore = Dom.NSet.delete domn (#ignore rep),
                      avoids = Cod.NSet.delete n (#avoids rep),
                      domf = Dom.NTab.delete domn dom1,
                      codf = Cod.NTab.delete n cod1,
@@ -373,7 +373,7 @@ fun del_cod n (cn as ChangeNames rep) =
 
 
 (* pretty *)
-fun pretty (ChangeNames rep) = 
+fun pretty (Iso rep) = 
     Pretty.chunks 
       [Pretty.str "NameIso {",
        Pretty.block [Pretty.str "  ignore: ", Dom.NSet.pretty (#ignore rep)],
