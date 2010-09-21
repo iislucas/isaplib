@@ -12,8 +12,10 @@ val get_nameset : obj -> Nm.NSet.T
 val try_rename1 : Nm.name -> Nm.name -> obj -> obj option 
 end;
 
-(* IMPROVE: ADD: can also make compount renaming from pairwise
-compound renamings. *)
+(* IMPROVE: 
+  ADD: can also make compount renaming from pairwise compound renamings. 
+  ADD: could also write a version based on a name-mapfold operation on obj
+*)
 
 
 (* generic signature for renaming within a datatype *)
@@ -34,6 +36,7 @@ rename rn x = ((mk_renaming x rn), do_renaming (mk_renaming x rn) x)
 end;
 
 
+(* construct a compound renaming *)
 functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
 : COMPOUND_RENAMING
 = struct
@@ -76,48 +79,17 @@ end;
 
 
 
-
-
-functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
+(* for when obj has no names in it. *)
+functor UnitCompoundRenamingFun(type obj)
 : COMPOUND_RENAMING
 = struct
-  structure Rnm = CR.Nm.Rnm;
-  structure Nm = CR.Nm;
-
-  type renaming = Rnm.T;
-  type obj = CR.obj;
-
-  val empty_renaming = Rnm.empty;
-  val print_renaming = Rnm.print;
-
-  fun do_renaming rn x = 
-      Nm.NSet.fold 
-        (fn n => fn x2 =>
-            case Rnm.lookup rn n of 
-              NONE => x2
-            | SOME n2 => (case CR.try_rename1 n n2 x2 
-                           of NONE => raise Rnm.invalid_renaming_exp "do_renaming"
-                            | SOME x3 => x3 ))
-        (CR.get_nameset x) x;
-
-  fun mk_renaming x rn = 
-      Nm.NSet.fold (snd oo Rnm.rename1) (CR.get_nameset x) rn;
-
-(* note: takes time of nset * ln(nset), 
-   could be inverted to take time of avoids(rn) * ln(nset) *)
-  fun rename rn x = 
-      Nm.NSet.fold 
-        (fn n => fn (rn2,x2) =>
-            case Rnm.rename1 n rn2 of 
-              (NONE, rn3) => (rn3,x2)
-            | (SOME n2, rn3) => 
-              (case CR.try_rename1 n n2 x2 
-                of NONE => raise Rnm.invalid_renaming_exp "compound rename"
-                 | SOME x3 => (rn3, x3)))
-        (CR.get_nameset x) (rn,x);
-        
+type renaming = unit;
+type obj = obj;
+val empty_renaming = ();
+fun rename rnm obj = (rnm,obj);
+fun mk_renaming obj rnm = rnm;
+fun do_renaming rnm obj = obj;
 end;
-
 
 
 (*
