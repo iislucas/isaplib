@@ -33,6 +33,9 @@ val do_renaming : renaming -> obj -> obj
 rename rn x = ((mk_renaming x rn), do_renaming (mk_renaming x rn) x)
   (but is more efficient)
 *)
+(* removes all renaming, but avoids all old names *)
+val restrict_to_avoiding : renaming -> renaming
+
 end;
 
 
@@ -48,6 +51,8 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
 
   val empty_renaming = Rnm.empty;
   val print_renaming = Rnm.print;
+
+  val restrict_to_avoiding = Rnm.restrict_to_avoiding;
 
   fun do_renaming rn x = 
       Nm.NSet.fold 
@@ -89,6 +94,21 @@ val empty_renaming = ();
 fun rename rnm obj = (rnm,obj);
 fun mk_renaming obj rnm = rnm;
 fun do_renaming rnm obj = obj;
+fun restrict_to_avoiding rnm = rnm;
+end;
+
+
+(* for when obj has no names in it. *)
+functor EmptyCompoundRenamingFun(structure Nm : BASIC_NAMES type obj)
+: COMPOUND_RENAMING
+= struct
+type renaming = Nm.Rnm.T;
+type obj = obj;
+val empty_renaming = Nm.Rnm.empty;
+fun rename rnm obj = (rnm,obj);
+fun mk_renaming obj rnm = rnm;
+fun do_renaming rnm obj = obj;
+fun restrict_to_avoiding rnm = rnm;
 end;
 
 
