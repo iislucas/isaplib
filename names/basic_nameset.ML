@@ -21,18 +21,12 @@
 signature BASIC_NAME_SET =
 sig
   type name
-(*   structure N : NAMER 
-  where type name = name;
-*)
 
   datatype T 
     = Empty
     | Br of int (* depth of stuff this branch *)
             * (name * name) (* inclusive min/max range *)
             * T * T; (* subtrees with smaller than min in left and bigger than max in right *)
-(* 
-  type T
-*)
 
   exception empty_exp of string;
   exception duplicate_exp of name * T;
