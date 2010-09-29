@@ -105,8 +105,8 @@ val del_dom : Dom.name -> T -> T
 val del_cod : Cod.name -> T -> T
 
 (* info about renaming *)
-val get_cod_nset : T -> Cod.NSet.T
-val get_dom_nset : T -> Dom.NSet.T
+val get_codset : T -> Cod.NSet.T
+val get_domset : T -> Dom.NSet.T
 
 val get_ignored : T -> Dom.NSet.T
 val get_avoids : T -> Cod.NSet.T
@@ -115,6 +115,10 @@ val get_domtab : T -> Cod.name Dom.NTab.T
 val get_codtab : T -> Dom.name Cod.NTab.T
 
 val get_data : T -> data
+
+(* restrict to a given domain/codomain *)
+val restrict_dom_to : Dom.NSet.T -> T -> T
+val restrict_cod_to : Cod.NSet.T -> T -> T
 
 (* pretty printing *)
 val pretty : T -> Pretty.T
@@ -211,8 +215,8 @@ val is_empty = Dom.NTab.is_element_empty o get_domtab;
 
 fun get_codtab (Iso rep) = (#codf rep);
 fun get_ignored (Iso rep) = (#ignore rep);
-val get_cod_nset = Cod.NTab.get_nameset o get_codtab;
-val get_dom_nset = Dom.NTab.get_nameset o get_domtab;
+val get_codset = Cod.NTab.get_nameset o get_codtab;
+val get_domset = Dom.NTab.get_nameset o get_domtab;
 
 val dom_contains = Dom.NTab.contains o get_domtab;
 val cod_contains = Cod.NTab.contains o get_codtab;
@@ -370,6 +374,21 @@ fun del_cod n (cn as Iso rep) =
                      codf = Cod.NTab.delete n cod1,
                      data = #data rep }
     end;
+    
+(* takes time prop to dom *)
+fun restrict_dom_to vs m = 
+    Dom.NSet.fold 
+      (fn d => fn m2 => if Dom.NSet.contains vs d then m2 
+        else del_dom d m2)
+      (get_domset m)
+      m;
+
+fun restrict_cod_to vs m = 
+    Cod.NSet.fold 
+      (fn n => fn m2 => if Cod.NSet.contains vs n then m2 
+        else del_cod n m2)
+      (get_codset m)
+      m;
 
 
 (* pretty *)

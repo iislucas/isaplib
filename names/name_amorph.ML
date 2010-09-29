@@ -23,6 +23,9 @@ sig
   (* renamings are trivially name automorphisms *)
   val of_rnm : Dom.Rnm.T -> T
   val rnm_of : T -> Dom.Rnm.T
+  
+  (* amorph composition *)
+  val compose : T -> T -> T
 end;
 
 (* Name endomorphisms *)
@@ -61,6 +64,18 @@ functor NameAmorphWithDataFun(structure Nm : NAMES
                     nmap = #domf rep}
       end;
 
+  (* HERE BE DRAGONS *)
+  fun compose a b =
+      let val repa = (destr a)
+          val repb = (destr b)
+      in
+        constr {ignore = #ignore repa,
+            avoids = #avoids repa,
+            domf = Dom.NTab.map_all (domf b) (#domf repa),
+            codf = Cod.NTab.map_all (codf a) (#codf repb),
+            data = empty_data} 
+      end;
+      
 end;
 
 functor NameAmorphFun(Nm : NAMES)

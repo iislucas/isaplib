@@ -29,6 +29,8 @@ sig
   val map: ('a -> 'b) -> 'a seq -> 'b seq
   val maps: ('a -> 'b seq) -> 'a seq -> 'b seq
   val map_filter: ('a -> 'b option) -> 'a seq -> 'b seq
+  val map_iter: ('a -> 'b -> 'c) -> ('a -> 'b -> 'a) -> 'a -> 'b seq -> 'c seq
+  val maps_iter: ('a -> 'b -> 'c seq) -> ('a -> 'b -> 'a) -> 'a -> 'b seq -> 'c seq
   val lift: ('a -> 'b -> 'c) -> 'a seq -> 'b -> 'c seq
   val lifts: ('a -> 'b -> 'c seq) -> 'a seq -> 'b -> 'c seq
   val singleton: ('a list -> 'b list seq) -> 'a -> 'b seq
@@ -157,6 +159,14 @@ fun map f xq =
 
 fun maps f = flat o map f;
 fun map_filter f = maps (fn x => (case f x of NONE => empty | SOME y => single y));
+
+(*map the function f over the sequence while iterating over an additional parameter with function g*)
+fun map_iter f g p xq =
+  make (fn () =>
+    (case pull xq of
+      NONE => NONE
+    | SOME (x, xq') => SOME (f p x, map_iter f g (g p x) xq')));
+fun maps_iter f = flat ooo map_iter f; 
 
 fun lift f xq y = map (fn x => f x y) xq;
 fun lifts f xq y = maps (fn x => f x y) xq;
