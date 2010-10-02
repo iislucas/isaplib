@@ -14,9 +14,10 @@ signature UNIFIABLE_DATA
 = sig
   include ORD_DATA
   type unif
-  val unif_empty : unif
-  val unif_compose : unif * unif -> unif
-  val data_unify : data * data -> unif -> unif option
+  val empty_unif : unif
+  val compose_unif : unif * unif -> unif
+  val unify_data : data * data -> unif -> unif option
+  val subst_in_data : unif -> data -> data
   val pretty_unif : unif -> Pretty.T
   val print_unif : unif -> unit
 end;
@@ -48,9 +49,8 @@ end;
 
 signature NAME_AND_UNIFIABLE_DATA_SHARING =
 sig
-include NAME_AND_DATA_SHARING
-type unif
-
+  include NAME_AND_DATA_SHARING
+  type unif
 end;
 
 signature NAME_AND_DATA
@@ -149,7 +149,7 @@ end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-signature VERTEX = NAME_AND_DATA;
+signature VERTEX = NAME_AND_UNIFIABLE_DATA;
 
 (* Special Sharing sigs for Edges which include half-edge names *)
 
@@ -174,7 +174,7 @@ end;
 (* Edges *)
 signature EDGE = 
 sig 
-include NAME_AND_DATA;
+include NAME_AND_UNIFIABLE_DATA;
 
 structure Ehn : EHN_NAMES where type edgename = name; 
 
@@ -198,7 +198,7 @@ end;
 
 
 
-functor EdgeFun(Nm : NAME_AND_DATA)
+functor EdgeFun(Nm : NAME_AND_UNIFIABLE_DATA)
  : EDGE
 = struct
 open Nm;
@@ -223,6 +223,7 @@ end;
 
 end;
 
+
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  Kinds of data *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
@@ -235,9 +236,10 @@ val print_data = Pretty.writeln o pretty_data;
 val data_ord = String.compare;
 fun data_eq (a,b) = (a = (b : string));
 type unif = unit
-val unif_empty = ();
-fun unif_compose _ = ();
-fun data_unify x _ = if data_eq x then SOME () else NONE;
+val empty_unif = ();
+fun compose_unif _ = ();
+fun unify_data x _ = if data_eq x then SOME () else NONE;
+fun subst_in_data u d = d;
 fun pretty_unif _ = Pretty.str "()";
 val print_unif = Pretty.writeln o pretty_unif;
 end;
@@ -250,15 +252,16 @@ val print_data = Pretty.writeln o pretty_data;
 val data_ord = K EQUAL;
 val data_eq = K true;
 type unif = unit
-val unif_empty = ();
-fun unif_compose _ = ();
-fun data_unify _ _ = SOME ()
+val empty_unif = ();
+fun compose_unif _ = ();
+fun unify_data x _ = if data_eq x then SOME () else NONE;
+fun subst_in_data u d = d;
 fun pretty_unif _ = Pretty.str "()";
 val print_unif = Pretty.writeln o pretty_unif;
 end;
 
 structure StrNmStrData 
-: NAME_AND_DATA where type data = string
+: NAME_AND_UNIFIABLE_DATA where type data = string
 = struct
 open SStrName;
 val default_name = mk "a";
@@ -267,7 +270,9 @@ val default_data = "";
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
 structure Amorph = NameAmorphFun(SStrName);
 structure SharingWithData = struct 
-  open Sharing; type data = data;
+  open Sharing; 
+  type data = data;
+  type unif = unit;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
   end;
@@ -283,7 +288,9 @@ val default_data = ();
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
 structure Amorph = NameAmorphFun(SStrName);
 structure SharingWithData = struct 
-  open Sharing; type data = data; type unif = unit;
+  open Sharing; 
+  type data = data; 
+  type unif = unit;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
   end;
