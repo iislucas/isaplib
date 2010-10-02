@@ -15,9 +15,12 @@ signature UNIFIABLE_DATA
   include ORD_DATA
   type unif
   val empty_unif : unif
-  val compose_unif : unif * unif -> unif
   val unify_data : data * data -> unif -> unif option
   val subst_in_data : unif -> data -> data
+
+  (* like f o g; this should just composes substitutions *)
+  val compose_unif : unif * unif -> unif
+
   val pretty_unif : unif -> Pretty.T
   val print_unif : unif -> unit
 end;
