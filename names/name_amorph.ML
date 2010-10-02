@@ -29,18 +29,15 @@ sig
 end;
 
 (* Name endomorphisms *)
-functor NameAmorphWithDataFun(structure Nm : NAMES
-  type data
-  val empty_data : data) 
+functor NameAmorphFun(Nm : NAMES) 
 : NAME_AMORPH
 = struct 
   structure Nm = Nm;
-  structure NameIso = NameIsoWithDataFun(
+  structure NameIso = NameIsoFun(
     structure Dom = Nm 
     structure Cod = Nm 
     val translate_name = I
-    type data = data
-    val empty_data = empty_data) : NAME_ISO;
+    ) : NAME_ISO;
   open NameIso;
 
   fun of_rnm rn = 
@@ -51,8 +48,7 @@ functor NameAmorphWithDataFun(structure Nm : NAMES
             domf = #nmap rep,
             codf = 
               Dom.NTab.fold (fn (n1,n2) => Cod.NTab.doadd (n2,n1)) 
-                (#nmap rep) Cod.NTab.empty,
-            data = empty_data} 
+                (#nmap rep) Cod.NTab.empty } 
       end;
 
   fun rnm_of a = 
@@ -64,7 +60,7 @@ functor NameAmorphWithDataFun(structure Nm : NAMES
                     nmap = #domf rep}
       end;
 
-  (* HERE BE DRAGONS *)
+  (* HERE BE DRAGONS: assumptions about ignore and avoid: assumes dom of one matches cod of the other *)
   fun compose a b =
       let val repa = (destr a)
           val repb = (destr b)
@@ -72,15 +68,7 @@ functor NameAmorphWithDataFun(structure Nm : NAMES
         constr {ignore = #ignore repa,
             avoids = #avoids repa,
             domf = Dom.NTab.map_all (domf b) (#domf repa),
-            codf = Cod.NTab.map_all (codf a) (#codf repb),
-            data = empty_data} 
+            codf = Cod.NTab.map_all (codf a) (#codf repb) } 
       end;
       
 end;
-
-functor NameAmorphFun(Nm : NAMES)
-: NAME_AMORPH
-= NameAmorphWithDataFun(structure Nm = Nm
-  type data = unit
-  val empty_data = ());
-  

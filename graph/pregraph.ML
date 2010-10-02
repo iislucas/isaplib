@@ -149,7 +149,7 @@ end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-signature VERTEX = NAME_AND_UNIFIABLE_DATA;
+signature VERTEX = NAME_AND_DATA;
 
 (* Special Sharing sigs for Edges which include half-edge names *)
 
@@ -174,7 +174,7 @@ end;
 (* Edges *)
 signature EDGE = 
 sig 
-include NAME_AND_UNIFIABLE_DATA;
+include NAME_AND_DATA;
 
 structure Ehn : EHN_NAMES where type edgename = name; 
 
@@ -186,7 +186,7 @@ structure EdgeSharing : EDGE_SHARING
 sharing Ehn.EhnSharing = EdgeSharing.Ehn;
 sharing Sharing = EdgeSharing;
 
-structure EdgeSharingWithData : EDGE_AND_UNIFIABLE_DATA_SHARING 
+structure EdgeSharingWithData : EDGE_AND_DATA_SHARING 
   where type data = data
 
 sharing EdgeSharing = EdgeSharingWithData;
@@ -198,7 +198,7 @@ end;
 
 
 
-functor EdgeFun(Nm : NAME_AND_UNIFIABLE_DATA)
+functor EdgeFun(Nm : NAME_AND_DATA)
  : EDGE
 = struct
 open Nm;
@@ -216,8 +216,7 @@ structure EdgeSharing = struct
 end;
 structure EdgeSharingWithData = struct 
   open EdgeSharing; 
-  type data = data; 
-  type unif = unif;
+  type data = data;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
 end;
@@ -259,7 +258,7 @@ val print_unif = Pretty.writeln o pretty_unif;
 end;
 
 structure StrNmStrData 
-: NAME_AND_UNIFIABLE_DATA where type data = string
+: NAME_AND_DATA where type data = string
 = struct
 open SStrName;
 val default_name = mk "a";
@@ -268,7 +267,7 @@ val default_data = "";
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
 structure Amorph = NameAmorphFun(SStrName);
 structure SharingWithData = struct 
-  open Sharing; type data = data; type unif = unit;
+  open Sharing; type data = data;
   structure Map = Map.Sharing;
   structure Amorph = Amorph.Sharing;
   end;
@@ -299,7 +298,7 @@ if you make the signature constraint strict, you get:
 StrVertex.NSet.empty : StrVertex.Rnm.T
 *)
 structure StrVertex 
-:> VERTEX where type data = string and type unif = unit
+:> VERTEX where type data = string
 = struct
 open StrNmStrData;
 val default_name = mk "Va";
