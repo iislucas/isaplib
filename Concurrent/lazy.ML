@@ -1,0 +1,76 @@
+(*  Title:      Pure/Concurrent/lazy.ML
+    Author:     Makarius
+
+Lazy evaluation with memoing of results and regular exceptions.
+Parallel version based on futures -- avoids critical or multiple
+evaluation, unless interrupted.
+*)
+
+signature LAZY =
+sig
+  type 'a lazy
+  val peek: 'a lazy -> 'a Exn.result option
+  val lazy: (unit -> 'a) -> 'a lazy
+  val value: 'a -> 'a lazy
+  val force_result: 'a lazy -> 'a Exn.result
+  val force: 'a lazy -> 'a
+end;
+
+structure Lazy: LAZY =
+struct
+
+(* datatype *)
+
+datatype 'a expr =
+  Expr of unit -> 'a |
+  Result of 'a future;
+
+abstype 'a lazy = Lazy of 'a expr Synchronized.var
+with
+
+fun peek (Lazy var) =
+  (case Synchronized.value var of
+    Expr _ => NONE
+  | Result res => Future.peek res);
+
+fun lazy e = Lazy (Synchronized.var "lazy" (Expr e));
+fun value a = Lazy (Synchronized.var "lazy" (Result (Future.value a)));
+
+
+(* force result *)
+
+fun force_result (Lazy var) =
+  (case peek (Lazy var) of
+    SOME res => res
+  | NONE =>
+      uninterruptible (fn restore_interrupts => fn () =>
+        let
+          val (expr, x) =
+            Synchronized.change_result var
+              (fn Expr e =>
+                    let val x = Future.promise ()
+                    in ((SOME e, x), Result x) end
+                | Result x => ((NONE, x), Result x));
+        in
+          (case expr of
+            SOME e =>
+              let
+                val res = restore_interrupts (fn () => Exn.capture e ()) ();
+                val _ = Future.fulfill_result x res;
+                (*semantic race: some other threads might see the same
+                  Interrupt, until there is a fresh start*)
+                val _ =
+                  (case res of
+                    Exn.Exn Exn.Interrupt => Synchronized.change var (fn _ => Expr e)
+                  | _ => ());
+              in res end
+          | NONE => restore_interrupts (fn () => Future.join_result x) ())
+        end) ());
+
+fun force r = Exn.release (force_result r);
+
+end;
+end;
+
+type 'a lazy = 'a Lazy.lazy;
+
