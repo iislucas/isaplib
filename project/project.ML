@@ -164,7 +164,7 @@ structure Project
         makeProject (!saveSubDirRef) (! projectDirRef ) n
       else 
         basicUse n;
-        
+
   fun onload load = 
     let val p = !projectDirRef;
         val s = !saveSubDirRef;

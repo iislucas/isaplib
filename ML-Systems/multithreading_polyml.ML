@@ -8,7 +8,7 @@ signature MULTITHREADING_POLYML =
 sig
   val interruptible: ('a -> 'b) -> 'a -> 'b
   val uninterruptible: ((('c -> 'd) -> 'c -> 'd) -> 'a -> 'b) -> 'a -> 'b
- (*  val system_out: string -> string * int *)
+  val bash_output: string -> string * int
   structure TimeLimit: TIME_LIMIT
 end;
 
@@ -29,20 +29,15 @@ struct
 
 (* options *)
 
-val trace = ref 0;
-
-fun tracing level msg =
-  if level > ! trace then ()
-  else (TextIO.output (TextIO.stdErr, (">>> " ^ msg () ^ "\n")); TextIO.flushOut TextIO.stdErr)
-    handle _ (*sic*) => ();
-
 val available = true;
 
-val max_threads = ref 1;
+val max_threads = Unsynchronized.ref 0;
 
 fun max_threads_value () =
-  let val m = ! max_threads
-  in if m <= 0 then Int.max (Thread.numProcessors (), 1) else m end;
+  let val m = ! max_threads in
+    if m > 0 then m
+    else Int.min (Int.max (Thread.numProcessors (), 1), 4)
+  end;
 
 fun enabled () = max_threads_value () > 1;
 
@@ -66,29 +61,76 @@ fun write_file name txt =
 val no_interrupts =
   [Thread.EnableBroadcastInterrupt false, Thread.InterruptState Thread.InterruptDefer];
 
-val regular_interrupts =
+val public_interrupts =
   [Thread.EnableBroadcastInterrupt true, Thread.InterruptState Thread.InterruptAsynchOnce];
 
-val restricted_interrupts =
+val private_interrupts =
   [Thread.EnableBroadcastInterrupt false, Thread.InterruptState Thread.InterruptAsynchOnce];
+
+val sync_interrupts = map
+  (fn x as Thread.InterruptState Thread.InterruptDefer => x
+    | Thread.InterruptState _ => Thread.InterruptState Thread.InterruptSynch
+    | x => x);
 
 val safe_interrupts = map
   (fn Thread.InterruptState Thread.InterruptAsynch =>
       Thread.InterruptState Thread.InterruptAsynchOnce
     | x => x);
 
-fun with_attributes new_atts f x =
+fun with_attributes new_atts e =
   let
     val orig_atts = safe_interrupts (Thread.getAttributes ());
     val result = Exn.capture (fn () =>
-      (Thread.setAttributes (safe_interrupts new_atts); f orig_atts x)) ();
+      (Thread.setAttributes (safe_interrupts new_atts); e orig_atts)) ();
     val _ = Thread.setAttributes orig_atts;
   in Exn.release result end;
 
-fun interruptible f = with_attributes regular_interrupts (fn _ => f);
 
-fun uninterruptible f =
-  with_attributes no_interrupts (fn atts => f (fn g => with_attributes atts (fn _ => g)));
+(* portable wrappers *)
+
+fun interruptible f x = with_attributes public_interrupts (fn _ => f x);
+
+fun uninterruptible f x =
+  with_attributes no_interrupts (fn atts =>
+    f (fn g => fn y => with_attributes atts (fn _ => g y)) x);
+
+
+(* synchronous wait *)
+
+fun sync_wait opt_atts time cond lock =
+  with_attributes
+    (sync_interrupts (case opt_atts of SOME atts => atts | NONE => Thread.getAttributes ()))
+    (fn _ =>
+      (case time of
+        SOME t => Exn.Result (ConditionVar.waitUntil (cond, lock, t))
+      | NONE => (ConditionVar.wait (cond, lock); Exn.Result true))
+      handle exn => Exn.Exn exn);
+
+
+(* tracing *)
+
+val trace = Unsynchronized.ref 0;
+
+fun tracing level msg =
+  if level > ! trace then ()
+  else uninterruptible (fn _ => fn () =>
+    (TextIO.output (TextIO.stdErr, (">>> " ^ msg () ^ "\n")); TextIO.flushOut TextIO.stdErr)
+      handle _ (*sic*) => ()) ();
+
+fun tracing_time detailed time =
+  tracing
+   (if not detailed then 5
+    else if Time.>= (time, Time.fromMilliseconds 1000) then 1
+    else if Time.>= (time, Time.fromMilliseconds 100) then 2
+    else if Time.>= (time, Time.fromMilliseconds 10) then 3
+    else if Time.>= (time, Time.fromMilliseconds 1) then 4 else 5);
+
+fun real_time f x =
+  let
+    val timer = Timer.startRealTimer ();
+    val () = f x;
+    val time = Timer.checkRealTimer timer;
+  in time end;
 
 
 (* execution with time limit *)
@@ -101,7 +143,7 @@ exception TimeOut;
 fun timeLimit time f x = uninterruptible (fn restore_attributes => fn () =>
   let
     val worker = Thread.self ();
-    val timeout = ref false;
+    val timeout = Unsynchronized.ref false;
     val watchdog = Thread.fork (fn () =>
       (OS.Process.sleep time; timeout := true; Thread.interrupt worker), []);
 
@@ -114,9 +156,9 @@ fun timeLimit time f x = uninterruptible (fn restore_attributes => fn () =>
 end;
 
 
-(* system shell processes, with propagation of interrupts *)
-(* 
-fun system_out script = uninterruptible (fn restore_attributes => fn () =>
+(* GNU bash processes, with propagation of interrupts *)
+
+fun bash_output script = with_attributes no_interrupts (fn orig_atts =>
   let
     val script_name = OS.FileSys.tmpName ();
     val _ = write_file script_name script;
@@ -126,20 +168,19 @@ fun system_out script = uninterruptible (fn restore_attributes => fn () =>
 
     (*result state*)
     datatype result = Wait | Signal | Result of int;
-    val result = ref Wait;
-    val result_mutex = Mutex.mutex ();
-    val result_cond = ConditionVar.conditionVar ();
+    val result = Unsynchronized.ref Wait;
+    val lock = Mutex.mutex ();
+    val cond = ConditionVar.conditionVar ();
     fun set_result res =
-      (Mutex.lock result_mutex; result := res; Mutex.unlock result_mutex;
-        ConditionVar.signal result_cond);
+      (Mutex.lock lock; result := res; ConditionVar.signal cond; Mutex.unlock lock);
 
-    val _ = Mutex.lock result_mutex;
+    val _ = Mutex.lock lock;
 
     (*system thread*)
     val system_thread = Thread.fork (fn () =>
       let
         val status =
-          OS.Process.system ("perl -w \"$ISABELLE_HOME/lib/scripts/system.pl\" group " ^
+          OS.Process.system ("exec \"$ISABELLE_HOME/lib/scripts/bash\" group " ^
             script_name ^ " " ^ pid_name ^ " " ^ output_name);
         val res =
           (case Posix.Process.fromStatus status of
@@ -163,10 +204,12 @@ fun system_out script = uninterruptible (fn restore_attributes => fn () =>
       handle OS.SysErr _ => () | IO.Io _ =>
         (OS.Process.sleep (Time.fromMilliseconds 100); if n > 0 then kill (n - 1) else ());
 
-    val _ = while ! result = Wait do
-      restore_attributes (fn () =>
-        (ConditionVar.waitUntil (result_cond, result_mutex, Time.now () + Time.fromMilliseconds 100); ())
-          handle Exn.Interrupt => kill 10) ();
+    val _ =
+      while ! result = Wait do
+        let val res =
+          sync_wait (SOME orig_atts)
+            (SOME (Time.+ (Time.now (), Time.fromMilliseconds 100))) cond lock
+        in case res of Exn.Exn Exn.Interrupt => kill 10 | _ => () end;
 
     (*cleanup*)
     val output = read_file output_name handle IO.Io _ => "";
@@ -175,16 +218,16 @@ fun system_out script = uninterruptible (fn restore_attributes => fn () =>
     val _ = OS.FileSys.remove output_name handle OS.SysErr _ => ();
     val _ = Thread.interrupt system_thread handle Thread _ => ();
     val rc = (case ! result of Signal => raise Exn.Interrupt | Result rc => rc);
-  in (output, rc) end) ();
-*)
+  in (output, rc) end);
+
 
 (* critical section -- may be nested within the same thread *)
 
 local
 
 val critical_lock = Mutex.mutex ();
-val critical_thread = ref (NONE: Thread.thread option);
-val critical_name = ref "";
+val critical_thread = Unsynchronized.ref (NONE: Thread.thread option);
+val critical_name = Unsynchronized.ref "";
 
 in
 
@@ -196,22 +239,16 @@ fun self_critical () =
 fun NAMED_CRITICAL name e =
   if self_critical () then e ()
   else
-    uninterruptible (fn restore_attributes => fn () =>
+    Exn.release (uninterruptible (fn restore_attributes => fn () =>
       let
         val name' = ! critical_name;
         val _ =
           if Mutex.trylock critical_lock then ()
           else
             let
-              val timer = Timer.startRealTimer ();
-              val _ = tracing 4 (fn () => "CRITICAL" ^ show name ^ show' name' ^ ": waiting");
-              val _ = Mutex.lock critical_lock;
-              val time = Timer.checkRealTimer timer;
-              val trace_time =
-                if Time.>= (time, Time.fromMilliseconds 1000) then 1
-                else if Time.>= (time, Time.fromMilliseconds 100) then 2
-                else if Time.>= (time, Time.fromMilliseconds 10) then 3 else 4;
-              val _ = tracing trace_time (fn () =>
+              val _ = tracing 5 (fn () => "CRITICAL" ^ show name ^ show' name' ^ ": waiting");
+              val time = real_time Mutex.lock critical_lock;
+              val _ = tracing_time true time (fn () =>
                 "CRITICAL" ^ show name ^ show' name' ^ ": passed after " ^ Time.toString time);
             in () end;
         val _ = critical_thread := SOME (Thread.self ());
@@ -220,7 +257,7 @@ fun NAMED_CRITICAL name e =
         val _ = critical_name := "";
         val _ = critical_thread := NONE;
         val _ = Mutex.unlock critical_lock;
-      in Exn.release result end) ();
+      in result end) ());
 
 fun CRITICAL e = NAMED_CRITICAL "" e;
 
@@ -232,7 +269,7 @@ end;
 local
 
 val serial_lock = Mutex.mutex ();
-val serial_count = ref 0;
+val serial_count = Unsynchronized.ref 0;
 
 in
 
@@ -248,5 +285,5 @@ end;
 
 end;
 
-structure BasicMultithreading: BASIC_MULTITHREADING = Multithreading;
-open BasicMultithreading;
+structure Basic_Multithreading: BASIC_MULTITHREADING = Multithreading;
+open Basic_Multithreading;

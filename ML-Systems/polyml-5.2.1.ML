@@ -1,6 +1,6 @@
-(*  Title:      Pure/ML-Systems/polyml-5.2.ML
+(*  Title:      Pure/ML-Systems/polyml-5.2.1.ML
 
-Compatibility wrapper for Poly/ML 5.2.
+Compatibility wrapper for Poly/ML 5.2.1.
 *)
 
 use "ML-Systems/unsynchronized.ML";
@@ -17,9 +17,7 @@ end;
 fun reraise exn = raise exn;
 
 use "ML-Systems/polyml_common.ML";
-
-use "ML-Systems/thread_dummy.ML";
-use "ML-Systems/multithreading.ML";
+use "ML-Systems/multithreading_polyml.ML";
 
 val pointer_eq = PolyML.pointerEq;
 

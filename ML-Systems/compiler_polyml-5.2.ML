@@ -14,9 +14,9 @@ in
 fun use_text ({tune_source, name_space, str_of_pos, print, error, ...}: use_context)
     (start_line, name) verbose txt =
   let
-    val current_line = ref start_line;
-    val in_buffer = ref (String.explode (tune_source txt));
-    val out_buffer = ref ([]: string list);
+    val current_line = Unsynchronized.ref start_line;
+    val in_buffer = Unsynchronized.ref (String.explode (tune_source txt));
+    val out_buffer = Unsynchronized.ref ([]: string list);
     fun output () = drop_newline (implode (rev (! out_buffer)));
 
     fun get () =
@@ -38,7 +38,7 @@ fun use_text ({tune_source, name_space, str_of_pos, print, error, ...}: use_cont
         PolyML.compiler (get, parameters) ())
       handle exn =>
        (put ("Exception- " ^ General.exnMessage exn ^ " raised");
-        error (output ()); raise exn);
+        error (output ()); reraise exn);
   in if verbose then print (output ()) else () end;
 
 fun use_file context verbose name =

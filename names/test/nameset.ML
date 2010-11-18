@@ -57,7 +57,8 @@ val base_char_ids = map id_of_str base_char_strs;
 (* quoted characters *)
 val quote_char = (#"\\");
 val quoted_chars = [(#"\\"), (#"'")];
-val unquoted_chars = base_chars \\ quoted_chars;
+(* note subtract x y = x subtracted_from y = y - x *)
+val unquoted_chars = subtract (op =) base_chars quoted_chars;
 
 val basetype_names = (base_char_ids ~~ base_chars);
 
@@ -148,6 +149,7 @@ end (* let *)
     handle _ => raise ERROR "test/fnamer.ML: test failed! horrible monsters!";
 end
 ; (* local *)
+
 
 
 

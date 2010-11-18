@@ -171,7 +171,32 @@ functor NamesFun(
     type 'a ntab = 'a NTab.T
     type renaming = Rnm.T
   end
+
+
+(* FIXME: respect depth properly; don't print out all things in set, just depth number of them. *)
+  (* PolyML pretty print names *)
+  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value => 
+            ml_pretty (Pretty.to_ML (Nm.pretty_name value)));
+  
+  (* pretty print name sets *)
+  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value => 
+            ml_pretty (Pretty.to_ML (NSet.pretty value)));
+  
+  (* pretty name tables *)
+  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value => 
+          let fun pretty_f a = (Pretty.from_ML o pretty_ml o printArgTypes)  
+                                  (a,depth - 1)
+          in  
+            value |> NTab.list_of 
+                  |> map (fn (n,a) => 
+                     Pretty.block [Nm.pretty_name n, 
+                                   Pretty.str "=>", pretty_f a])
+                  |> Pretty.list "{" "}" 
+                  |> Pretty.to_ML |> ml_pretty
+          end);
+
 end;
+
 
 (* add data to a names type - makes new names type with extra data *)
 functor AddDataNameFun(
