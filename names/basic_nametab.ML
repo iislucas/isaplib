@@ -383,6 +383,8 @@ functor BasicNameTabFun(
 
   (* pretty printing *)
   fun pretty f t = 
+      if(is_element_empty t) then Pretty.str "Empty"
+      else
       Pretty.chunks 
         (map 
            (fn (k,v) => 
