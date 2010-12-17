@@ -51,3 +51,4 @@ PolyML.Project.make "pretty.ML";
 
 (* From IsaPlanner *)
 PolyML.Project.make "../basics/collection.ML";
+PolyML.Project.make "../basics/polym_table.ML";
