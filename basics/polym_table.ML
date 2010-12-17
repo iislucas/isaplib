@@ -137,3 +137,45 @@ struct
   val update = PolymTable.update kind decf encf;
 end;
 
+
+local 
+structure EventTypeEntry = PolymEntryFun(
+  type T = (string -> int -> unit)
+  val name = "handle_event_type_XXX");
+
+structure EventTypeEntry2 = PolymEntryFun(
+  type T = (int -> int -> unit)
+  val name = "handle_event_type_YYY");
+
+
+val t = PolymTable.empty;
+val t2 = EventTypeEntry.set (fn s => fn i => writeln (s ^ (Int.toString i))) t;
+val t3 = EventTypeEntry2.set (fn i1 => fn i2 => writeln (Int.toString (i1 + i2))) t2;
+
+
+val f = EventTypeEntry.get t3;
+val _ = f "foo" 1;
+val f2 = EventTypeEntry2.get t3;
+val _ = f2 4 5;
+
+
+structure MouseClickEvents = PolymEntryFun(
+  type T = (int -> int -> unit) Symtab.table
+  val name = "handle_event_type_MouseClick");
+
+val mouseClickEventTab = 
+  Symtab.empty 
+    |> Symtab.update ("a",(fn i1 => fn i2 => writeln (Int.toString (i1 + i2))))
+    |> Symtab.update ("b",(fn i1 => fn i2 => writeln (Int.toString (i1 * i2))));
+
+val t3 = MouseClickEvents.set (mouseClickEventTab) t2;
+
+val fa = the (Symtab.lookup (MouseClickEvents.get t3) "a");
+val fb = the (Symtab.lookup (MouseClickEvents.get t3) "b");
+
+val _ = fa 5 6;
+val _ = fb 5 6;
+
+in 
+  val _ = writeln "test complete";
+end;
