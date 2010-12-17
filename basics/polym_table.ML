@@ -51,6 +51,11 @@ sig
                   ('a -> obj) -> (* encoding exception *)
                   ('a -> 'a) -> (* update data function *)
                   T -> T
+
+  (* tries to merge entries, if defined in both, takes the latter value *)
+  (* IMPROVE: maybe parameterise by a notion of data merging? *)
+  val merge : T -> T -> T
+
 end;
 
 
@@ -90,6 +95,18 @@ structure PolymTable : POLYM_TABLE
   (* for updating information using a function "f" once a kind exists *)
   fun update k decf encf f tbl = 
       KTab.map_entry k (fn ob => encf (f (decf ob))) tbl;
+
+  (* merge entries. If defined in both tables, takes the latter value. 
+     assumes disjointness of kinds (else raises exception) *)
+  (* IMPROVE: maybe parameterise by a notion of data merging? *)
+  fun merge tbl1 tbl2 = 
+      KTab.fold (fn (k,ob) => fn tbl2' => case KTab.lookup tbl2' k
+                                 of NONE => KTab.update (k,ob) tbl2'
+                                  | SOME _ => tbl2')
+                tbl1
+                tbl2;
+
+
 end;
 
 (* Signature for basic things you might want to do with a particular kind of polymorphic table 
