@@ -19,7 +19,7 @@ val pointer_eq = PolyML.pointerEq;
 
 fun share_common_data () = PolyML.shareCommonData PolyML.rootFunction;
 
-use "ML-Systems/compiler_polyml-5.3.ML";
+(* use "ML-Systems/compiler_polyml-5.3.ML"; *)
 
 
 (* toplevel pretty printing *)
@@ -54,6 +54,8 @@ fun ml_pretty (ML_Pretty.Block ((bg, en), prts, ind)) =
   | ml_pretty (ML_Pretty.Break (false, wd)) = PolyML.PrettyBreak (wd, 0)
   | ml_pretty (ML_Pretty.Break (true, _)) = PolyML.PrettyBreak (99999, 0);
 
+(* 
 fun toplevel_pp context (_: string list) pp =
   use_text context (1, "pp") false
     ("PolyML.addPrettyPrinter (fn _ => fn _ => ml_pretty o Pretty.to_ML o (" ^ pp ^ "))");
+*)
