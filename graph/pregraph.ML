@@ -25,6 +25,9 @@ signature EHN_NAMES
   structure EhnSharing : EHN_SHARING where type halfid = halfid
   sharing Sharing = EhnSharing;
 
+  structure InjEndo : NAME_INJENDO;
+  sharing InjEndo.Dom.Sharing = Sharing; 
+
   val get_ename : name -> edgename
   val get_halfid : name -> halfid
   val other : name -> name (* swap: src <-> tgt *)
@@ -60,6 +63,8 @@ functor EhnFun(Nm : NAMES)
 
   structure EhnSharing = struct open Sharing; type halfid = halfid; end;
   
+  structure InjEndo = NameInjEndoFun(EhnN);
+
   fun get_ename ((h,en) : name) = en;
   fun get_halfid ((h,en) : name) = h;
   fun is_start ((h,en) : name) = (SourceEnd = h);
