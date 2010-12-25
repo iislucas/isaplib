@@ -16,6 +16,15 @@ Note: Injective Endomorphisms on Names.
 (*  sharing substuff issue: would like to make a subtype of ISO for 
     injective endomorphism that adds the Dom=Cod constraint. 
 *)
+
+(* FIXME: I'd like to be able to further restrict existing signature of sharing
+   structure in NAME_INJ to being NAME_INJENDO_SHARING, e.g. where structure
+   Sharing : NAME_INJENDO_SHARING *)
+signature NAME_INJENDO_SHARING = sig 
+  include NAME_INJ_SHARING
+  sharing Dom = Cod
+end;
+
 signature NAME_INJENDO = 
 sig 
   include NAME_INJ

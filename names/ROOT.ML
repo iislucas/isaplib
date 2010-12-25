@@ -27,6 +27,8 @@ PolyML.Project.make "name_inj.ML"; (* name iso-morphisms *)
 PolyML.Project.make "name_injendo.ML"; (* name auto-morphisms (name iso where dom = cod) *)
 PolyML.Project.make "name_binrel.ML"; (* bin relations on names *)
 
+PolyML.Project.make "umorph.ML"; (* functions/mappings on names *)
+
 (* testing *)
 cd "test";
 PolyML.Project.make "ROOT.ML";
