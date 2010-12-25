@@ -4,7 +4,7 @@
 
 signature UMORPH
 = sig
-  include NAME_AMORPH
+  include NAME_INJENDO
   
   (* Entity: internal names and their data *)
   structure Entity : NAME_AND_UNIFIABLE_DATA
@@ -17,7 +17,7 @@ signature UMORPH
   val get_unif : T -> Entity.unif
 
   (* morphism of variables in internal data *)
-  val get_amorph : T -> Entity.Amorph.T
+  val get_injendo : T -> Entity.InjEndo.T
   
   (* for alpha-equivalance/isomorphism checking *)
   (* try to add mapping,  *)
@@ -36,8 +36,8 @@ end;
 functor GraphUmorphFun(Entity : NAME_AND_UNIFIABLE_DATA) : GRAPH_UMORPH
 = struct
   (* create name amorph *)
-  structure Am : NAME_AMORPH =
-    NameAmorphWithDataFun(
+  structure Am : NAME_INJENDO =
+    NameInjEndoWithDataFun(
       structure Nm = Entity
       type data = Entity.unif
       val empty_data = Entity.unif_empty);
@@ -47,12 +47,12 @@ functor GraphUmorphFun(Entity : NAME_AND_UNIFIABLE_DATA) : GRAPH_UMORPH
   structure Entity = Entity;
   
   val get_unif = get_data;
-  fun get_amorph y = let val x = destr y in 
-                     Entity.Amorph.constr {ignore = #ignore x,
+  fun get_injendo y = let val x = destr y in 
+                     Entity.InjEndo.constr {ignore = #ignore x,
                                            avoids = #avoids x,
                                            domf = #domf x,
                                            codf = #codf x,
-                                           data = Entity.Amorph.empty_data} end;
+                                           data = Entity.InjEndo.empty_data} end;
   
   fun try_unify (n1,d1) (n2,d2) cn = case try_change1 n1 n2 cn of
       NONE    => NONE

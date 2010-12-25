@@ -22,10 +22,10 @@ PolyML.Project.make "nametab.ML";
 PolyML.Project.make "names.ML"; 
 
 (* Binary Relations of finite name sets: good for dependencies *)
-PolyML.Project.make "name_iso.ML"; (* name iso-morphisms *)
-PolyML.Project.make "name_binrel.ML"; (* bin relations on names *)
 PolyML.Project.make "name_map.ML"; (* functions/mappings on names *)
-PolyML.Project.make "name_amorph.ML"; (* name auto-morphisms (name iso where dom = cod) *)
+PolyML.Project.make "name_inj.ML"; (* name iso-morphisms *)
+PolyML.Project.make "name_injendo.ML"; (* name auto-morphisms (name iso where dom = cod) *)
+PolyML.Project.make "name_binrel.ML"; (* bin relations on names *)
 
 (* testing *)
 cd "test";

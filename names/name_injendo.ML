@@ -1,26 +1,27 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      names_amoph.ML
+(*  Title:      names_injendo.ML
     Author:     Lucas Dixon
                 lucas.dixon@ed.ac.uk
                 30 May 2008   *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-Note: Name Automorphisms
+Note: Injective Endomorphisms on Names. 
 (isomorphism (1-1) function from one name kind to itself)
- name_amorph = CHANGE_NAMES where
- translate_name = id; Unlike renaming, we don't keep the newnames.
+ name_injendo = CHANGE_NAMES where
+ translate_name = id; Unlike renaming, we don't keep cache of newnames.
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-(* sharing substuff issue: would like to make a subtype of ISO for automorphism that adds the Dom=Cod constraint. 
+(*  sharing substuff issue: would like to make a subtype of ISO for 
+    injective endomorphism that adds the Dom=Cod constraint. 
 *)
-signature NAME_AMORPH = 
+signature NAME_INJENDO = 
 sig 
-  include NAME_ISO
+  include NAME_INJ
   sharing Sharing.Dom = Sharing.Cod
 
-  (* renamings are trivially name automorphisms *)
+  (* renamings are trivially name injective endo *)
   val of_rnm : Dom.Rnm.T -> T
   val rnm_of : T -> Dom.Rnm.T
   
@@ -29,15 +30,15 @@ sig
 end;
 
 (* Name endomorphisms *)
-functor NameAmorphFun(Nm : NAMES) 
-: NAME_AMORPH
+functor NameInjEndoFun(Nm : NAMES) 
+: NAME_INJENDO
 = struct 
   structure Nm = Nm;
-  structure NameIso = NameIsoFun(
+  structure NameIso = NameInjFun(
     structure Dom = Nm 
     structure Cod = Nm 
     val translate_name = I
-    ) : NAME_ISO;
+    ) : NAME_INJ;
   open NameIso;
 
   fun of_rnm rn = 

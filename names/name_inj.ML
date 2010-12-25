@@ -1,12 +1,12 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      name_iso.ML
+(*  Title:      name_inj.ML
     Author:     Lucas Dixon
                 lucas.dixon@ed.ac.uk
                 30 May 2008   *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-Note: This is essentially isomorphisms between finite sets of 
+Note: This is essentially injective mapping between finite sets of 
       (possibly different) names (Dom and Cod).
 
 The structure changes names in an old type of name space to names in a
@@ -18,7 +18,7 @@ Renaming =aprox=
   CHANGE_NAMES where Dom = Cod, 
                and translate_name = identify function. 
 
-Iso are less efficient than renaming in that we also store in
+Inj are less efficient than renaming in that we also store in
 the inverse name mapping. This allows renaming of the domain and
 codomain elements, but slightly slows down the adding of names to the
 name change type.
@@ -29,7 +29,7 @@ a table of renamings (the name translation used).
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-signature NAME_ISO_SHARING = (* all types for sharing *)
+signature NAME_INJ_SHARING = (* all types for sharing *)
 sig
   structure Dom : NAMES_SHARING
   structure Cod : NAMES_SHARING
@@ -37,7 +37,7 @@ sig
 end;
 
 
-signature NAME_ISO
+signature NAME_INJ
 = sig
 
 structure Dom : NAMES
@@ -46,7 +46,7 @@ structure Cod : NAMES
 (* when Dom and Cod are not the same, a translation function is needed *)
 val translate_name : Dom.name -> Cod.name 
 
-(* type of name-change / isomorphism *)
+(* type of name-change / injective map (and inverse) *)
 type T
 
 (* constructors *)
@@ -61,12 +61,12 @@ val avoid_ignores_image : T -> T;
 (* assumes two mappings are disjoint/compatible *)
 val union_merge : T -> T -> T
 
-(* for doing renaming/creating an isomorphism *)
+(* for doing renaming/creating an injective map *)
 val change1 : Dom.name (* old name *)
              -> T (* renaming so far *)
              -> (Cod.name option) * T (* new name and extended renaming *)
 
-(* for alpha-equivlance/isomorphism-checking *)
+(* for alpha-equivlance/injection-checking *)
 val try_change1 : Dom.name (* old name *)
                   -> Cod.name (* new name *)
                   -> T (* renaming so far *)
@@ -129,7 +129,7 @@ val destr : T -> {ignore : Dom.NSet.T,
           codf : Dom.name Cod.NTab.T} 
 
 (* sharing *)
-structure Sharing : NAME_ISO_SHARING
+structure Sharing : NAME_INJ_SHARING
 sharing type Sharing.T = T
 sharing Sharing.Dom = Dom.Sharing
 sharing Sharing.Cod = Cod.Sharing
@@ -138,10 +138,10 @@ end;
 
 
 (* *)
-functor NameIsoFun(structure Dom : NAMES 
+functor NameInjFun(structure Dom : NAMES 
   structure Cod : NAMES 
   val translate_name : Dom.name -> Cod.name) 
-: NAME_ISO
+: NAME_INJ
 = struct
 
 structure Dom = Dom;
@@ -372,7 +372,7 @@ fun pretty (Iso rep) =
       [Pretty.str "NameIso {",
        Pretty.block [Pretty.str "  ignore: ", Dom.NSet.pretty (#ignore rep)],
        Pretty.block [Pretty.str "  avoids: ", Cod.NSet.pretty (#avoids rep)],
-       Pretty.block [Pretty.str "  isof: ", Dom.NTab.pretty Cod.pretty_name (#domf rep)],
+       Pretty.block [Pretty.str "  domf: ", Dom.NTab.pretty Cod.pretty_name (#domf rep)],
        Pretty.str "}"];
 
 val print = Pretty.writeln o pretty;

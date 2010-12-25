@@ -31,10 +31,10 @@ sig
 include NAMES_SHARING
 type data
 structure Map : NAME_MAP_SHARING
-structure Amorph : NAME_ISO_SHARING
-sharing Amorph.Dom = Amorph.Cod
-sharing Map.Dom = Amorph.Dom
-sharing Map.Cod = Amorph.Dom
+structure InjEndo : NAME_INJ_SHARING
+sharing InjEndo.Dom = InjEndo.Cod
+sharing Map.Dom = InjEndo.Dom
+sharing Map.Cod = InjEndo.Dom
 
 (* it would be nice to have a syntax for 'this' sturcture, 
    save myself the lines below... I guess resolving recursion would need a little thought. 
@@ -65,8 +65,8 @@ signature NAME_AND_DATA
   sharing Sharing = SharingWithData;
   structure Map : NAME_MAP;
   sharing SharingWithData.Map = Map.Sharing;
-  structure Amorph : NAME_AMORPH;
-  sharing SharingWithData.Amorph = Amorph.Sharing;
+  structure InjEndo : NAME_INJENDO;
+  sharing SharingWithData.InjEndo = InjEndo.Sharing;
 end;
 
 signature NAME_AND_UNIFIABLE_DATA
@@ -78,8 +78,8 @@ signature NAME_AND_UNIFIABLE_DATA
   sharing Sharing = SharingWithData;
   structure Map : NAME_MAP;
   sharing SharingWithData.Map = Map.Sharing;
-  structure Amorph : NAME_AMORPH;
-  sharing SharingWithData.Amorph = Amorph.Sharing;
+  structure InjEndo : NAME_INJENDO;
+  sharing SharingWithData.InjEndo = InjEndo.Sharing;
 end;
 
 signature EHN_SHARING = 
@@ -194,7 +194,7 @@ structure EdgeSharingWithData : EDGE_AND_DATA_SHARING
 
 sharing EdgeSharing = EdgeSharingWithData;
 sharing Map.Sharing = EdgeSharingWithData.Map;
-sharing Amorph.Sharing = EdgeSharingWithData.Amorph;
+sharing InjEndo.Sharing = EdgeSharingWithData.InjEndo;
 
 end;
 
@@ -221,7 +221,7 @@ structure EdgeSharingWithData = struct
   open EdgeSharing; 
   type data = data;
   structure Map = Map.Sharing;
-  structure Amorph = Amorph.Sharing;
+  structure InjEndo = InjEndo.Sharing;
 end;
 
 end;
@@ -271,13 +271,13 @@ val default_name = mk "a";
 open StrData;
 val default_data = "";
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
-structure Amorph = NameAmorphFun(SStrName);
+structure InjEndo = NameInjEndoFun(SStrName);
 structure SharingWithData = struct 
   open Sharing; 
   type data = data;
   type unif = unit;
   structure Map = Map.Sharing;
-  structure Amorph = Amorph.Sharing;
+  structure InjEndo = InjEndo.Sharing;
   end;
 end;
 
@@ -289,13 +289,13 @@ val default_name = mk "a";
 open UnitData;
 val default_data = ();
 structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
-structure Amorph = NameAmorphFun(SStrName);
+structure InjEndo = NameInjEndoFun(SStrName);
 structure SharingWithData = struct 
   open Sharing; 
   type data = data; 
   type unif = unit;
   structure Map = Map.Sharing;
-  structure Amorph = Amorph.Sharing;
+  structure InjEndo = InjEndo.Sharing;
   end;
 end;
 
