@@ -161,13 +161,14 @@ structure StrData : UNIFIABLE_DATA where type data = string
   val print_data = Pretty.writeln o pretty_data;
   val data_ord = String.compare;
   fun data_eq (a,b) = (a = (b : string));
-  type unif = unit
-  val empty_unif = ();
-  fun compose_unif _ = ();
+  type subst = unit
+  val empty_subst = ();
+  fun compose_subst _ = ();
   fun unify_data x _ = if data_eq x then SOME () else NONE;
+  fun match_data x _ = if data_eq x then SOME () else NONE;
   fun subst_in_data u d = d;
-  fun pretty_unif _ = Pretty.str "()";
-  val print_unif = Pretty.writeln o pretty_unif;
+  fun pretty_subst _ = Pretty.str "()";
+  val print_subst = Pretty.writeln o pretty_subst;
 end;
 
 structure UnitData : UNIFIABLE_DATA where type data = unit 
@@ -177,13 +178,14 @@ structure UnitData : UNIFIABLE_DATA where type data = unit
   val print_data = Pretty.writeln o pretty_data;
   val data_ord = K EQUAL;
   val data_eq = K true;
-  type unif = unit
-  val empty_unif = ();
-  fun compose_unif _ = ();
+  type subst = unit
+  val empty_subst = ();
+  fun compose_subst _ = ();
   fun unify_data x _ = if data_eq x then SOME () else NONE;
+  fun match_data x _ = if data_eq x then SOME () else NONE;
   fun subst_in_data u d = d;
-  fun pretty_unif _ = Pretty.str "()";
-  val print_unif = Pretty.writeln o pretty_unif;
+  fun pretty_subst _ = Pretty.str "()";
+  val print_subst = Pretty.writeln o pretty_subst;
 end;
 
 structure StrNmStrData 
@@ -198,7 +200,7 @@ structure StrNmStrData
   structure SharingWithData = struct 
     open Sharing; 
     type data = data;
-    type unif = unit;
+    type subst = unit;
     structure Map = Map.Sharing;
     structure InjEndo = InjEndo.Sharing;
   end;
@@ -216,7 +218,7 @@ structure StrNmUnitData
   structure SharingWithData = struct 
     open Sharing; 
     type data = data; 
-    type unif = unit;
+    type subst = unit;
     structure Map = Map.Sharing;
     structure InjEndo = InjEndo.Sharing;
   end;

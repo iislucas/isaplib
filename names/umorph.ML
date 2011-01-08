@@ -14,16 +14,17 @@ end;
 signature UNIFIABLE_DATA
 = sig
   include ORD_DATA
-  type unif
-  val empty_unif : unif
-  val unify_data : data * data -> unif -> unif option
-  val subst_in_data : unif -> data -> data
+  type subst (* substitution within data *)
+  val empty_subst : subst
+  val unify_data : data * data -> subst -> subst option
+  val match_data : data * data -> subst -> subst option
+  val subst_in_data : subst -> data -> data
 
   (* like f o g; this should just composes substitutions *)
-  val compose_unif : unif * unif -> unif
+  val compose_subst : subst * subst -> subst
 
-  val pretty_unif : unif -> Pretty.T
-  val print_unif : unif -> unit
+  val pretty_subst : subst -> Pretty.T
+  val print_subst : subst -> unit
 end;
 
 (* to simplify sharing constraints *)
@@ -54,7 +55,7 @@ end;
 signature NAME_AND_UNIFIABLE_DATA_SHARING =
 sig
   include NAME_AND_DATA_SHARING
-  type unif
+  type subst
 end;
 
 signature NAME_AND_DATA
@@ -92,7 +93,7 @@ signature UMORPH
   structure Entity : NAME_AND_UNIFIABLE_DATA
   
   (* get unification (vertex & edge) data associated with graph automorphism *)
-  val get_unif : T -> Entity.unif
+  val get_subst : T -> Entity.subst
   
   (* morphism of variables in internal data *)
   val get_injendo : T -> Entity.InjEndo.T
@@ -104,9 +105,18 @@ signature UMORPH
                     -> T (* renaming so far *)
                     -> T option (* new name and extended renaming *)
 
-  exception unif_exp of unit
+  val try_match : Entity.name * Entity.data
+                    -> Entity.name * Entity.data
+                    -> T (* renaming so far *)
+                    -> T option (* new name and extended renaming *)
+
+  exception subst_exp of unit
   (* as above, but raises exception *)
   val unify : Entity.name * Entity.data
+              -> Entity.name * Entity.data 
+              -> T -> T
+  (* as above, but raises exception *)
+  val match : Entity.name * Entity.data
               -> Entity.name * Entity.data 
               -> T -> T
 
@@ -117,28 +127,39 @@ functor UmorphFun(Entity : NAME_AND_UNIFIABLE_DATA) : UMORPH
 
   structure Entity = Entity;
 
-  datatype T = UMorph of Entity.unif * Entity.InjEndo.T;
+  datatype T = UMorph of Entity.subst * Entity.InjEndo.T;
   
-  fun get_unif (UMorph (u,m)) = u;
+  fun get_subst (UMorph (u,m)) = u;
   fun get_injendo (UMorph (u,m)) = m;
-  fun update_unif f (UMorph (u,m)) = UMorph (f u,m);
+  fun update_subst f (UMorph (u,m)) = UMorph (f u,m);
   fun update_injendo f (UMorph (u,m)) = UMorph (u,f m);
-  val set_unif = update_unif o K;
+  val set_subst = update_subst o K;
   val set_injendo = update_injendo o K;
   
   fun try_unify (n1,d1) (n2,d2) um = 
       (case Entity.InjEndo.try_change1 n1 n2 (get_injendo um) of
          NONE    => NONE
-       | SOME cn => (case Entity.unify_data (d1,d2) (get_unif um) of
+       | SOME cn => (case Entity.unify_data (d1,d2) (get_subst um) of
                        NONE    => NONE
                      | SOME un => SOME (UMorph (un, cn))));
 
+  fun try_match (n1,d1) (n2,d2) um = 
+      (case Entity.InjEndo.try_change1 n1 n2 (get_injendo um) of
+         NONE    => NONE
+       | SOME cn => (case Entity.match_data (d1,d2) (get_subst um) of
+                       NONE    => NONE
+                     | SOME un => SOME (UMorph (un, cn))));
 
-  exception unif_exp of unit
+  exception subst_exp of unit
 
   fun unify (nd1 as (n1,d1)) (nd2 as (n2,d2)) cn =
     (case try_unify nd1 nd2 cn of 
-       NONE => raise unif_exp ()
+       NONE => raise subst_exp ()
      | SOME cn2 => cn2);
-                    
+
+  fun match (nd1 as (n1,d1)) (nd2 as (n2,d2)) cn =
+    (case try_match nd1 nd2 cn of 
+       NONE => raise subst_exp ()
+     | SOME cn2 => cn2);
+                            
 end;
