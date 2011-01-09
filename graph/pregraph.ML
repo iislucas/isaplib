@@ -19,6 +19,7 @@ signature EHN_NAMES
 *)
   datatype halfid = TargetEnd | SourceEnd;
   val other_half : halfid -> halfid (* not *)
+  val ord_half : halfid * halfid -> order (* Src < Tgt *)
 
   type edgename;
   include NAMES;
@@ -30,12 +31,15 @@ signature EHN_NAMES
 
   val get_ename : name -> edgename
   val get_halfid : name -> halfid
+
+  val same_half : name -> name -> bool
+
   val other : name -> name (* swap: src <-> tgt *)
+
   val mk_start : edgename -> name;
   val mk_end : edgename -> name;
   val is_start : name -> bool
   val is_end : name -> bool
-
 end;
 
 functor EhnFun(Nm : NAMES) 
@@ -48,14 +52,15 @@ functor EhnFun(Nm : NAMES)
   fun other_half TargetEnd = SourceEnd
     | other_half SourceEnd = TargetEnd;
 
+  fun ord_half (TargetEnd, TargetEnd) = EQUAL
+    | ord_half (TargetEnd, SourceEnd) = GREATER
+    | ord_half (SourceEnd, TargetEnd) = LESS
+    | ord_half (SourceEnd, SourceEnd) = EQUAL
+
   structure EhnN = AddDataNameFun(
     structure Nm = Nm
     type data = halfid
-    (* false = source, true = target *)
-    fun ord_data (TargetEnd, TargetEnd) = EQUAL
-      | ord_data (TargetEnd, SourceEnd) = GREATER
-      | ord_data (SourceEnd, TargetEnd) = LESS
-      | ord_data (SourceEnd, SourceEnd) = EQUAL
+    val ord_data = ord_half;
     fun pretty (TargetEnd,n) = Pretty.block [Pretty.str "tgt:", Nm.pretty_name n]
       | pretty (SourceEnd,n) = Pretty.block [Pretty.str "src:", Nm.pretty_name n]
     val default_name = (TargetEnd, Nm.default_name));
@@ -67,6 +72,7 @@ functor EhnFun(Nm : NAMES)
 
   fun get_ename ((h,en) : name) = en;
   fun get_halfid ((h,en) : name) = h;
+  fun same_half ((h,en) : name) ((h2,en2) : name) = (ord_half (h,h2) = EQUAL);
   fun is_start ((h,en) : name) = (SourceEnd = h);
   fun is_end ((h,en) : name) = (TargetEnd = h);
   fun other ((h,en) : name) = (other_half h, en);
