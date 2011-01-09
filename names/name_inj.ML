@@ -1,9 +1,4 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      name_inj.ML
-    Author:     Lucas Dixon
-                lucas.dixon@ed.ac.uk
-                30 May 2008   *)
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
 Note: This is essentially injective mapping between finite sets of 

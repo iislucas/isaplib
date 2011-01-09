@@ -1,19 +1,17 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      names_injendo.ML
-    Author:     Lucas Dixon
-                lucas.dixon@ed.ac.uk
-                30 May 2008   *)
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-Note: Injective Endomorphisms on Names. 
-(isomorphism (1-1) function from one name kind to itself)
+Note: Injective Endomorphisms on Names  (1-1) functions with same type of 
+      dom and cod. 
+
+(usually used for representing isomorphism from one name kind to itself)
+
  name_injendo = CHANGE_NAMES where
  translate_name = id; Unlike renaming, we don't keep cache of newnames.
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-(*  sharing substuff issue: would like to make a subtype of ISO for 
+(*  sharing substuff issue: would like to make a subtype of INJ for 
     injective endomorphism that adds the Dom=Cod constraint. 
 *)
 
@@ -43,12 +41,12 @@ functor NameInjEndoFun(Nm : NAMES)
 : NAME_INJENDO
 = struct 
   structure Nm = Nm;
-  structure NameIso = NameInjFun(
+  structure NameInj = NameInjFun(
     structure Dom = Nm 
     structure Cod = Nm 
     val translate_name = I
     ) : NAME_INJ;
-  open NameIso;
+  open NameInj;
 
   fun of_rnm rn = 
       let val rep = (Dom.Rnm.destr rn)

@@ -129,7 +129,7 @@ datatype T = NameMap of {
 };
 
 val empty = NameMap {domf = Dom.NTab.empty,
-                    codf = Cod.NTab.empty};
+                     codf = Cod.NTab.empty};
 
 fun get_domtab (NameMap rep) = #domf rep;
 fun get_codtab (NameMap rep) = #codf rep;
