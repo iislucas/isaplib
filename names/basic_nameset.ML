@@ -186,12 +186,13 @@ sig
 
   val assert_correct : T -> T (* raises if not correct *)
 
+
   (* should never happen *)
   exception delete_exp of string * name * T;
   exception add_range_exp of string * (name * name) * T;
-  exception add_exp of string * name * T;
   exception union_merge_exp of string * T * T;
 
+  (* FIXME: unify the various bug excepotions *)
   exception bug0_exp of string;
   exception bug_exp of string * T;
   exception bug2_exp of string * T * T;
@@ -500,12 +501,6 @@ fun add' (s as (sp,sx,ss)) Empty = Br (1,(sx,sx),Empty,Empty)
 
 fun add s = add' (pred_or_same s, s, N.suc s);
 (* fun add s = assert_correct o add' (pred_or_same s, s, N.suc s); *)
-
-(* 
-fun add2 s tr = 
-    assert_correct (add' (pred_or_same s, s, N.suc s) tr) 
-    handle bad_fnametab_exp (str,_) => raise add_exp (str, s, tr);
-val add = add2; *)
 
 fun add_list l = fold add l;
 (* fun of_list l = assert_correct (add_list l empty); *)
