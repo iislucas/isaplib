@@ -76,7 +76,9 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
               (NONE, rn3) => (rn3,x2)
             | (SOME n2, rn3) => 
               (case CR.try_rename1 n n2 x2 
-                of NONE => raise Rnm.invalid_renaming_exp "compound rename"
+                of NONE => 
+                   raise Rnm.invalid_renaming_exp ("compound rename: " ^  
+                     (Nm.string_of_name n) ^ " -> " ^ (Nm.string_of_name n2))
                  | SOME x3 => (rn3, x3)))
         (CR.get_nameset x) (rn,x);
         

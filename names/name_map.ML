@@ -32,8 +32,8 @@ val is_empty : T -> bool
 
 (* add?: union, intersection, ... *)
 
-(* contains/lookup *)
-val contains : T -> (Dom.name * Cod.name) -> bool
+(* contains/lookup (raised Tab.UNDEF exception if dom does not exist) *)
+val assert_contains : T -> (Dom.name * Cod.name) -> bool
 (* lookup: NONE if domain element does not exist *)
 val lookup : T -> (Dom.name * Cod.name) -> bool option
 
@@ -191,11 +191,13 @@ fun codf m n =
     | SOME x => x;
 
 (* given two elements check if function maps them *)
-fun contains m (a,b) = Cod.name_eq (domf m a, b);
+fun assert_contains m (a,b) = Cod.name_eq (domf m a, b);
 fun lookup m (a,b) = 
     (case lookup_domf m a 
       of NONE => NONE
        | SOME b2 => SOME (Cod.name_eq (b2,b)));
+fun contains m a_b = 
+    (case lookup m a_b of SOME true => true | _ => false);
 
 (*  aset cannot be mapped already *)
 fun add_many_to_1cod aset b m = 

@@ -48,6 +48,12 @@ type T
 val empty : T;
 val is_empty : T -> bool;
 
+(* contains/lookup (raised NTab exception if dom does not exist) *)
+val assert_contains : T -> (Dom.name * Cod.name) -> bool
+val contains : T -> (Dom.name * Cod.name) -> bool
+(* lookup: NONE if domain element does not exist *)
+val lookup : T -> (Dom.name * Cod.name) -> bool option
+
 (* other operations on the change name space *)
 val union_ignores : Dom.NSet.T -> T -> T 
 val union_avoids : Cod.NSet.T -> T -> T
@@ -73,6 +79,7 @@ val add : Dom.name -> Cod.name -> T -> T
 (* renaming names *)
 val try_rename1_dom : Dom.name -> Dom.name -> T -> T option
 val try_rename1_cod : Cod.name -> Cod.name -> T -> T option
+
 
 
 (* 
@@ -205,6 +212,17 @@ val codf = Cod.NTab.get o get_codtab;
 
 val lookup_domf = Dom.NTab.lookup o get_domtab;
 val lookup_codf = Cod.NTab.lookup o get_codtab;
+
+
+(* given two elements check if function maps them *)
+fun assert_contains m (a,b) = Cod.name_eq (domf m a, b);
+fun lookup m (a,b) = 
+    (case lookup_domf m a 
+      of NONE => NONE
+       | SOME b2 => SOME (Cod.name_eq (b2,b)));
+fun contains m a_b = 
+    (case lookup m a_b of SOME true => true | _ => false);
+
 
 fun update_avoids f (Iso rep) = 
     Iso { ignore = #ignore rep, avoids = f (#avoids rep),
