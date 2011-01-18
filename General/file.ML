@@ -12,9 +12,11 @@ sig
   val cd: Path.T -> unit
   val pwd: unit -> Path.T
   val full_path: Path.T -> Path.T
+  val tmp_path: Path.T -> Path.T
   val exists: Path.T -> bool
   val check: Path.T -> unit
   val rm: Path.T -> unit
+  val is_dir: Path.T -> bool
   val open_input: (TextIO.instream -> 'a) -> Path.T -> 'a
   val open_output: (TextIO.outstream -> 'a) -> Path.T -> 'a
   val open_append: (TextIO.outstream -> 'a) -> Path.T -> 'a
@@ -36,7 +38,11 @@ struct
 
 val platform_path = Path.implode o Path.expand;
 
-val shell_quote = enclose "'" "'";
+fun shell_quote s =
+  if exists_string (fn c => c = "'") s then
+    error ("Illegal single quote in path specification: " ^ quote s)
+  else enclose "'" "'" s;
+
 val shell_path = shell_quote o platform_path;
 
 
@@ -49,23 +55,12 @@ fun full_path path =
   if Path.is_absolute path then path
   else Path.append (pwd ()) path;
 
-(* file identification *)
 
-local
-  val ident_cache =
-    Unsynchronized.ref (Symtab.empty: {time_stamp: string, id: string} Symtab.table);
-in
+(* tmp_path *)
 
-fun check_cache (path, time) =
-  (case Symtab.lookup (! ident_cache) path of
-    NONE => NONE
-  | SOME {time_stamp, id} => if time_stamp = time then SOME id else NONE);
+fun tmp_path path =
+  Path.append (Path.variable "ISABELLE_TMP") (Path.base path);
 
-fun update_cache (path, (time, id)) = CRITICAL (fn () =>
-  Unsynchronized.change ident_cache
-    (Symtab.update (path, {time_stamp = time, id = id})));
-
-end;
 
 (* directory entries *)
 
@@ -79,6 +74,7 @@ val rm = OS.FileSys.remove o platform_path;
 
 fun is_dir path =
   the_default false (try OS.FileSys.isDir (platform_path path));
+
 
 (* open files *)
 

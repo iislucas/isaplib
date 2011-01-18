@@ -174,15 +174,16 @@ fun implode_range pos1 pos2 syms =
   in (implode syms', range syms') end;
 
 fun explode (str, pos) =
-  fold_map (fn s => fn p => ((s, p), (Position.advance s p)))
-    (Symbol.explode str) (Position.reset_range pos)
-  |> #1 |> filter_out (fn (s, _) => s = Symbol.DEL);
+  let
+    val (res, _) =
+      fold (fn s => fn (res, p) => ((s, p) :: res, Position.advance s p))
+        (Symbol.explode str) ([], Position.reset_range pos);
+  in fold (fn (s, p) => if s = Symbol.DEL then I else cons (s, p)) res [] end;
 
 end;
 
 structure Basic_Symbol_Pos =   (*not open by default*)
 struct
-  val symbol = Symbol_Pos.symbol;
   val $$$ = Symbol_Pos.$$$;
   val ~$$$ = Symbol_Pos.~$$$;
 end;

@@ -31,12 +31,12 @@ open PolyML;
 structure Project 
 = struct
 
-  val ideModeRef = ref false;
+  val ideModeRef = Unsynchronized.ref false;
 
   val basicUse = PolyML.use;
 
-  val projectDirRef = ref "";
-  val saveSubDirRef = ref ".polysave";
+  val projectDirRef = Unsynchronized.ref "";
+  val saveSubDirRef = Unsynchronized.ref ".polysave";
 
   fun setProjectDir s = (OS.FileSys.chDir s; projectDirRef := s);
   fun setSaveSubDir s = (saveSubDirRef := s);

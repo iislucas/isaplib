@@ -70,13 +70,6 @@ fun kind_of (Token (_, (k, _))) = k;
 fun content_of (Token (_, (_, x))) = x;
 fun token_leq (tok, tok') = content_of tok <= content_of tok';
 
-fun check_content_of tok =
-  (case kind_of tok of
-    Error msg => error msg
-  | _ => content_of tok);
-
-val flatten = implode o map (Symbol.escape o check_content_of);
-
 fun is_regular (Token (_, (Error _, _))) = false
   | is_regular (Token (_, (EOF, _))) = false
   | is_regular _ = true;
@@ -84,6 +77,27 @@ fun is_regular (Token (_, (Error _, _))) = false
 fun is_improper (Token (_, (Space, _))) = true
   | is_improper (Token (_, (Comment, _))) = true
   | is_improper _ = false;
+
+fun warn tok =
+  (case tok of
+    Token (_, (Keyword, ":>")) =>
+      warning ("Opaque signature matching (:>) fails to work with ML pretty printing --\n\
+        \prefer non-opaque matching (:) possibly with abstype" ^
+        Position.str_of (pos_of tok))
+  | _ => ());
+
+fun check_content_of tok =
+  (case kind_of tok of
+    Error msg => error msg
+  | _ => content_of tok);
+
+fun flatten_content (tok :: (toks as tok' :: _)) =
+      Symbol.escape (check_content_of tok) ::
+        (if is_improper tok orelse is_improper tok' then flatten_content toks
+         else Symbol.space :: flatten_content toks)
+  | flatten_content toks = map (Symbol.escape o check_content_of) toks;
+
+val flatten = implode o flatten_content;
 
 
 (* markup *)
@@ -100,10 +114,10 @@ val token_kind_markup =
   | Real      => Markup.ML_numeral
   | Char      => Markup.ML_char
   | String    => Markup.ML_string
-  | Space     => Markup.none
+  | Space     => Markup.empty
   | Comment   => Markup.ML_comment
   | Error _   => Markup.ML_malformed
-  | EOF       => Markup.none;
+  | EOF       => Markup.empty;
 
 fun token_markup kind x =
   if kind = Keyword andalso exists_string (not o Symbol.is_ascii_letter) x
@@ -112,7 +126,7 @@ fun token_markup kind x =
 
 in
 
-fun report_token (Token ((pos, _), (kind, x))) = Position.report (token_markup kind x) pos;
+fun report_token (Token ((pos, _), (kind, x))) = Position.report pos (token_markup kind x);
 
 end;
 
@@ -127,7 +141,7 @@ fun !!! msg = Symbol_Pos.!!! ("SML lexical error: " ^ msg);
 
 (* blanks *)
 
-val scan_blank = Scan.one (Symbol.is_ascii_blank o symbol);
+val scan_blank = Scan.one (Symbol.is_ascii_blank o Symbol_Pos.symbol);
 val scan_blanks1 = Scan.repeat1 scan_blank;
 
 
@@ -141,7 +155,7 @@ val keywords = ["#", "(", ")", ",", "->", "...", ":", ":>", ";", "=",
   "sharing", "sig", "signature", "struct", "structure", "then", "type",
   "val", "where", "while", "with", "withtype"];
 
-val lex = Scan.make_lexicon (map explode keywords);
+val lex = Scan.make_lexicon (map raw_explode keywords);
 fun scan_keyword x = Scan.literal lex x;
 
 
@@ -150,11 +164,15 @@ fun scan_keyword x = Scan.literal lex x;
 local
 
 val scan_letdigs =
-  Scan.many ((Symbol.is_ascii_letter orf Symbol.is_ascii_digit orf Symbol.is_ascii_quasi) o symbol);
+  Scan.many
+    ((Symbol.is_ascii_letter orf Symbol.is_ascii_digit orf Symbol.is_ascii_quasi) o
+      Symbol_Pos.symbol);
 
-val scan_alphanumeric = Scan.one (Symbol.is_ascii_letter o symbol) -- scan_letdigs >> op ::;
+val scan_alphanumeric =
+  Scan.one (Symbol.is_ascii_letter o Symbol_Pos.symbol) -- scan_letdigs >> op ::;
 
-val scan_symbolic = Scan.many1 (member (op =) (explode "!#$%&*+-/:<=>?@\\^`|~") o symbol);
+val scan_symbolic =
+  Scan.many1 (member (op =) (raw_explode "!#$%&*+-/:<=>?@\\^`|~") o Symbol_Pos.symbol);
 
 in
 
@@ -172,8 +190,8 @@ end;
 
 local
 
-val scan_dec = Scan.many1 (Symbol.is_ascii_digit o symbol);
-val scan_hex = Scan.many1 (Symbol.is_ascii_hex o symbol);
+val scan_dec = Scan.many1 (Symbol.is_ascii_digit o Symbol_Pos.symbol);
+val scan_hex = Scan.many1 (Symbol.is_ascii_hex o Symbol_Pos.symbol);
 val scan_sign = Scan.optional ($$$ "~") [];
 val scan_decint = scan_sign @@@ scan_dec;
 
@@ -199,11 +217,11 @@ end;
 local
 
 val scan_escape =
-  Scan.one (member (op =) (explode "\"\\abtnvfr") o symbol) >> single ||
+  Scan.one (member (op =) (raw_explode "\"\\abtnvfr") o Symbol_Pos.symbol) >> single ||
   $$$ "^" @@@ (Scan.one (fn (s, _) => ord "@" <= ord s andalso ord s <= ord "_") >> single) ||
-  Scan.one (Symbol.is_ascii_digit o symbol) --
-    Scan.one (Symbol.is_ascii_digit o symbol) --
-    Scan.one (Symbol.is_ascii_digit o symbol) >> (fn ((a, b), c) => [a, b, c]);
+  Scan.one (Symbol.is_ascii_digit o Symbol_Pos.symbol) --
+    Scan.one (Symbol.is_ascii_digit o Symbol_Pos.symbol) --
+    Scan.one (Symbol.is_ascii_digit o Symbol_Pos.symbol) >> (fn ((a, b), c) => [a, b, c]);
 
 val scan_str =
   Scan.one (fn (s, _) => Symbol.is_regular s andalso s <> "\"" andalso s <> "\\" andalso
@@ -248,7 +266,7 @@ val scan_ml =
 val scan_antiq = Antiquote.scan || scan_ml >> Antiquote.Text;
 
 fun recover msg =
-  Scan.many (((not o Symbol.is_blank) andf Symbol.is_regular) o symbol)
+  Scan.many (((not o Symbol.is_blank) andf Symbol.is_regular) o Symbol_Pos.symbol)
   >> (fn cs => [token (Error msg) cs]);
 
 in
@@ -257,15 +275,11 @@ fun source src =
   Symbol_Pos.source (Position.line 1) src
   |> Source.source Symbol_Pos.stopper (Scan.bulk (!!! "bad input" scan_ml)) (SOME (false, recover));
 
-val tokenize =
-  Source.of_string #>
-  Symbol.source {do_recover = true} #>
-  source #>
-  Source.exhaust;
+val tokenize = Source.of_string #> Symbol.source #> source #> Source.exhaust;
 
 fun read pos txt =
   let
-    val _ = Position.report Markup.ML_source pos;
+    val _ = Position.report pos Markup.ML_source;
     val syms = Symbol_Pos.explode (txt, pos);
     val termination =
       if null syms then []
@@ -281,7 +295,7 @@ fun read pos txt =
         |> Source.exhaust
         |> tap (List.app (Antiquote.report report_token))
         |> tap Antiquote.check_nesting
-        |> tap (List.app (fn Antiquote.Text tok => ignore (check_content_of tok) | _ => ())))
+        |> tap (List.app (fn Antiquote.Text tok => (check_content_of tok; warn tok) | _ => ())))
       handle ERROR msg =>
         cat_error msg ("The error(s) above occurred in ML source" ^ Position.str_of pos);
   in input @ termination end;

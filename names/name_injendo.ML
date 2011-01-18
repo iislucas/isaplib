@@ -75,8 +75,8 @@ functor NameInjEndoFun(Nm : NAMES)
       in
         constr {ignore = #ignore repa,
             avoids = #avoids repa,
-            domf = Dom.NTab.map_all (domf b) (#domf repa),
-            codf = Cod.NTab.map_all (codf a) (#codf repb) } 
+            domf = Dom.NTab.map_all (K (domf b)) (#domf repa),
+            codf = Cod.NTab.map_all (K (codf a)) (#codf repb) } 
       end;
       
 end;

@@ -1,6 +1,6 @@
 (*  Title:      Pure/ML-Systems/compiler_polyml-5.3.ML
 
-Runtime compilation for Poly/ML 5.3.0.
+Runtime compilation for Poly/ML 5.3 and 5.4.
 *)
 
 local
@@ -41,8 +41,10 @@ fun use_text ({tune_source, name_space, str_of_pos, print, error, ...}: use_cont
       (while not (List.null (! in_buffer)) do
         PolyML.compiler (get, parameters) ())
       handle exn =>
-       (put ("Exception- " ^ General.exnMessage exn ^ " raised");
-        error (output ()); reraise exn);
+        if Exn.is_interrupt exn then reraise exn
+        else
+         (put ("Exception- " ^ General.exnMessage exn ^ " raised");
+          error (output ()); reraise exn);
   in if verbose then print (output ()) else () end;
 
 fun use_file context verbose name =

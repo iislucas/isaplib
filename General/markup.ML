@@ -6,29 +6,28 @@ Common markup elements.
 
 signature MARKUP =
 sig
+  val parse_int: string -> int
+  val print_int: int -> string
   type T = string * Properties.T
-  val none: T
-  val is_none: T -> bool
-  val properties: (string * string) list -> T -> T
+  val empty: T
+  val is_empty: T -> bool
+  val properties: Properties.T -> T -> T
   val nameN: string
   val name: string -> T -> T
-  val bindingN: string val binding: string -> T
   val kindN: string
+  val bindingN: string val binding: string -> T
   val entityN: string val entity: string -> T
   val defN: string
   val refN: string
   val lineN: string
   val columnN: string
   val offsetN: string
-  val end_lineN: string
-  val end_columnN: string
   val end_offsetN: string
   val fileN: string
   val idN: string
   val position_properties': string list
   val position_properties: string list
   val positionN: string val position: T
-  val locationN: string val location: T
   val indentN: string
   val blockN: string val block: int -> T
   val widthN: string
@@ -56,6 +55,7 @@ sig
   val literalN: string val literal: T
   val inner_stringN: string val inner_string: T
   val inner_commentN: string val inner_comment: T
+  val token_rangeN: string val token_range: T
   val sortN: string val sort: T
   val typN: string val typ: T
   val termN: string val term: T
@@ -93,32 +93,40 @@ sig
   val commentN: string val comment: T
   val controlN: string val control: T
   val malformedN: string val malformed: T
-  val tokenN: string val token: T
+  val tokenN: string val token: Properties.T -> T
   val command_spanN: string val command_span: string -> T
   val ignored_spanN: string val ignored_span: T
   val malformed_spanN: string val malformed_span: T
+  val elapsedN: string
+  val cpuN: string
+  val gcN: string
+  val timingN: string val timing: timing -> T
+  val subgoalsN: string
+  val proof_stateN: string val proof_state: int -> T
   val stateN: string val state: T
   val subgoalN: string val subgoal: T
   val sendbackN: string val sendback: T
   val hiliteN: string val hilite: T
   val taskN: string
-  val unprocessedN: string val unprocessed: T
-  val runningN: string val running: string -> T
   val forkedN: string val forked: T
   val joinedN: string val joined: T
   val failedN: string val failed: T
   val finishedN: string val finished: T
-  val disposedN: string val disposed: T
-  val assignN: string val assign: T
-  val editN: string val edit: string -> string -> T
-  val pidN: string
+  val versionN: string
+  val execN: string
+  val assignN: string val assign: int -> T
+  val editN: string val edit: int -> int -> T
+  val serialN: string
   val promptN: string val prompt: T
   val readyN: string val ready: T
-  val no_output: output * output
-  val default_output: T -> output * output
-  val add_mode: string -> (T -> output * output) -> unit
-  val output: T -> output * output
-  val enclose: T -> output -> output
+  val reportN: string val report: T
+  val no_reportN: string val no_report: T
+  val badN: string val bad: T
+  val no_output: Output.output * Output.output
+  val default_output: T -> Output.output * Output.output
+  val add_mode: string -> (T -> Output.output * Output.output) -> unit
+  val output: T -> Output.output * Output.output
+  val enclose: T -> Output.output -> Output.output
   val markup: T -> string -> string
 end;
 
@@ -127,14 +135,24 @@ struct
 
 (** markup elements **)
 
+(* integers *)
+
+fun parse_int s =
+  (case Int.fromString s of
+    SOME i => i
+  | NONE => raise Fail ("Bad integer: " ^ quote s));
+
+val print_int = signed_string_of_int;
+
+
 (* basic markup *)
 
 type T = string * Properties.T;
 
-val none = ("", []);
+val empty = ("", []);
 
-fun is_none ("", _) = true
-  | is_none _ = false;
+fun is_empty ("", _) = true
+  | is_empty _ = false;
 
 
 fun properties more_props ((elem, props): T) =
@@ -142,24 +160,20 @@ fun properties more_props ((elem, props): T) =
 
 fun markup_elem elem = (elem, (elem, []): T);
 fun markup_string elem prop = (elem, fn s => (elem, [(prop, s)]): T);
-fun markup_int elem prop = (elem, fn i => (elem, [(prop, Int.toString i)]): T);
+fun markup_int elem prop = (elem, fn i => (elem, [(prop, print_int i)]): T);
 
 
-(* name *)
+(* misc properties *)
 
 val nameN = "name";
 fun name a = properties [(nameN, a)];
-
-val (bindingN, binding) = markup_string "binding" nameN;
-
-
-(* kind *)
 
 val kindN = "kind";
 
 
 (* formal entities *)
 
+val (bindingN, binding) = markup_string "binding" nameN;
 val (entityN, entity) = markup_string "entity" nameN;
 
 val defN = "def";
@@ -171,17 +185,14 @@ val refN = "ref";
 val lineN = "line";
 val columnN = "column";
 val offsetN = "offset";
-val end_lineN = "end_line";
-val end_columnN = "end_column";
 val end_offsetN = "end_offset";
 val fileN = "file";
 val idN = "id";
 
-val position_properties' = [end_lineN, end_columnN, end_offsetN, fileN, idN];
-val position_properties = [lineN, columnN, offsetN] @ position_properties';
+val position_properties' = [fileN, idN];
+val position_properties = [lineN, columnN, offsetN, end_offsetN] @ position_properties';
 
 val (positionN, position) = markup_elem "position";
-val (locationN, location) = markup_elem "location";
 
 
 (* pretty printing *)
@@ -227,6 +238,8 @@ val (numeralN, numeral) = markup_elem "numeral";
 val (literalN, literal) = markup_elem "literal";
 val (inner_stringN, inner_string) = markup_elem "inner_string";
 val (inner_commentN, inner_comment) = markup_elem "inner_comment";
+
+val (token_rangeN, token_range) = markup_elem "token_range";
 
 val (sortN, sort) = markup_elem "sort";
 val (typN, typ) = markup_elem "typ";
@@ -284,14 +297,32 @@ val (commentN, comment) = markup_elem "comment";
 val (controlN, control) = markup_elem "control";
 val (malformedN, malformed) = markup_elem "malformed";
 
-val (tokenN, token) = markup_elem "token";
+val tokenN = "token";
+fun token props = (tokenN, props);
 
 val (command_spanN, command_span) = markup_string "command_span" nameN;
 val (ignored_spanN, ignored_span) = markup_elem "ignored_span";
 val (malformed_spanN, malformed_span) = markup_elem "malformed_span";
 
 
+(* timing *)
+
+val timingN = "timing";
+val elapsedN = "elapsed";
+val cpuN = "cpu";
+val gcN = "gc";
+
+fun timing ({elapsed, cpu, gc, ...}: timing) =
+  (timingN,
+   [(elapsedN, Time.toString elapsed),
+    (cpuN, Time.toString cpu),
+    (gcN, Time.toString gc)]);
+
+
 (* toplevel *)
+
+val subgoalsN = "subgoals";
+val (proof_stateN, proof_state) = markup_int "proof_state" subgoalsN;
 
 val (stateN, state) = markup_elem "state";
 val (subgoalN, subgoal) = markup_elem "subgoal";
@@ -303,29 +334,34 @@ val (hiliteN, hilite) = markup_elem "hilite";
 
 val taskN = "task";
 
-val (unprocessedN, unprocessed) = markup_elem "unprocessed";
-val (runningN, running) = markup_string "running" taskN;
 val (forkedN, forked) = markup_elem "forked";
 val (joinedN, joined) = markup_elem "joined";
+
 val (failedN, failed) = markup_elem "failed";
 val (finishedN, finished) = markup_elem "finished";
-val (disposedN, disposed) = markup_elem "disposed";
 
 
 (* interactive documents *)
 
-val (assignN, assign) = markup_elem "assign";
+val versionN = "version";
+val execN = "exec";
+val (assignN, assign) = markup_int "assign" versionN;
 
 val editN = "edit";
-fun edit id state_id : T = (editN, [(idN, id), (stateN, state_id)]);
+fun edit cmd_id exec_id : T = (editN, [(idN, print_int cmd_id), (execN, print_int exec_id)]);
 
 
 (* messages *)
 
-val pidN = "pid";
+val serialN = "serial";
 
 val (promptN, prompt) = markup_elem "prompt";
 val (readyN, ready) = markup_elem "ready";
+
+val (reportN, report) = markup_elem "report";
+val (no_reportN, no_report) = markup_elem "no_report";
+
+val (badN, bad) = markup_elem "bad";
 
 
 
@@ -344,7 +380,7 @@ in
     the_default default (Library.get_first (Symtab.lookup (! modes)) (print_mode_value ()));
 end;
 
-fun output m = if is_none m then no_output else #output (get_mode ()) m;
+fun output m = if is_empty m then no_output else #output (get_mode ()) m;
 
 val enclose = output #-> Library.enclose;
 

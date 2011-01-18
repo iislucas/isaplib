@@ -14,11 +14,12 @@ sig
   val remove: ('b * 'a -> order) -> 'b -> 'a T -> 'a T
   val subset: ('b * 'a -> order) -> 'b T * 'a T -> bool
   val union: ('a * 'a -> order) -> 'a T -> 'a T -> 'a T
+  val merge: ('a * 'a -> order) -> 'a T * 'a T -> 'a T
   val inter: ('b * 'a -> order) -> 'b T -> 'a T -> 'a T
   val subtract: ('b * 'a -> order) -> 'b T -> 'a T -> 'a T
 end;
 
-structure OrdList: ORD_LIST =
+structure Ord_List: ORD_LIST =
 struct
 
 type 'a T = 'a list;
@@ -84,6 +85,8 @@ fun union ord list1 list2 =
           | EQUAL => y :: unio xs ys
           | GREATER => y :: unio lst1 ys);
   in if pointer_eq (list1, list2) then list1 else handle_same (unio list1) list2 end;
+
+fun merge ord (list1, list2) = union ord list2 list1;
 
 (*intersection: filter second list for elements present in first list*)
 fun inter ord list1 list2 =

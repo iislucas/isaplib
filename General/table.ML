@@ -20,8 +20,7 @@ sig
   exception UNDEF of key
   val empty: 'a table
   val is_empty: 'a table -> bool
-  val map: ('a -> 'b) -> 'a table -> 'b table
-  val map': (key -> 'a -> 'b) -> 'a table -> 'b table
+  val map: (key -> 'a -> 'b) -> 'a table -> 'b table
   val fold: (key * 'b -> 'a -> 'a) -> 'b table -> 'a -> 'a
   val fold_rev: (key * 'b -> 'a -> 'a) -> 'b table -> 'a -> 'a
   val dest: 'a table -> (key * 'a) list
@@ -392,9 +391,18 @@ fun dest_list tab = maps (fn (key, xs) => map (pair key) xs) (dest tab);
 fun merge_list eq = join (fn _ => Library.merge eq);
 
 
+(* ML pretty-printing -- requires Poly/ML 5.3.0 or later *)
+
+val _ =
+  PolyML.addPrettyPrinter (fn depth => fn pretty => fn tab =>
+    ml_pretty
+      (ML_Pretty.enum "," "{" "}"
+        (ML_Pretty.pair (pretty_ml o PolyML.prettyRepresentation) (pretty_ml o pretty))
+        (dest tab, depth)));
+
+
 (*final declarations of this structure!*)
-fun map f = map_table (K f);
-val map' = map_table;
+val map = map_table;
 val fold = fold_table;
 val fold_rev = fold_rev_table;
 

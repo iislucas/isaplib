@@ -80,7 +80,7 @@ val set_newnames : nset -> T -> T
 val get_ignored : T -> nset
 val set_ignored : nset -> T -> T
 
-val get_avoids : T -> nset
+val get_avoids : T -> nset (* all used names which can't be clashed with *)
 val get_nmap : T -> name nmap
 (* edit internal mapping *)
 val update_nmap : (name nmap -> name nmap) -> T -> T

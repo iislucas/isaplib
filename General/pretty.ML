@@ -21,8 +21,8 @@ a unit for breaking).
 
 signature PRETTY =
 sig
-  val default_indent: string -> int -> output
-  val add_mode: string -> (string -> int -> output) -> unit
+  val default_indent: string -> int -> Output.output
+  val add_mode: string -> (string -> int -> Output.output) -> unit
   type T
   val str: string -> T
   val brk: int -> T
@@ -55,7 +55,7 @@ sig
   val margin_default: int Unsynchronized.ref
   val symbolicN: string
   val output_buffer: int option -> T -> Buffer.T
-  val output: int option -> T -> output
+  val output: int option -> T -> Output.output
   val string_of_margin: int -> T -> string
   val string_of: T -> string
   val str_of: T -> string
@@ -90,10 +90,12 @@ val add_indent = Buffer.add o output_spaces;
 
 (** printing items: compound phrases, strings, and breaks **)
 
-datatype T =
-  Block of (output * output) * T list * int * int |  (*markup output, body, indentation, length*)
-  String of output * int |                           (*text, length*)
-  Break of bool * int;                               (*mandatory flag, width if not taken*)
+abstype T =
+    Block of (Output.output * Output.output) * T list * int * int
+      (*markup output, body, indentation, length*)
+  | String of Output.output * int  (*text, length*)
+  | Break of bool * int  (*mandatory flag, width if not taken*)
+with
 
 fun length (Block (_, _, _, len)) = len
   | length (String (_, len)) = len
@@ -119,7 +121,7 @@ fun block_markup m (indent, es) =
 
 fun markup_block m arg = block_markup (Markup.output m) arg;
 
-val blk = markup_block Markup.none;
+val blk = markup_block Markup.empty;
 fun block prts = blk (2, prts);
 val strs = block o breaks o map str;
 
@@ -129,7 +131,7 @@ fun keyword name = mark Markup.keyword (str name);
 fun command name = mark Markup.command (str name);
 
 fun markup_chunks m prts = markup m (fbreaks prts);
-val chunks = markup_chunks Markup.none;
+val chunks = markup_chunks Markup.empty;
 fun chunks2 prts = blk (0, flat (Library.separate [fbrk, fbrk] (map single prts)));
 
 fun block_enclose (prt1, prt2) prts = chunks [block (fbreaks (prt1 :: prts)), prt2];
@@ -310,5 +312,7 @@ fun to_ML (Block (m, prts, ind, _)) = ML_Pretty.Block (m, map to_ML prts, ind)
 fun from_ML (ML_Pretty.Block (m, prts, ind)) = block_markup m (ind, map from_ML prts)
   | from_ML (ML_Pretty.String s) = String s
   | from_ML (ML_Pretty.Break b) = Break b;
+
+end;
 
 end;

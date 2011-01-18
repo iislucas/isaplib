@@ -6,12 +6,9 @@ Output channels and timing messages.
 
 signature BASIC_OUTPUT =
 sig
-  type output = string
   val writeln: string -> unit
-  val priority: string -> unit
   val tracing: string -> unit
   val warning: string -> unit
-  val tolerate_legacy_features: bool Unsynchronized.ref
   val legacy_feature: string -> unit
   val cond_timeit: bool -> string -> (unit -> 'a) -> 'a
   val timeit: (unit -> 'a) -> 'a
@@ -23,29 +20,32 @@ end;
 signature OUTPUT =
 sig
   include BASIC_OUTPUT
+  type output = string
   val default_output: string -> output * int
   val default_escape: output -> string
   val add_mode: string -> (string -> output * int) -> (output -> string) -> unit
   val output_width: string -> output * int
   val output: string -> output
   val escape: output -> string
-  val std_output: output -> unit
-  val std_error: output -> unit
-  val writeln_default: output -> unit
-  val writeln_fn: (output -> unit) Unsynchronized.ref
-  val priority_fn: (output -> unit) Unsynchronized.ref
-  val tracing_fn: (output -> unit) Unsynchronized.ref
-  val warning_fn: (output -> unit) Unsynchronized.ref
-  val error_fn: (output -> unit) Unsynchronized.ref
-  val debug_fn: (output -> unit) Unsynchronized.ref
-  val prompt_fn: (output -> unit) Unsynchronized.ref
-  val status_fn: (output -> unit) Unsynchronized.ref
+  val raw_stdout: output -> unit
+  val raw_stderr: output -> unit
+  val raw_writeln: output -> unit
+  structure Private_Hooks:
+  sig
+    val writeln_fn: (output -> unit) Unsynchronized.ref
+    val urgent_message_fn: (output -> unit) Unsynchronized.ref
+    val tracing_fn: (output -> unit) Unsynchronized.ref
+    val warning_fn: (output -> unit) Unsynchronized.ref
+    val error_fn: (output -> unit) Unsynchronized.ref
+    val prompt_fn: (output -> unit) Unsynchronized.ref
+    val status_fn: (output -> unit) Unsynchronized.ref
+    val report_fn: (output -> unit) Unsynchronized.ref
+  end
+  val urgent_message: string -> unit
   val error_msg: string -> unit
   val prompt: string -> unit
   val status: string -> unit
-  val debugging: bool Unsynchronized.ref
-  val no_warnings_CRITICAL: ('a -> 'b) -> 'a -> 'b
-  val debug: (unit -> string) -> unit
+  val report: string -> unit
 end;
 
 structure Output: OUTPUT =
@@ -77,45 +77,39 @@ fun escape x = #escape (get_mode ()) x;
 
 (** output channels **)
 
-(* output primitives -- normally NOT used directly!*)
+(* raw output primitives -- not to be used in user-space *)
 
-fun std_output s = NAMED_CRITICAL "IO" (fn () =>
-  (TextIO.output (TextIO.stdOut, s); TextIO.flushOut TextIO.stdOut));
+fun raw_stdout s = (TextIO.output (TextIO.stdOut, s); TextIO.flushOut TextIO.stdOut);
+fun raw_stderr s = (TextIO.output (TextIO.stdErr, s); TextIO.flushOut TextIO.stdErr);
 
-fun std_error s = NAMED_CRITICAL "IO" (fn () =>
-  (TextIO.output (TextIO.stdErr, s); TextIO.flushOut TextIO.stdErr));
-
-fun writeln_default "" = ()
-  | writeln_default s = std_output (suffix "\n" s);
+fun raw_writeln "" = ()
+  | raw_writeln s = raw_stdout (suffix "\n" s);  (*atomic output!*)
 
 
 (* Isabelle output channels *)
 
-val writeln_fn = Unsynchronized.ref writeln_default;
-val priority_fn = Unsynchronized.ref (fn s => ! writeln_fn s);
-val tracing_fn = Unsynchronized.ref (fn s => ! writeln_fn s);
-val warning_fn = Unsynchronized.ref (std_output o suffix "\n" o prefix_lines "### ");
-val error_fn = Unsynchronized.ref (std_output o suffix "\n" o prefix_lines "*** ");
-val debug_fn = Unsynchronized.ref (std_output o suffix "\n" o prefix_lines "::: ");
-val prompt_fn = Unsynchronized.ref std_output;
-val status_fn = Unsynchronized.ref (fn _: string => ());
+structure Private_Hooks =
+struct
+  val writeln_fn = Unsynchronized.ref raw_writeln;
+  val urgent_message_fn = Unsynchronized.ref (fn s => ! writeln_fn s);
+  val tracing_fn = Unsynchronized.ref (fn s => ! writeln_fn s);
+  val warning_fn = Unsynchronized.ref (raw_stdout o suffix "\n" o prefix_lines "### ");
+  val error_fn = Unsynchronized.ref (raw_stdout o suffix "\n" o prefix_lines "*** ");
+  val prompt_fn = Unsynchronized.ref raw_stdout;
+  val status_fn = Unsynchronized.ref (fn _: string => ());
+  val report_fn = Unsynchronized.ref (fn _: string => ());
+end;
 
-fun writeln s = ! writeln_fn (output s);
-fun priority s = ! priority_fn (output s);
-fun tracing s = ! tracing_fn (output s);
-fun warning s = ! warning_fn (output s);
-fun error_msg s = ! error_fn (output s);
-fun prompt s = ! prompt_fn (output s);
-fun status s = ! status_fn (output s);
+fun writeln s = ! Private_Hooks.writeln_fn (output s);
+fun urgent_message s = ! Private_Hooks.urgent_message_fn (output s);
+fun tracing s = ! Private_Hooks.tracing_fn (output s);
+fun warning s = ! Private_Hooks.warning_fn (output s);
+fun error_msg s = ! Private_Hooks.error_fn (output s);
+fun prompt s = ! Private_Hooks.prompt_fn (output s);
+fun status s = ! Private_Hooks.status_fn (output s);
+fun report s = ! Private_Hooks.report_fn (output s);
 
-val tolerate_legacy_features = Unsynchronized.ref true;
-fun legacy_feature s =
-  (if ! tolerate_legacy_features then warning else error) ("Legacy feature! " ^ s);
-
-fun no_warnings_CRITICAL f = setmp_CRITICAL warning_fn (K ()) f;
-
-val debugging = Unsynchronized.ref false;
-fun debug s = if ! debugging then ! debug_fn (output (s ())) else ()
+fun legacy_feature s = warning ("Legacy feature! " ^ s);
 
 
 

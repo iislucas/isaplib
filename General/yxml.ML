@@ -15,11 +15,11 @@ Markup <elem att="val" ...>...body...</elem> is encoded as:
 
 signature YXML =
 sig
-  val binary_text: string -> string
+  val escape_controls: string -> string
   val output_markup: Markup.T -> string * string
   val element: string -> XML.attributes -> string list -> string
   val string_of: XML.tree -> string
-  val parse_body: string -> XML.tree list
+  val parse_body: string -> XML.body
   val parse: string -> XML.tree
 end;
 
@@ -28,14 +28,14 @@ struct
 
 (** string representation **)
 
-(* binary_text -- idempotent recoding *)
+(* idempotent recoding of certain low ASCII control characters *)
 
 fun pseudo_utf8 c =
   if Symbol.is_ascii_control c
   then chr 192 ^ chr (128 + ord c)
   else c;
 
-fun binary_text str =
+fun escape_controls str =
   if exists_string Symbol.is_ascii_control str
   then translate_string pseudo_utf8 str
   else str;
@@ -52,7 +52,7 @@ val XYX = XY ^ X;
 (* output *)
 
 fun output_markup (markup as (name, atts)) =
-  if Markup.is_none markup then Markup.no_output
+  if Markup.is_empty markup then Markup.no_output
   else (XY ^ name ^ implode (map (fn (a, x) => Y ^ a ^ "=" ^ x) atts) ^ X, XYX);
 
 fun element name atts body =
@@ -64,7 +64,7 @@ fun string_of t =
     fun attrib (a, x) =
       Buffer.add Y #>
       Buffer.add a #> Buffer.add "=" #> Buffer.add x;
-    fun tree (XML.Elem (name, atts, ts)) =
+    fun tree (XML.Elem ((name, atts), ts)) =
           Buffer.add XY #> Buffer.add name #> fold attrib atts #> Buffer.add X #>
           fold tree ts #>
           Buffer.add XYX
@@ -104,7 +104,7 @@ fun push "" _ _ = err_element ()
   | push name atts pending = ((name, atts), []) :: pending;
 
 fun pop ((("", _), _) :: _) = err_unbalanced ""
-  | pop (((name, atts), body) :: pending) = add (XML.Elem (name, atts, rev body)) pending;
+  | pop ((markup, body) :: pending) = add (XML.Elem (markup, rev body)) pending;
 
 
 (* parsing *)

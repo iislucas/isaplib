@@ -71,10 +71,9 @@ sig
   val find : ((name * 'a) -> bool) -> 'a T -> (name * 'a) option
 
   (* modifications *)
-  val safe_map_entry : ('a -> 'a) -> name -> 'a T -> 'a T (* *)
+  val safe_map_entry : ('a -> 'a) -> name -> 'a T -> 'a T (* skips if no name *)
   val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T (* raises Tab.UNDEF *)
-  val map_all : ('a -> 'b) -> 'a T -> 'b T
-  val map_all' : (name -> 'a -> 'b) -> 'a T -> 'b T
+  val map_all : (name -> 'a -> 'b) -> 'a T -> 'b T
   val fold : ((name * 'a) -> 'b -> 'b) -> 'a T -> 'b -> 'b
   val update : (name * 'a) -> 'a T -> 'a T  (* no exp, replaces old name *)
   val update_new : (name * 'a) -> 'a T -> 'a T (* exp if not fresh for table *)
@@ -178,10 +177,6 @@ functor BasicNameTabFun(
   fun map_all f (Tab rep) = 
       Tab{ names = #names rep,
            tab = Tab.map f (#tab rep) };
-
-  fun map_all' f (Tab rep) = 
-      Tab{ names = #names rep,
-           tab = Tab.map' f (#tab rep) };
 
   fun update (x as (n,a)) (Tab rep) = 
       Tab{ names = NSet.add n (#names rep),

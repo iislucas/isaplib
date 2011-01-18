@@ -8,8 +8,6 @@ signature BASIC_ML_CONTEXT =
 sig
   val bind_thm: string * thm -> unit
   val bind_thms: string * thm list -> unit
-  val thm: xstring -> thm
-  val thms: xstring -> thm list
 end
 
 signature ML_CONTEXT =
@@ -18,13 +16,17 @@ sig
   val the_generic_context: unit -> Context.generic
   val the_global_context: unit -> theory
   val the_local_context: unit -> Proof.context
+  val thm: xstring -> thm
+  val thms: xstring -> thm list
   val exec: (unit -> unit) -> Context.generic -> Context.generic
-  val stored_thms: thm list Unsynchronized.ref
-  val ml_store_thm: string * thm -> unit
+  val get_stored_thms: unit -> thm list
+  val get_stored_thm: unit -> thm
   val ml_store_thms: string * thm list -> unit
+  val ml_store_thm: string * thm -> unit
   type antiq = Proof.context -> (Proof.context -> string * string) * Proof.context
   val add_antiq: string -> (Position.T -> antiq context_parser) -> unit
-  val trace: bool Unsynchronized.ref
+  val trace_raw: Config.raw
+  val trace: bool Config.T
   val eval_antiquotes: ML_Lex.token Antiquote.antiquote list * Position.T ->
     Context.generic option -> (ML_Lex.token list * ML_Lex.token list) * Context.generic option
   val eval: bool -> Position.T -> ML_Lex.token Antiquote.antiquote list -> unit
@@ -35,8 +37,6 @@ sig
   val eval_text_in: Proof.context option -> bool -> Position.T -> Symbol_Pos.text -> unit
   val expression: Position.T -> string -> string -> ML_Lex.token Antiquote.antiquote list ->
     Context.generic -> Context.generic
-  val evaluate:
-    Proof.context -> bool -> string * (unit -> 'a) option Unsynchronized.ref -> string -> 'a
 end
 
 structure ML_Context: ML_CONTEXT =
@@ -48,6 +48,9 @@ val the_generic_context = Context.the_thread_data;
 val the_global_context = Context.theory_of o the_generic_context;
 val the_local_context = Context.proof_of o the_generic_context;
 
+fun thm name = ProofContext.get_thm (the_local_context ()) name;
+fun thms name = ProofContext.get_thms (the_local_context ()) name;
+
 fun exec (e: unit -> unit) context =
   (case Context.setmp_thread_data (SOME context) (fn () => (e (); Context.thread_data ())) () of
     SOME context' => context'
@@ -56,29 +59,37 @@ fun exec (e: unit -> unit) context =
 
 (* theorem bindings *)
 
-val stored_thms: thm list Unsynchronized.ref = Unsynchronized.ref [];  (* FIXME via context!? *)
+structure Stored_Thms = Theory_Data
+(
+  type T = thm list;
+  val empty = [];
+  fun extend _ = [];
+  fun merge _ = [];
+);
 
-fun ml_store sel (name, ths) =
+fun get_stored_thms () = Stored_Thms.get (the_global_context ());
+val get_stored_thm = hd o get_stored_thms;
+
+fun ml_store get (name, ths) =
   let
     val ths' = Context.>>> (Context.map_theory_result
-      (PureThy.store_thms (Binding.name name, ths)));
+      (Global_Theory.store_thms (Binding.name name, ths)));
+    val _ = Context.>> (Context.map_theory (Stored_Thms.put ths'));
     val _ =
       if name = "" then ()
       else if not (ML_Syntax.is_identifier name) then
         error ("Cannot bind theorem(s) " ^ quote name ^ " as ML value")
-      else setmp_CRITICAL stored_thms ths' (fn () =>
+      else
         ML_Compiler.eval true Position.none
-          (ML_Lex.tokenize ("val " ^ name ^ " = " ^ sel ^ "(! ML_Context.stored_thms);"))) ();
+          (ML_Lex.tokenize ("val " ^ name ^ " = " ^ get ^ " ();"));
+    val _ = Context.>> (Context.map_theory (Stored_Thms.put []));
   in () end;
 
-val ml_store_thms = ml_store "";
-fun ml_store_thm (name, th) = ml_store "hd" (name, [th]);
+val ml_store_thms = ml_store "ML_Context.get_stored_thms";
+fun ml_store_thm (name, th) = ml_store "ML_Context.get_stored_thm" (name, [th]);
 
 fun bind_thm (name, thm) = ml_store_thm (name, Drule.export_without_context thm);
 fun bind_thms (name, thms) = ml_store_thms (name, map Drule.export_without_context thms);
-
-fun thm name = ProofContext.get_thm (the_local_context ()) name;
-fun thms name = ProofContext.get_thms (the_local_context ()) name;
 
 
 
@@ -105,7 +116,8 @@ fun antiquotation src ctxt =
   let val ((name, _), pos) = Args.dest_src src in
     (case Symtab.lookup (! global_parsers) name of
       NONE => error ("Unknown ML antiquotation command: " ^ quote name ^ Position.str_of pos)
-    | SOME scan => (Position.report (Markup.ML_antiq name) pos;
+    | SOME scan =>
+       (Context_Position.report ctxt pos (Markup.ML_antiq name);
         Args.context_syntax "ML antiquotation" (scan pos) src ctxt))
   end;
 
@@ -161,18 +173,26 @@ fun eval_antiquotes (ants, pos) opt_context =
         in (ml, SOME (Context.Proof ctxt')) end;
   in ((begin_env @ ml_env @ end_env, ml_body), opt_ctxt') end;
 
-val trace = Unsynchronized.ref false;
+val trace_raw = Config.declare "ML_trace" (fn _ => Config.Bool false);
+val trace = Config.bool trace_raw;
 
 fun eval verbose pos ants =
   let
     (*prepare source text*)
     val ((env, body), env_ctxt) = eval_antiquotes (ants, pos) (Context.thread_data ());
     val _ =
-      if ! trace then tracing (cat_lines [ML_Lex.flatten env, ML_Lex.flatten body])
-      else ();
+      (case Option.map Context.proof_of env_ctxt of
+        SOME ctxt =>
+          if Config.get ctxt trace then
+            Context_Position.if_visible ctxt
+              tracing (cat_lines [ML_Lex.flatten env, ML_Lex.flatten body])
+          else ()
+      | NONE => ());
 
     (*prepare static ML environment*)
-    val _ = Context.setmp_thread_data env_ctxt
+    val _ =
+      Context.setmp_thread_data
+        (Option.map (Context.mapping I (Context_Position.set_visible false)) env_ctxt)
         (fn () => (ML_Compiler.eval false Position.none env; Context.thread_data ())) ()
       |> (fn NONE => () | SOME context' => Context.>> (ML_Env.inherit context'));
 
@@ -198,18 +218,6 @@ fun expression pos bind body ants =
   exec (fn () => eval false pos
     (ML_Lex.read Position.none ("Context.set_thread_data (SOME (let " ^ bind ^ " = ") @ ants @
       ML_Lex.read Position.none (" in " ^ body ^ " end (ML_Context.the_generic_context ())));")));
-
-
-(* FIXME not thread-safe -- reference can be accessed directly *)
-fun evaluate ctxt verbose (ref_name, r) txt = NAMED_CRITICAL "ML" (fn () =>
-  let
-    val ants =
-      ML_Lex.read Position.none ("val _ = (" ^ ref_name ^ " := SOME (fn () => " ^ txt ^ "))");
-    val _ = r := NONE;
-    val _ =
-      Context.setmp_thread_data (SOME (Context.Proof ctxt))
-        (fn () => eval verbose Position.none ants) ();
-  in (case ! r of NONE => error ("Bad evaluation for " ^ ref_name) | SOME e => e) end) ();
 
 end;
 

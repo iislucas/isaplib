@@ -26,6 +26,7 @@ sig
   val print_sort: sort -> string
   val print_typ: typ -> string
   val print_term: term -> string
+  val pretty_string: int -> string -> Pretty.T
 end;
 
 structure ML_Syntax: ML_SYNTAX =
@@ -48,7 +49,7 @@ fun is_identifier name =
 
 val atomic = enclose "(" ")";
 
-val print_int = Int.toString;
+val print_int = string_of_int;
 
 fun print_pair f1 f2 (x, y) = "(" ^ f1 x ^ ", " ^ f2 y ^ ")";
 
@@ -61,6 +62,9 @@ fun print_char s =
   if not (Symbol.is_char s) then s
   else if s = "\"" then "\\\""
   else if s = "\\" then "\\\\"
+  else if s = "\t" then "\\t"
+  else if s = "\n" then "\\n"
+  else if s = "\r" then "\\r"
   else
     let val c = ord s in
       if c < 32 then "\\^" ^ chr (c + ord "@")
@@ -91,5 +95,18 @@ fun print_term (Const arg) = "Const " ^ print_pair print_string print_typ arg
   | print_term (Abs (s, T, t)) =
       "Abs (" ^ print_string s ^ ", " ^ print_typ T ^ ", " ^ print_term t ^ ")"
   | print_term (t1 $ t2) = atomic (print_term t1) ^ " $ " ^ atomic (print_term t2);
+
+
+(* toplevel pretty printing *)
+
+fun pretty_string max_len str =
+  let
+    val body =
+      maps (fn XML.Elem _ => ["<markup>"] | XML.Text s => Symbol.explode s) (YXML.parse_body str)
+        handle Fail _ => Symbol.explode str;
+    val body' =
+      if length body <= max_len then body
+      else take max_len body @ ["..."];
+  in Pretty.str (quote (implode (map print_char body'))) end;
 
 end;

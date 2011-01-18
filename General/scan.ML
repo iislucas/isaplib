@@ -105,7 +105,7 @@ fun error scan xs = scan xs handle ABORT msg => Library.error msg;
 
 fun catch scan xs = scan xs
   handle ABORT msg => raise Fail msg
-    | FAIL msg => raise Fail (the_default "Syntax error." msg);
+    | FAIL msg => raise Fail (the_default "Syntax error" msg);
 
 
 (* scanner combinators *)
@@ -154,7 +154,7 @@ fun this ys xs =
           if (y: string) = x then drop_prefix ys xs else raise FAIL NONE;
   in (ys, drop_prefix ys xs) end;
 
-fun this_string s = this (explode s) >> K s;  (*primitive string -- no symbols here!*)
+fun this_string s = this (raw_explode s) >> K s;  (*primitive string -- no symbols here!*)
 
 fun many _ [] = raise MORE NONE
   | many pred (lst as x :: xs) =

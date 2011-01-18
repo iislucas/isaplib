@@ -3,6 +3,8 @@
 Compatibility file for Poly/ML -- common part for 5.x.
 *)
 
+fun op before (a, _: unit) = a;
+
 exception Interrupt = SML90.Interrupt;
 
 use "General/exn.ML";
@@ -13,27 +15,23 @@ else use "ML-Systems/single_assignment_polyml.ML";
 
 use "ML-Systems/multithreading.ML";
 use "ML-Systems/time_limit.ML";
-use "ML-Systems/timing.ML";
-use "ML-Systems/bash.ML";
+use "General/timing.ML";
 use "ML-Systems/ml_pretty.ML";
-(* use "ML-Systems/use_context.ML"; *)
+use "ML-Systems/use_context.ML";
 
 
 (** ML system and platform related **)
 
 val forget_structure = PolyML.Compiler.forgetStructure;
 
-(*  
-val _ = PolyML.Compiler.forgetValue "print";
-
 val _ = PolyML.Compiler.forgetValue "isSome";
 val _ = PolyML.Compiler.forgetValue "getOpt";
 val _ = PolyML.Compiler.forgetValue "valOf";
 val _ = PolyML.Compiler.forgetValue "foldl";
 val _ = PolyML.Compiler.forgetValue "foldr";
-val _ = PolyML.Compiler.forgetValue "ref";
-val _ = PolyML.Compiler.forgetType "ref";
-*)
+val _ = PolyML.Compiler.forgetValue "print";
+val _ = PolyML.Compiler.forgetValue "explode";
+
 
 (* Compiler options *)
 
@@ -52,7 +50,7 @@ fun quit () = OS.Process.exit OS.Process.success;
 
 val ord = SML90.ord;
 val chr = SML90.chr;
-val explode = SML90.explode;
+val raw_explode = SML90.explode;
 val implode = SML90.implode;
 
 
@@ -64,7 +62,7 @@ fun ml_prompts p1 p2 = (PolyML.Compiler.prompt1 := p1; PolyML.Compiler.prompt2 :
 (* toplevel printing *)
 
 local
-  val depth = Unsynchronized.ref 10;
+  val depth = ref 10;
 in
   fun get_print_depth () = ! depth;
   fun print_depth n = (depth := n; PolyML.print_depth n);
@@ -112,9 +110,6 @@ end;
 
 val cd = OS.FileSys.chDir;
 val pwd = OS.FileSys.getDir;
-
-fun process_id () =
-  Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord (Posix.ProcEnv.getpid ())));
 
 
 (* getenv *)

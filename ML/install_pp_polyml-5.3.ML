@@ -1,7 +1,11 @@
-(*  Title:      Pure/ML-Systems/install_pp_polyml-5.3.ML
+(*  Title:      Pure/ML/install_pp_polyml-5.3.ML
+    Author:     Makarius
 
 Extra toplevel pretty-printing for Poly/ML 5.3.0.
 *)
+
+PolyML.addPrettyPrinter (fn depth => fn _ => fn str =>
+  ml_pretty (Pretty.to_ML (ML_Syntax.pretty_string (depth * 100) str)));
 
 PolyML.addPrettyPrinter (fn depth => fn pretty => fn var =>
   pretty (Synchronized.value var, depth));
@@ -18,7 +22,6 @@ PolyML.addPrettyPrinter (fn depth => fn pretty => fn x =>
   | SOME (Exn.Exn _) => PolyML.PrettyString "<failed>"
   | SOME (Exn.Result y) => pretty (y, depth)));
 
-(* 
 PolyML.addPrettyPrinter (fn depth => fn _ => fn tm =>
   let
     open PolyML;
@@ -44,4 +47,4 @@ PolyML.addPrettyPrinter (fn depth => fn _ => fn tm =>
       | prt_term _ dp (Bound i) =
           prt_app "Bound" (from_ML (prettyRepresentation (i, dp - 1)));
   in ml_pretty (Pretty.to_ML (prt_term false depth tm)) end);
-*)
+

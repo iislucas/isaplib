@@ -29,8 +29,6 @@ sig
   val funpow_yield: int -> ('a -> 'b * 'a) -> 'a -> 'b list * 'a
 
   (*errors*)
-  exception SYS_ERROR of string
-  val sys_error: string -> 'a
   exception ERROR of string
   val error: string -> 'a
   val cat_error: string -> string -> 'a
@@ -56,12 +54,10 @@ sig
   val andf: ('a -> bool) * ('a -> bool) -> 'a -> bool
   val exists: ('a -> bool) -> 'a list -> bool
   val forall: ('a -> bool) -> 'a list -> bool
-  val setmp_noncritical: 'a Unsynchronized.ref -> 'a -> ('b -> 'c) -> 'b -> 'c
   val setmp_CRITICAL: 'a Unsynchronized.ref -> 'a -> ('b -> 'c) -> 'b -> 'c
   val setmp_thread_data: 'a Universal.tag -> 'a -> 'a -> ('b -> 'c) -> 'b -> 'c
 
   (*lists*)
-  exception UnequalLengths
   val single: 'a -> 'a list
   val the_single: 'a list -> 'a
   val singleton: ('a list -> 'b list) -> 'a -> 'b
@@ -84,7 +80,7 @@ sig
   val take: int -> 'a list -> 'a list
   val drop: int -> 'a list -> 'a list
   val chop: int -> 'a list -> 'a list * 'a list
-  val dropwhile: ('a -> bool) -> 'a list -> 'a list
+  val chop_while: ('a -> bool) -> 'a list -> 'a list * 'a list
   val nth: 'a list -> int -> 'a
   val nth_map: int -> ('a -> 'a) -> 'a list -> 'a list
   val nth_drop: int -> 'a list -> 'a list
@@ -100,6 +96,8 @@ sig
   val eq_list: ('a * 'b -> bool) -> 'a list * 'b list -> bool
   val map2: ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
   val fold2: ('a -> 'b -> 'c -> 'c) -> 'a list -> 'b list -> 'c -> 'c
+  val fold_rev2: ('a -> 'b -> 'c -> 'c) -> 'a list -> 'b list -> 'c -> 'c
+  val forall2: ('a -> 'b -> bool) -> 'a list -> 'b list -> bool
   val zip_options: 'a list -> 'b option list -> ('a * 'b) list
   val ~~ : 'a list * 'b list -> ('a * 'b) list
   val map_split: ('a -> 'b * 'c) -> 'a list -> 'b list * 'c list
@@ -155,6 +153,11 @@ sig
   val translate_string: (string -> string) -> string -> string
   val match_string: string -> string -> bool
 
+  (*reals*)
+  val string_of_real: real -> string
+  val signed_string_of_real: real -> string
+  val smart_string_of_real: real -> string
+
   (*lists as sets -- see also Pure/General/ord_list.ML*)
   val member: ('b * 'a -> bool) -> 'a list -> 'b -> bool
   val insert: ('a * 'a -> bool) -> 'a -> 'a list -> 'a list
@@ -209,12 +212,12 @@ sig
   val partition_eq: ('a * 'a -> bool) -> 'a list -> 'a list list
   val partition_list: (int -> 'a -> bool) -> int -> int -> 'a list -> 'a list list
   val gensym: string -> string
-  type stamp
+  type stamp = unit Unsynchronized.ref
   val stamp: unit -> stamp
-  type serial
+  type serial = int
   val serial: unit -> serial
   val serial_string: unit -> string
-  structure Object: sig type T end
+  structure Object: sig type T = exn end
 end;
 
 signature LIBRARY =
@@ -223,7 +226,6 @@ sig
   val foldl: ('a * 'b -> 'a) -> 'a * 'b list -> 'a
   val foldr: ('a * 'b -> 'b) -> 'a list * 'b -> 'b
   val foldl_map: ('a * 'b -> 'a * 'c) -> 'a * 'b list -> 'a * 'c list
-  val last_elem: 'a list -> 'a
 end;
 
 structure Library: LIBRARY =
@@ -253,10 +255,8 @@ fun funpow (0 : int) _ = I
 fun funpow_yield (0 : int) _ x = ([], x)
   | funpow_yield n f x = x |> f ||>> funpow_yield (n - 1) f |>> op ::;
 
-(* errors *)
 
-exception SYS_ERROR of string;
-fun sys_error msg = raise SYS_ERROR msg;
+(* errors *)
 
 exception ERROR of string;
 fun error msg = raise ERROR msg;
@@ -306,18 +306,8 @@ val forall = List.all;
 
 (* flags *)
 
-(*temporarily set flag during execution*)
-fun setmp_noncritical flag value f x =
-  uninterruptible (fn restore_attributes => fn () =>
-    let
-      val orig_value = ! flag;
-      val _ = flag := value;
-      val result = Exn.capture (restore_attributes f) x;
-      val _ = flag := orig_value;
-    in Exn.release result end) ();
-
 fun setmp_CRITICAL flag value f x =
-  NAMED_CRITICAL "setmp" (fn () => setmp_noncritical flag value f x);
+  NAMED_CRITICAL "setmp" (fn () => Unsynchronized.setmp flag value f x);
 
 fun setmp_thread_data tag orig_data data f x =
   uninterruptible (fn restore_attributes => fn () =>
@@ -330,8 +320,6 @@ fun setmp_thread_data tag orig_data data f x =
 
 
 (** lists **)
-
-exception UnequalLengths;
 
 fun single x = [x];
 
@@ -432,8 +420,9 @@ fun chop (0: int) xs = ([], xs)
   | chop _ [] = ([], [])
   | chop n (x :: xs) = chop (n - 1) xs |>> cons x;
 
-fun dropwhile P [] = []
-  | dropwhile P (ys as x::xs) = if P x then dropwhile P xs else ys;
+fun chop_while P [] = ([], [])
+  | chop_while P (ys as x :: xs) =
+      if P x then chop_while P xs |>> cons x else ([], ys);
 
 (*return nth element of a list, where 0 designates the first element;
   raise Subscript if list too short*)
@@ -465,8 +454,6 @@ fun map_range f i =
     fun mapp (k: int) =
       if k < i then f k :: mapp (k + 1) else [];
   in mapp 0 end;
-
-val last_elem = List.last;
 
 (*rear decomposition*)
 fun split_last [] = raise Empty
@@ -504,7 +491,7 @@ fun unflat (xs :: xss) ys =
       let val (ps, qs) = chop (length xs) ys
       in ps :: unflat xss qs end
   | unflat [] [] = []
-  | unflat _ _ = raise UnequalLengths;
+  | unflat _ _ = raise ListPair.UnequalLengths;
 
 fun burrow f xss = unflat xss (f (flat xss));
 
@@ -543,15 +530,21 @@ fun fold_product f _ [] z = z
 
 (* lists of pairs *)
 
-exception UnequalLengths;
-
 fun map2 _ [] [] = []
   | map2 f (x :: xs) (y :: ys) = f x y :: map2 f xs ys
-  | map2 _ _ _ = raise UnequalLengths;
+  | map2 _ _ _ = raise ListPair.UnequalLengths;
 
 fun fold2 f [] [] z = z
   | fold2 f (x :: xs) (y :: ys) z = fold2 f xs ys (f x y z)
-  | fold2 f _ _ _ = raise UnequalLengths;
+  | fold2 f _ _ _ = raise ListPair.UnequalLengths;
+
+fun fold_rev2 f [] [] z = z
+  | fold_rev2 f (x :: xs) (y :: ys) z = f x y (fold_rev2 f xs ys z)
+  | fold_rev2 f _ _ _ = raise ListPair.UnequalLengths;
+
+fun forall2 P [] [] = true
+  | forall2 P (x :: xs) (y :: ys) = P x y andalso forall2 P xs ys
+  | forall2 P _ _ = raise ListPair.UnequalLengths;
 
 fun map_split f [] = ([], [])
   | map_split f (x :: xs) =
@@ -563,13 +556,13 @@ fun map_split f [] = ([], [])
 fun zip_options (x :: xs) (SOME y :: ys) = (x, y) :: zip_options xs ys
   | zip_options (_ :: xs) (NONE :: ys) = zip_options xs ys
   | zip_options _ [] = []
-  | zip_options [] _ = raise UnequalLengths;
+  | zip_options [] _ = raise ListPair.UnequalLengths;
 
 (*combine two lists forming a list of pairs:
   [x1, ..., xn] ~~ [y1, ..., yn]  ===>  [(x1, y1), ..., (xn, yn)]*)
 fun [] ~~ [] = []
   | (x :: xs) ~~ (y :: ys) = (x, y) :: (xs ~~ ys)
-  | _ ~~ _ = raise UnequalLengths;
+  | _ ~~ _ = raise ListPair.UnequalLengths;
 
 (*inverse of ~~; the old 'split':
   [(x1, y1), ..., (xn, yn)]  ===>  ([x1, ..., xn], [y1, ..., yn])*)
@@ -650,7 +643,19 @@ fun radixstring (base, zerochar, num) =
   in implode (map chrof (radixpand (base, num))) end;
 
 
-val string_of_int = Int.toString;
+local
+  val zero = ord "0";
+  val small = 10000: int;
+  val small_table = Vector.tabulate (small, Int.toString);
+in
+
+fun string_of_int i =
+  if i < 0 then Int.toString i
+  else if i < 10 then chr (zero + i)
+  else if i < small then Vector.sub (small_table, i)
+  else Int.toString i;
+
+end;
 
 fun signed_string_of_int i =
   if i < 0 then "-" ^ string_of_int (~ i) else string_of_int i;
@@ -674,7 +679,7 @@ fun read_radix_int radix cs =
 
 val read_int = read_radix_int 10;
 
-fun oct_char s = chr (#1 (read_radix_int 8 (explode s)));
+fun oct_char s = chr (#1 (read_radix_int 8 (raw_explode s)));
 
 
 
@@ -723,13 +728,11 @@ fun unenclose str = String.substring (str, 1, size str - 2);
 (*simple quoting (does not escape special chars)*)
 val quote = enclose "\"" "\"";
 
-(*space_implode "..." (explode "hello") = "h...e...l...l...o"*)
 fun space_implode a bs = implode (separate a bs);
 
 val commas = space_implode ", ";
 val commas_quote = commas o map quote;
 
-(*concatenate messages, one per line, into a string*)
 val cat_lines = space_implode "\n";
 
 (*space_explode "." "h.e..l.lo" = ["h", "e", "", "l", "lo"]*)
@@ -770,6 +773,23 @@ fun match_string pat str =
               SOME s' => match ps s'
             | NONE => match (p :: ps) (String.substring (s, 1, size s - 1)));
   in match (space_explode "*" pat) str end;
+
+
+(** reals **)
+
+val string_of_real = Real.fmt (StringCvt.GEN NONE);
+
+fun signed_string_of_real x =
+  if x < 0.0 then "-" ^ string_of_real (~ x) else string_of_real x;
+
+fun smart_string_of_real x =
+  let
+    val s = signed_string_of_real x;
+  in
+    (case space_explode "." s of
+      [a, b] => if forall_string (fn c => c = "0") b then a else s
+    | _ => s)
+  end;
 
 
 
@@ -839,10 +859,11 @@ fun has_duplicates eq =
 
 fun map_transpose f xss =
   let
-    val n = case distinct (op =) (map length xss)
-     of [] => 0
+    val n =
+      (case distinct (op =) (map length xss) of
+        [] => 0
       | [n] => n
-      | _ => raise UnequalLengths;
+      | _ => raise ListPair.UnequalLengths);
   in map_range (fn m => f (map (fn xs => nth xs m) xss)) n end;
 
 
@@ -1000,21 +1021,23 @@ fun divide_and_conquer' decomp x s =
 (*Partition a list into buckets  [ bi, b(i+1), ..., bj ]
    putting x in bk if p(k)(x) holds.  Preserve order of elements if possible.*)
 fun partition_list p i j =
-  let fun part k xs =
-            if k>j then
-              (case xs of [] => []
-                         | _ => raise Fail "partition_list")
-            else
-            let val (ns, rest) = List.partition (p k) xs;
-            in  ns :: part(k+1)rest  end
-  in  part (i: int) end;
+  let
+    fun part (k: int) xs =
+      if k > j then
+        (case xs of
+          [] => []
+        | _ => raise Fail "partition_list")
+      else
+        let val (ns, rest) = List.partition (p k) xs
+        in ns :: part (k + 1) rest end;
+  in part (i: int) end;
 
-fun partition_eq (eq:'a * 'a -> bool) =
+fun partition_eq (eq: 'a * 'a -> bool) =
   let
     fun part [] = []
       | part (x :: ys) =
           let val (xs, xs') = List.partition (fn y => eq (x, y)) ys
-          in (x::xs)::(part xs') end
+          in (x :: xs) :: part xs' end;
   in part end;
 
 
@@ -1060,3 +1083,5 @@ end;
 
 structure Basic_Library: BASIC_LIBRARY = Library;
 open Basic_Library;
+
+datatype legacy = UnequalLengths;

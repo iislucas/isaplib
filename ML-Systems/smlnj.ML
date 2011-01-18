@@ -7,17 +7,17 @@ exception Interrupt;
 fun reraise exn = raise exn;
 
 use "ML-Systems/proper_int.ML";
-use "ML-Systems/unsynchronized.ML";
 use "ML-Systems/overloading_smlnj.ML";
 use "General/exn.ML";
 use "ML-Systems/single_assignment.ML";
 use "ML-Systems/universal.ML";
 use "ML-Systems/thread_dummy.ML";
 use "ML-Systems/multithreading.ML";
-use "ML-Systems/timing.ML";
-use "ML-Systems/bash.ML";
+use "General/timing.ML";
 use "ML-Systems/ml_name_space.ML";
 use "ML-Systems/ml_pretty.ML";
+structure PolyML = struct end;
+use "ML-Systems/pp_dummy.ML";
 use "ML-Systems/use_context.ML";
 
 
@@ -26,12 +26,14 @@ use "ML-Systems/use_context.ML";
 CM.autoload "$smlnj/init/init.cmi";
 val pointer_eq = InlineT.ptreql;
 
+fun share_common_data () = ();
+
 
 (* restore old-style character / string functions *)
 
-val ord     = mk_int o SML90.ord;
-val chr     = SML90.chr o dest_int;
-val explode = SML90.explode;
+val ord = mk_int o SML90.ord;
+val chr = SML90.chr o dest_int;
+val raw_explode = SML90.explode;
 val implode = SML90.implode;
 
 
@@ -140,7 +142,7 @@ in
 
 fun interruptible (f: 'a -> 'b) x =
   let
-    val result = ref (Exn.Exn Interrupt: 'b Exn.result);
+    val result = ref (Exn.interrupt_exn: 'b Exn.result);
     val old_handler = Signals.inqHandler Signals.sigINT;
   in
     SMLofNJ.Cont.callcc (fn cont =>
@@ -157,14 +159,7 @@ fun uninterruptible f =
 end;
 
 
-(* basis library fixes *)
-
-structure TextIO =
-struct
-  open TextIO;
-  fun inputLine is = TextIO.inputLine is
-    handle IO.Io _ => raise Interrupt;
-end;
+use "ML-Systems/unsynchronized.ML";
 
 
 
@@ -174,14 +169,6 @@ end;
 
 val cd = OS.FileSys.chDir;
 val pwd = OS.FileSys.getDir;
-
-
-(* system command execution *)
-
-val bash_output = (fn (output, rc) => (output, mk_int rc)) o bash_output;
-
-fun process_id pid =
-  Word.fmt StringCvt.DEC (Word.fromLargeWord (Posix.Process.pidToWord (Posix.ProcEnv.getpid ())));
 
 
 (* getenv *)

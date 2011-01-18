@@ -16,10 +16,10 @@ sig
   val map_filter: ('a -> 'b option) -> ('a, 'c) source -> ('b, ('a, 'c) source) source
   val filter: ('a -> bool) -> ('a, 'b) source -> ('a, ('a, 'b) source) source
   val of_list: 'a list -> ('a, 'a list) source
-  val of_list_limited: int -> 'a list -> ('a, 'a list) source
-  val of_string: string -> (string, string list) source
   val exhausted: ('a, 'b) source -> ('a, 'a list) source
-  val tty: (string, unit) source
+  val of_string: string -> (string, string list) source
+  val of_string_limited: int -> string -> (string, substring) source
+  val tty: TextIO.instream -> (string, unit) source
   val source': 'a -> 'b Scan.stopper -> ('a * 'b list -> 'c list * ('a * 'b list)) ->
     (bool * (string -> 'a * 'b list -> 'c list * ('a * 'b list))) option ->
     ('b, 'e) source -> ('c, 'a * ('b, 'e) source) source
@@ -101,11 +101,21 @@ fun filter pred = map_filter (fn x => if pred x then SOME x else NONE);
 (* list source *)
 
 fun of_list xs = make_source [] xs default_prompt (fn _ => fn xs => (xs, []));
-fun of_list_limited n xs = make_source [] xs default_prompt (fn _ => chop n);
-
-val of_string = of_list o explode;
 
 fun exhausted src = of_list (exhaust src);
+
+
+(* string source *)
+
+val of_string = of_list o raw_explode;
+
+fun of_string_limited limit str =
+  make_source [] (Substring.full str) default_prompt
+    (fn _ => fn s =>
+      let
+        val (s1, s2) = Substring.splitAt (s, Int.min (Substring.size s, limit));
+        val cs = map String.str (Substring.explode s1);
+      in (cs, s2) end);
 
 
 (* stream source *)
@@ -117,14 +127,14 @@ fun slurp_input instream =
         NONE => []
       | SOME 0 => []
       | SOME _ => TextIO.input instream :: slurp ());
-  in maps explode (slurp ()) end;
+  in maps raw_explode (slurp ()) end;
 
-val tty = make_source [] () default_prompt (fn prompt => fn () =>
-  let val input = slurp_input TextIO.stdIn in
+fun tty in_stream = make_source [] () default_prompt (fn prompt => fn () =>
+  let val input = slurp_input in_stream in
     if exists (fn c => c = "\n") input then (input, ())
     else
-      (case (Output.prompt prompt; TextIO.inputLine TextIO.stdIn) of
-        SOME line => (input @ explode line, ())
+      (case (Output.prompt prompt; TextIO.inputLine in_stream) of
+        SOME line => (input @ raw_explode line, ())
       | NONE => (input, ()))
   end);
 
