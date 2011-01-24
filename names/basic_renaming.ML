@@ -37,7 +37,7 @@ val mk : nset (* do not create new fresh names for these *)
          -> T
 
 (* avoid these *)
-val mk_from_avoidset : nset -> T
+val mk_from_avoids : nset -> T
 
 (* rename these *)
 val mk_from_nmap : name nmap -> T
@@ -70,7 +70,7 @@ val do_compose_rename1 : name -> name -> T -> T (* raises invalid_renaming_exp *
 
 
 (* given a renaming, name a new renaming that is just the avoid set *)
-val restrict_to_avoiding : T -> T (* = mk_from_avoidset o get_avoids *)
+val restrict_to_avoiding : T -> T (* = mk_from_avoids o get_avoids *)
 
 (* cached info about new names created during renaming *)
 val get_newnames : T -> nset
@@ -189,7 +189,7 @@ fun mk ignore avoids nmap =
               nmap = nmap};
 
 (* make a renaming *)
-fun mk_from_avoidset avoids = union_avoids avoids empty;
+fun mk_from_avoids avoids = union_avoids avoids empty;
 
 (* get info/status of renaming *)
 fun get_avoids (Renaming rep) = (#avoids rep);
@@ -197,7 +197,7 @@ fun get_newnames (Renaming rep) = (#new rep);
 fun get_nmap (Renaming rep) = (#nmap rep);
 fun get_ignored (Renaming rep) = (#ignore rep);
 
-val restrict_to_avoiding = mk_from_avoidset o get_avoids;
+val restrict_to_avoiding = mk_from_avoids o get_avoids;
 
 val lookup = NTab.lookup o get_nmap;
 val get = NTab.get o get_nmap;

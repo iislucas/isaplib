@@ -147,7 +147,7 @@ functor NamesFun(
   type renaming = Rnm.T
   val empty_renaming = Rnm.empty;
   val mk_renaming = Rnm.mk;
-  val renaming_of_avoidset = Rnm.mk_from_avoidset;
+  val renaming_of_avoidset = Rnm.mk_from_avoids;
 
   val rename1 = Rnm.rename1;
   val try_compose_rename1 = Rnm.try_compose_rename1;

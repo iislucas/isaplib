@@ -11,6 +11,9 @@
     (objects with order and fresh construction operations)
     (e.g. two way linked dependencies on names)
 
+    Curretly removes element from dom, if there is nothing in cod to 
+    related to it; and visa-versa for cod/dom. 
+
     POSSIBLE IMPROVEMENT: lazy updates? allow unrelated elements? 
 *)
 signature NAME_BINREL_SHARING
@@ -61,7 +64,7 @@ val del_from_cod : Cod.name -> Dom.NSet.T -> T -> T
 val del_dom : Dom.name -> T -> T
 val del_cod : Cod.name -> T -> T
 
-(* 1-1 relations *)
+(* 1-1 relations, union/subtraction (do not raise) *)
 val add1 : Dom.name -> Cod.name -> T -> T
 val del1 : Dom.name -> Cod.name -> T -> T
 
@@ -398,3 +401,6 @@ functor TwoRelsFun(R : NAME_BINREL) : TWO_CONV_NAME_BINRELS
   fun coerceAR x  = (x : R.T);
   fun coerceBR x = (x : R.T);
 end;
+
+(* binary relations between safe string names *)
+structure SStrBRel = NameBRelFun(structure Dom = SStrName and Cod = SStrName);
