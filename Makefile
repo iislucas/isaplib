@@ -1,9 +1,9 @@
 # Targets: 
 
-ML_BASIC_SRC_FILES = $(shell ls basic/*.ML)
+ML_BASIC_SRC_FILES = $(shell ls basics/*.ML General/*.ML project/*.ML)
 ML_NAMES_SRC_FILES = $(shell ls names/*.ML names/test/*.ML)
 ML_GRAPH_SRC_FILES = $(shell ls graph/*.ML graph/test/*.ML)
-# ML_SEARCH_SRC_FILES = $(shell ls search/*.ML)
+ML_SEARCH_SRC_FILES = $(shell ls search/*.ML)
 ML_PARSER_SRC_FILES = $(shell ls parser/*.ML parser/examples/*.ML)
 ML_SYSTEM_FILES = $(shell ls ML-Systems/*.ML)
 ML_ALL_FILES= $(ML_SYSTEM_FILES) $(ML_PARSER_SRC_FILES) $(ML_GRAPH_SRC_FILES) $(ML_NAMES_SRC_FILES) $(ML_BASIC_SRC_FILES)
