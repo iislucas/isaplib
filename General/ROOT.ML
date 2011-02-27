@@ -49,6 +49,8 @@ PolyML.Project.make "file.ML";
    I've cut out Isabelle term specifics. *)
 PolyML.Project.make "pretty.ML";
 
-(* From IsaPlanner *)
+(* Other basic top level things *)
 PolyML.Project.make "../basics/collection.ML";
 PolyML.Project.make "../basics/polym_table.ML";
+(* *)
+PolyML.Project.make "../basics/toplevel.ML";

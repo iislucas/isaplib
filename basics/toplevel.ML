@@ -4,3 +4,22 @@ val print = PolyML.print;
 fun maybef f NONE = NONE
   | maybef f (SOME x) = SOME (f x);
 
+fun do_and_exit_or_die f = 
+    (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
+    handle _ => OS.Process.exit OS.Process.failure;
+fun forget_all () = 
+    (map PolyML.Compiler.forgetSignature
+         (PolyML.Compiler.signatureNames());
+     map PolyML.Compiler.forgetType
+         (PolyML.Compiler.typeNames());
+     map PolyML.Compiler.forgetValue
+         (List.filter (fn s => s <> "run" andalso s <> "do_and_exit_or_die"
+                          andalso s <> "forget_all")
+                 (PolyML.Compiler.valueNames()));
+     map PolyML.Compiler.forgetStructure
+         (List.filter (fn s => s <> "PolyML" andalso s <> "OS") 
+                 (PolyML.Compiler.structureNames()));
+     ());
+
+
+
