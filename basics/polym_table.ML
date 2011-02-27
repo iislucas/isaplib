@@ -1,14 +1,11 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-(*  Title:      libs/polym_table.ML
-    Author:     Lucas Dixon, University of Edinburgh
-                lucas.dixon@ed.ac.uk
-*)
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
-    Polymorphic Tables
+    Polymorphic Tables, data is wrapped up in an exception type.
+    See the POLYM_ENTRY signature below; you create one of these for 
+    every type you want in the table. Such a structure also provide 
+    convenient get/set functions to the polymorphic table.    
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-
 signature POLYM_TABLE =
 sig
 

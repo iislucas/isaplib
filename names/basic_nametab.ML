@@ -80,7 +80,7 @@ sig
   val delete : name -> 'a T -> 'a T
   val merge_disjoint : 'a T -> 'a T -> 'a T (* note: must be disjoint: raises Tab.DUP *)
   val merge_joint : (* exception on clash noneq elements *)
-      ('a * 'a -> bool) (* return true if they are same (i.e. good) *)
+      ('a * 'a -> bool) (* return true if they are same, keeping second elem else raises Tab.DUP *)
       -> 'a T -> 'a T -> 'a T 
   (* values that are in the first but not the second *)
   val difference : 'a T -> 'a T -> 'a T 
