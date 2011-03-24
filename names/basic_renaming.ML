@@ -31,6 +31,10 @@ val empty : T
 val union_ignores : nset -> T -> T 
 val union_avoids : nset -> T -> T
 
+(* NOTE: you pretty much always want: "ignore <= avoids"; else you might 
+   rename something into the ignore map... 
+   THINK: should the interface disallow this by always making ignore<=avoids? 
+*)
 val mk : nset (* do not create new fresh names for these *)
          -> nset (* avoid these names for new names *)
          -> name nmap (* use this renaming map *)
@@ -182,6 +186,10 @@ fun union_avoids avoids' (Renaming rep) =
               nmap = #nmap rep};
 
 (* IMPROVE: make new an argument... have other constructors *)
+(* NOTE: you pretty much always want: "ignore <= avoids"; else you might 
+   rename something into the ignore map... 
+   THINK: should the interface disallow this by always making ignore<=avoids? 
+*)
 fun mk ignore avoids nmap =
     Renaming {ignore = ignore,
               new = NTab.fold (fn (_,n) => NSet.add n) nmap NSet.empty,

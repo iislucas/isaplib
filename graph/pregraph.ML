@@ -120,8 +120,8 @@ sig
   sharing Ehn.EhnSharing = EdgeSharing.Ehn;
   sharing Sharing = EdgeSharing;
   
-  structure EdgeSharingWithData : EDGE_AND_DATA_SHARING 
-    where type data = data
+  structure EdgeSharingWithData : EDGE_AND_UNIFIABLE_DATA_SHARING 
+    where type data = data and type subst = subst
   
   sharing EdgeSharing = EdgeSharingWithData;
   sharing Map.Sharing = EdgeSharingWithData.Map;
@@ -150,6 +150,7 @@ functor EdgeFun(Nm : NAME_AND_UNIFIABLE_DATA)
   structure EdgeSharingWithData = struct 
     open EdgeSharing; 
     type data = data;
+    type subst = subst;
     structure Map = Map.Sharing;
     structure InjEndo = InjEndo.Sharing;
   end;
@@ -194,42 +195,47 @@ structure UnitData : UNIFIABLE_DATA where type data = unit
   val print_subst = Pretty.writeln o pretty_subst;
 end;
 
-structure StrNmStrData 
-: NAME_AND_UNIFIABLE_DATA where type data = string
+
+
+structure SStrNameAndMaps 
+(* : SSTR_NAMES_AND_MAPS *) 
 = struct
   open SStrName;
   val default_name = mk "a";
-  open StrData;
-  val default_data = "";
   structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
   structure InjEndo = NameInjEndoFun(SStrName);
-  structure SharingWithData = struct 
-    open Sharing; 
-    type data = data;
-    type subst = unit;
-    structure Map = Map.Sharing;
-    structure InjEndo = InjEndo.Sharing;
-  end;
 end;
 
-structure StrNmUnitData 
-: NAME_AND_UNIFIABLE_DATA where type data = unit
+
+(* *)
+functor StrNmData(
+  structure D : UNIFIABLE_DATA
+  val default_data : D.data
+) : NAME_AND_UNIFIABLE_DATA
 = struct
-  open SStrName;
-  val default_name = mk "a";
-  open UnitData;
-  val default_data = ();
-  structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
-  structure InjEndo = NameInjEndoFun(SStrName);
+  open SStrNameAndMaps;
+  open D;
+  val default_data = default_data;
+
   structure SharingWithData = struct 
     open Sharing; 
-    type data = data; 
-    type subst = unit;
+    type data = D.data;
+    type subst = D.subst;
     structure Map = Map.Sharing;
     structure InjEndo = InjEndo.Sharing;
   end;
+  (* signature constraint will remove what we want to hide *)
+  structure SharingWithoutData = SharingWithData;
 end;
 
+
+structure StrNmStrData = 
+StrNmData(structure D = StrData 
+          val default_data = "");
+
+structure StrNmUnitData = 
+StrNmData(structure D = UnitData 
+          val default_data = ());
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  Some instances of edges and vertices *)

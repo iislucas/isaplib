@@ -19,6 +19,14 @@ end;
 
 
 (* generic signature for renaming within a datatype *)
+(* NOTE! currently, a renaming may be OK, but because of the order of 
+   renamings used, a clash in the obj may be created. e.g. a graph rhs may
+   rename a vertex "a" to "b", but "b" may already exists, and have been 
+   renamed to "c". While such a renaming is in theory ok, the implementation
+   doesn't allow it. What you should be doing is making "b" part of the ignore
+   and avoids sets. Thus "a" will be directly renamed to "c", and "b" will be
+   ignored.   
+*)
 signature COMPOUND_RENAMING =
 sig
 type renaming (* see basic renaming for more code to make renamings *)
@@ -84,6 +92,51 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
         
 end;
 
+
+(* IDEA: generalised apply_and_lift: 
+   (a -> a * b)                    = rename
+   ((a -> a) -> x -> x)            = update
+   -> x -> x * b
+   This would improve on the get and set code below
+
+   fun lifted_apply producef updatef x = 
+       let bref = ref NONE
+       in (updatef (fn a => let val (a',b) = producef a;
+                               val _ = (bref := SOME b)
+                            in a') x, the bref)
+       end;
+
+   NOTE: it would take a compiler optimisation to relaise that
+         bref always ends up as the b, so you don't need to store the option 
+         at all.  
+*)
+
+(* IDEA: general notion of embedding one structure within a collection of 
+   functions to access to the old data. a Higher-order, polymorphic functor? *)
+functor EmbedCompoundRenaming(
+  structure Crnm : COMPOUND_RENAMING 
+  type T (* Crnm.obj lives inside T *)
+  (* try to get internal data, if there is any *)
+  val try_to_get : T -> Crnm.obj option
+  (* does nothing if it isn't there *)
+  val update : (Crnm.obj -> Crnm.obj) -> T -> T 
+) : COMPOUND_RENAMING (* where COMPOUND_RENAMING.obj = T *)
+= 
+struct
+  type renaming = Crnm.renaming
+  type obj = T
+  val empty_renaming = Crnm.empty_renaming;
+  fun rename rnm obj = 
+      case try_to_get obj of NONE => (rnm,obj)
+      | SOME sub_obj => 
+        let val (rnm,sub_obj') = Crnm.rename rnm sub_obj
+        in (rnm, update (K sub_obj') obj) end;
+  fun mk_renaming obj rnm = 
+      case try_to_get obj of NONE => rnm
+      | SOME sub_obj => Crnm.mk_renaming sub_obj rnm; 
+  val do_renaming = update o Crnm.do_renaming;
+  val restrict_to_avoiding = Crnm.restrict_to_avoiding;
+end;
 
 
 (* for when obj has no names in it. *)

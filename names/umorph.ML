@@ -1,7 +1,9 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  unification name morphisms: morphisms of data that respect/construct an 
     injective endomorphism on names  *) 
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+(* FIXME/TODO: name/move this file somewhere more appropriate. This has more to 
+   do with unification. *) 
 signature ORD_DATA
 = sig
   type data
@@ -11,36 +13,53 @@ signature ORD_DATA
   val data_eq : data * data -> bool
 end;
 
-signature UNIFIABLE_DATA
-= sig
-  include ORD_DATA
+signature BASIC_SUBST = 
+sig
   type subst (* substitution within data *)
   val empty_subst : subst
-  val unify_data : data * data -> subst -> subst option
-  val match_data : data * data -> subst -> subst option
-  val subst_in_data : subst -> data -> data
-
   (* like f o g; this should just composes substitutions *)
   val compose_subst : subst * subst -> subst
-
   val pretty_subst : subst -> Pretty.T
   val print_subst : subst -> unit
 end;
 
+signature UNIFIABLE_DATA
+= sig
+  include ORD_DATA
+  include BASIC_SUBST;
+  val unify_data : data * data -> subst -> subst option
+  val match_data : data * data -> subst -> subst option
+  val subst_in_data : subst -> data -> data
+end;
+
+(* *)
+functor IgnoredUnifiableData(
+  structure S : BASIC_SUBST
+  structure D : ORD_DATA) 
+: UNIFIABLE_DATA 
+= 
+struct
+  open D;
+  open S;
+  fun unify_data d s = SOME s;
+  fun match_data d s = SOME s;
+  fun subst_in_data s d = d;
+end;
+
 (* to simplify sharing constraints *)
-signature NAME_AND_DATA_SHARING =
+signature UNIFIABLE_DATA_NAME_SHARING =
 sig
   include NAMES_SHARING
-  type data
   structure Map : NAME_MAP_SHARING
   structure InjEndo : NAME_INJ_SHARING
   sharing InjEndo.Dom = InjEndo.Cod
   sharing Map.Dom = InjEndo.Dom
   sharing Map.Cod = InjEndo.Dom
   
-  (* it would be nice to have a syntax for 'this' sturcture, 
+  (* it would be nice to have a syntax for 'this' structure, 
      save myself the lines below... I guess resolving recursion would need a little thought. 
-     This issue is a bit deeper really: we need a language to specify signatures and their relations sensibly. 
+     This issue is a bit deeper really: we need a language to specify 
+     signatures and their relations sensibly. 
   
      Below is essentially: "this.NAMES_SHARING = Map.Dom"
   *)
@@ -52,35 +71,55 @@ sig
 
 end;
 
+(* to simplify sharing constraints *)
+signature NAME_AND_DATA_SHARING =
+sig
+  include UNIFIABLE_DATA_NAME_SHARING;
+  type data
+end;
+
 signature NAME_AND_UNIFIABLE_DATA_SHARING =
 sig
   include NAME_AND_DATA_SHARING
   type subst
 end;
 
-signature NAME_AND_DATA
+(* string based names with maps and inj endos *)
+signature SSTR_NAMES_AND_MAPS 
 = sig
   include SSTR_NAMES
+  structure Map : NAME_MAP;
+  structure InjEndo : NAME_INJENDO;
+  sharing InjEndo.Dom = InjEndo.Cod
+  sharing Map.Dom = InjEndo.Dom
+  sharing Map.Cod = InjEndo.Dom
+  sharing Sharing = Map.Dom.Sharing;
+end;
+
+signature NAME_AND_DATA
+= sig
+  include SSTR_NAMES_AND_MAPS
   include ORD_DATA
   val default_data : data
-  structure SharingWithData : NAME_AND_DATA_SHARING where type data = data
+  structure SharingWithData : NAME_AND_DATA_SHARING 
+  where type data = data
   sharing Sharing = SharingWithData;
-  structure Map : NAME_MAP;
+  (* TODO: push Map and InjEndo into names? generally very useful *)
   sharing SharingWithData.Map = Map.Sharing;
-  structure InjEndo : NAME_INJENDO;
   sharing SharingWithData.InjEndo = InjEndo.Sharing;
 end;
 
 signature NAME_AND_UNIFIABLE_DATA
 = sig
-  include SSTR_NAMES
+  include SSTR_NAMES_AND_MAPS
   include UNIFIABLE_DATA
   val default_data : data
-  structure SharingWithData : NAME_AND_UNIFIABLE_DATA_SHARING where type data = data
+  structure SharingWithData : NAME_AND_UNIFIABLE_DATA_SHARING 
+    where type data = data and type subst = subst
+  structure SharingWithoutData : UNIFIABLE_DATA_NAME_SHARING
+    sharing SharingWithoutData = SharingWithData; (* note NOT symmetric *)
   sharing Sharing = SharingWithData;
-  structure Map : NAME_MAP;
   sharing SharingWithData.Map = Map.Sharing;
-  structure InjEndo : NAME_INJENDO;
   sharing SharingWithData.InjEndo = InjEndo.Sharing;
 end;
 
@@ -121,6 +160,7 @@ signature UMORPH
               -> T -> T
 
 end;
+
 
 functor UmorphFun(Entity : NAME_AND_UNIFIABLE_DATA) : UMORPH
 = struct
