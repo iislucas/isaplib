@@ -22,7 +22,8 @@ signature EHN_NAMES
   val ord_half : halfid * halfid -> order (* Src < Tgt *)
 
   type edgename;
-  include NAMES;
+  include SNAMES
+    where type src = halfid * edgename; 
   structure EhnSharing : EHN_SHARING where type halfid = halfid
   sharing Sharing = EhnSharing;
 
@@ -77,10 +78,12 @@ functor EhnFun(Nm : NAMES)
   fun is_end ((h,en) : name) = (TargetEnd = h);
   fun other ((h,en) : name) = (other_half h, en);
       
-  fun mk h e = ((h,e) : name);
-  
-  val mk_start = mk SourceEnd;
-  val mk_end = mk TargetEnd;
+  type src = halfid * edgename;
+  fun mk (h,e) = ((h,e) : name);
+  fun dest ((h,e) : name) = (h,e);
+
+  fun mk_start e = mk (SourceEnd,e);
+  fun mk_end e = mk (TargetEnd,e);
 end;
 
 
