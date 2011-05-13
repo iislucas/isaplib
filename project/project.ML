@@ -25,15 +25,33 @@
   PolyML structure. 
 *)
 
+
 structure PolyML = 
 struct
+
 open PolyML;
 structure Project 
 = struct
 
+  structure Log = Log(val level_ref = Unsynchronized.ref 3); 
+  val log2 = Log.log_stdout 2;
+
   val ideModeRef = Unsynchronized.ref false;
 
-  val basicUse = PolyML.use;
+  fun apply_from_dir dir f x =
+      if dir = "" then f x 
+      else 
+        let val old_dir = OS.FileSys.getDir(); in 
+          let val _ = OS.FileSys.chDir dir;
+              val y = f x;
+              val _ = OS.FileSys.chDir old_dir;
+          in y end handle e => (OS.FileSys.chDir old_dir; raise e)
+        end;
+
+  (* simple PolyML.use, but changes to files directory first *)
+  fun basicUse path_to_file = 
+      let val {dir, file} = OS.Path.splitDirFile path_to_file;
+      in apply_from_dir dir PolyML.use file end;
 
   val projectDirRef = Unsynchronized.ref "";
   val saveSubDirRef = Unsynchronized.ref ".polysave";
@@ -73,9 +91,9 @@ structure Project
     val fullSaveDirPath = 
       OS.Path.joinDirFile {dir = rootPath, file = saveSubDir};
     
-    val _ = print ("projectUse1: saveSubDir: " ^ saveSubDir ^ "\n");    
-    val _ = print ("projectUse2: rootPath: " ^ rootPath ^ "\n");
-    val _ = print ("projectUse3: fullSaveDirPath: " ^ fullSaveDirPath ^ "\n");
+    val _ = log2 ("projectUse1: saveSubDir: " ^ saveSubDir );    
+    val _ = log2 ("projectUse2: rootPath: " ^ rootPath );
+    val _ = log2 ("projectUse3: fullSaveDirPath: " ^ fullSaveDirPath );
     
     fun preUse fileName =
     let
@@ -85,8 +103,8 @@ structure Project
       val fullFileName = OS.FileSys.fullPath fileName;
       val pathFromRoot = OS.Path.mkRelative { path = fullFileName, 
                                               relativeTo = rootPath };
-      val _ = print ("projectUse4: fullFileName: " ^ fullFileName ^ "\n");
-      val _ = print ("projectUse5: pathFromRoot: " ^ pathFromRoot ^ "\n");
+      val _ = log2 ("projectUse4: fullFileName: " ^ fullFileName);
+      val _ = log2 ("projectUse5: pathFromRoot: " ^ pathFromRoot);
       
       val filePathRelativeToRoot =
           (* Is the file in the root directory or a sub-directory or is it in
@@ -100,8 +118,8 @@ structure Project
             handle Path => NONE 
                 (* Different volumes: can't make relative path. *)
                  | OS.SysErr _ => NONE (* If fileName doesn't actually exist. *)
-      val _ = print ("\nprojectUse6: filePathRelativeToRoot: " ^ 
-      (case filePathRelativeToRoot of NONE => "NONE" | SOME s => s) ^ "\n");
+      val _ = log2 ("\nprojectUse6: filePathRelativeToRoot: " ^ 
+      (case filePathRelativeToRoot of NONE => "NONE" | SOME s => s));
     in
       (case filePathRelativeToRoot of
         NONE => NONE (* Do nothing: we can't save it. *)
@@ -122,28 +140,28 @@ structure Project
               OS.Path.mkCanonical (OS.Path.joinBaseExt
                 { base = baseName, ext = SOME "save2" })
           
-          val _ = print ("projectUse7: baseName: " ^ baseName ^ "\n");
-          val _ = print ("projectUse8: preUse_SaveFile: " 
-                         ^ preUse_SaveFile ^ "\n");
+          val _ = log2 ("projectUse7: baseName: " ^ baseName );
+          val _ = log2 ("projectUse8: preUse_SaveFile: " 
+                         ^ preUse_SaveFile );
           
           (* Reset the save directory before we save so that it isn't set 
              in the saved state.  That means that "use" won't save the state
              unless it's explicitly asked to. *)
          in
           (* Create any containing directories. *)
-          print ("projectUse8.1: creating directories...\n");
+          log2 ("projectUse8.1: creating directories...");
           createDirs saveDirForThisFile;
-          print ("projectUse8.2: saving state...: " ^ preUse_SaveFile ^ " \n");
-          map (fn s => print (s ^ "\n")) (PolyML.SaveState.showHierarchy());
+          log2 ("projectUse8.2: saving state...: " ^ preUse_SaveFile);
+          map (fn s => print (s )) (PolyML.SaveState.showHierarchy());
           (* TODO: only save if we have something new to save *)
           (* Save the state. *)
           PolyML.SaveState.saveChild (preUse_SaveFile,
             List.length(PolyML.SaveState.showHierarchy()));
           (* Restore the ref. *)
-          print ("projectUse8.3: state saved! \n");
+          log2 ("projectUse8.3: state saved! \n");
           SOME (preUse_SaveFile, postUse_SaveFile)
         end handle (ex as OS.SysErr args) =>
-          (print (String.concat ["Exception SysErr(", 
+          (TextIO.print (String.concat ["Exception SysErr(", 
            PolyML.makestring args, ") raised for ", fileName, "\n"]);
            raise ex))
     end;
@@ -163,49 +181,29 @@ structure Project
           handle IO.Io _ => trySuffixes l;
       (* First in list is the name with no suffix. *)
       val (inStream, fileName) = trySuffixes("" :: ! PolyML.suffixes);
-      val fullfileName = OS.FileSys.fullPath fileName;
-      val _ = print ("projectUse9: fullfileName: " ^ fullfileName ^ "\n");
-      val old_dir = OS.FileSys.getDir();
-      val {dir = new_dir, file = file_name} = OS.Path.splitDirFile fullfileName;
+      val fullFilename = OS.FileSys.fullPath fileName;
+      val _ = log2 ("projectUse9: fullFilename: " ^ fullFilename );
     in
-      case preUse fullfileName of NONE => 
-        (OS.FileSys.chDir new_dir;
-         PolyML.use file_name;  
-         OS.FileSys.chDir old_dir; 
-         ())
+      case preUse fullFilename of NONE => basicUse fullFilename
       | SOME (preUse_SaveFile,postUse_SaveFile) =>
         (* check timestamp on filename and saved file, *)
         if (fileOrDirExists postUse_SaveFile) 
         andalso false (* TODO: enable: need timestampt for chained deps. e.g.    
                          earlier file may have changed, therefore need to
                          recompile. *) 
-        andalso (OS.FileSys.modTime fullfileName) 
+        andalso (OS.FileSys.modTime fullFilename) 
                 < (OS.FileSys.modTime postUse_SaveFile) 
         then (* use the saved heap, avoids re-compilation *)
           PolyML.SaveState.loadState postUse_SaveFile
-        else (* *)
-           (* always work within the dir in of the file being used. *)
-          (print ("projectUse10: new_dir: " ^ new_dir ^ "\n");
-           OS.FileSys.chDir new_dir;
-           (* Now call the underlying use to do the compilation/eval work. *)
-           PolyML.use file_name;  
-           (* Save the final state *)
-           print ("projectUse11: post-save: " ^ postUse_SaveFile ^ "\n");
-           (* PolyML.SaveState.saveChild (postUse_SaveFile,
-                  List.length(PolyML.SaveState.showHierarchy())); *)
-           (* return to old dir *)
-           OS.FileSys.chDir old_dir; 
-           ())
+        else basicUse fullFilename
         (* handle IO.Io d => raise IO.Io d; *)
     end
   end;
   
   (* the make checks the ref var to see if we are in IDE mode. *)
   fun make n = 
-      if !ideModeRef then
-        makeProject (!saveSubDirRef) (! projectDirRef ) n
-      else 
-        basicUse n;
+      if !ideModeRef then makeProject (!saveSubDirRef) (! projectDirRef ) n
+      else basicUse n;
 
   fun onload load = 
     let val p = !projectDirRef;
