@@ -6,3 +6,6 @@ isaplib is Standard ML (SML) library, based on the code-based of [Isabelle](http
 
 The `Makefile` assumes that [PolyML](http://www.polyml.org/) is installed and in the path. Running make will create a PolyML heap image called `all.polyml-heap` in the `heaps` subdirectory. 
 
+## LICENCE and DISCLAIMER
+
+This software is under a combination of the Lesser GNU General Public License (GPL) and a similar license from the University of Cambridge. This software is provided "as is": you use the software at your own risk and we make no warranties of any sort. See the file called LICENCE for more information on the licence and disclaimer.
