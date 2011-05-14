@@ -12,15 +12,24 @@
 
   The main thing it does is save intermediate heap files in a polyml project directory called ".polysave". When a file is used, the parent directories are explored to find a ".polysave" directory. If found, this directory is set to be the project directory. The relative path from the project directory (the one containing the ".polysave" subdir) is mirrored inside the ".polysave" directory, and a heap file with the same name is created, with the additional suffix of ".save". The heap-file is the PolyML state before the file was used.
 
-  The idea is that the user can ask to re-compile a file,  
+  The idea is that the user can ask, via and IDE, re-compile a file. This process can use the saved heap-image so as to quickly recreate the initial context in which the file is to be used.  
 *)
-
+signature ML_PROJECT = sig
+  structure Log : LOG 
+  val ideModeRef : int Unsynchronized.ref;
+  val set_project_to_changed : unit -> unit;
+  val set_project_to_unchanged : unit -> unit;
+  val has_project_to_changed : unit -> bool
+  val basicUse : string -> unit;
+  val make : string -> unit;
+end;
 
 structure PolyML = 
 struct
 
 open PolyML;
 structure Project 
+(* : ML_PROJECT *)
 = struct
 
   structure Log = Log(val level_ref = Unsynchronized.ref 3); 
@@ -29,8 +38,14 @@ structure Project
   (* When ideModeRef is true, then for each file that make is called on, a heap file is saved. *)
   val ideModeRef = Unsynchronized.ref false;
 
-  (* IMPROVE: this is *)
-  val changedRef = Unsynchronized.ref true;
+  (* This is to record when files need to be recompiled. *)
+  (* IMPROVE: make this a proper graph-like structure: whenever any file that you depend on has changed, you need to recompile from that file.  *)
+  (* TODO: use this! *)
+  datatype change_state = ProjectChanged | ProjectUnchanged;
+  val changedStateRef = Unsynchronized.ref ProjectChanged;
+  fun set_project_to_changed () = (changedStateRef := ProjectChanged);
+  fun set_project_to_unchanged () = (changedStateRef := ProjectUnchanged);
+  fun has_project_to_changed () = (!changedStateRef) = ProjectChanged;
 
   fun apply_from_dir dir f x =
       if dir = "" then f x 
