@@ -1,28 +1,18 @@
 (*
   Title:    project.ML
             A modified version of the "use" function, called "make" 
-            which saves state
+            which saves states before the file that is being used. 
   Author:   David Matthews and Lucas Dixon
   Copyright   David Matthews 2009
-
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-  
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-  
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 *)
 
 (*
   This is a structure for Project/IDE specific features that gets added to the 
   PolyML structure. 
+
+  The main thing it does is save intermediate heap files in a polyml project directory called ".polysave". When a file is used, the parent directories are explored to find a ".polysave" directory. If found, this directory is set to be the project directory. The relative path from the project directory (the one containing the ".polysave" subdir) is mirrored inside the ".polysave" directory, and a heap file with the same name is created, with the additional suffix of ".save". The heap-file is the PolyML state before the file was used.
+
+  The idea is that the user can ask to re-compile a file,  
 *)
 
 
@@ -36,7 +26,11 @@ structure Project
   structure Log = Log(val level_ref = Unsynchronized.ref 3); 
   val log2 = Log.log_stdout 2;
 
+  (* When ideModeRef is true, then for each file that make is called on, a heap file is saved. *)
   val ideModeRef = Unsynchronized.ref false;
+
+  (* IMPROVE: this is *)
+  val changedRef = Unsynchronized.ref true;
 
   fun apply_from_dir dir f x =
       if dir = "" then f x 
