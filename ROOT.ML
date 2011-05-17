@@ -41,8 +41,8 @@ PolyML.Project.use_root "names/ROOT.ML";
 PolyML.Project.use_root "graph/ROOT.ML";
 (* PolyML.Project.use_root "parser/ROOT.ML"; *)
 
-if PolyML.Project.heap_is_newer_than_edits "heaps/all.polyml-heap" then () 
+if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap" then () 
 else 
  (PolyML.Project.ensure_at_latest_heap ();
-  PolyML.Project.save_project_child_state "heaps/all.polyml-heap");
+  PolyML.Project.save_project_child_state "heaps/all_child.heap");
 
