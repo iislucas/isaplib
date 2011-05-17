@@ -30,6 +30,4 @@ PolyML.Project.make "name_binrel.ML"; (* bin relations on names *)
 PolyML.Project.make "umorph.ML"; (* functions/mappings on names *)
 
 (* testing *)
-cd "test";
-PolyML.Project.make "ROOT.ML";
-cd "..";
+PolyML.Project.use_root "test/ROOT.ML";

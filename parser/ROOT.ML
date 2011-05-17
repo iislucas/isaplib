@@ -17,6 +17,4 @@ PolyML.Project.make "bnf_morpisms.ML"; (* such as elim epsilon from grammar *)
 PolyML.Project.make "bnf_function.ML"; (* functions to help defining bnfs *)
 
 (* testing/examples... *)
-cd "examples";
-PolyML.Project.make "ROOT.ML";
-cd "..";
+PolyML.Project.use_root "examples/ROOT.ML";
