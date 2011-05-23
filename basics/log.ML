@@ -4,6 +4,9 @@ sig
   val level_ref : int Unsynchronized.ref;
   val stream_ref : TextIO.outstream Unsynchronized.ref;
 
+  val set_log_to_stdout : unit -> unit;
+  val set_log_to_stderr : unit -> unit;
+
   val writeln_to_stream : TextIO.outstream -> string -> unit; 
   val writeln_to_stdout : string -> unit; 
   val writeln_to_stderr : string -> unit; 
@@ -30,13 +33,16 @@ functor Log(val level_ref : int Unsynchronized.ref)
   fun writeln_to_stdout s = writeln_to_stream TextIO.stdOut s;
   fun writeln_to_stderr s = writeln_to_stream TextIO.stdErr s;
 
+  fun set_log_to_stdout () = (stream_ref := TextIO.stdOut);
+  fun set_log_to_stderr () = (stream_ref := TextIO.stdErr);
+
   fun log level s = 
-      if (!level_ref) > level then writeln_to_stream (!stream_ref) s 
+      if level <= (!level_ref) then writeln_to_stream (!stream_ref) s 
       else ();
   fun log_stdout level s = 
-      if (!level_ref) > level then writeln_to_stdout s else ();
+      if level <= (!level_ref) then writeln_to_stdout s else ();
   fun log_stderr level s = 
-      if (!level_ref) > level then writeln_to_stderr s else ();
+      if level <= (!level_ref) then writeln_to_stderr s else ();
 
   fun print x = (PolyML.print x; ());
 end;

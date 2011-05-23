@@ -57,6 +57,11 @@ signature ML_PROJECT = sig
      False if heap file exists and is newer than any edits. *)
   val heap_is_newer_than_edits : string -> bool;
 
+  (* the current file being compiled: for introspection/debugging. *)
+  val set_current_filename : string option -> unit;
+  val get_current_filename : unit -> string option;
+  val string_of_current_filename : unit -> string;
+
   (* name of subdirectory in which .save files are stored. *)
   val save_subdir_name_ref : string Unsynchronized.ref;
 
@@ -106,6 +111,13 @@ structure Project
   (* When save_states_ref is true, then for each file that make is called on, a 
      heap file is saved. *)
   val save_states_ref = Unsynchronized.ref false;
+
+  (* The project filename currently being compiled. *)
+  val current_filename_ref = Unsynchronized.ref (NONE : string option);
+  fun set_current_filename n_opt = current_filename_ref := n_opt; 
+  fun get_current_filename () = !current_filename_ref; 
+  fun string_of_current_filename () = (case get_current_filename () 
+        of NONE => "NONE" | SOME s => "SOME ("^s^")");  
 
   (* latest heap saved. In case we need to load it, e.g. edit half way through
      loading old stuff: we then load up the latest heap before compiling the 
@@ -170,26 +182,34 @@ structure Project
       else 
         let val old_dir = OS.FileSys.getDir(); in 
           let val _ = OS.FileSys.chDir dir;
-              val y = f x;
+              val result = f x;
               val _ = OS.FileSys.chDir old_dir;
-          in y end handle e => (OS.FileSys.chDir old_dir; raise e)
+          in result end handle e => (OS.FileSys.chDir old_dir; raise e)
         end;
 
+  fun apply_from_file path_to_file f x = 
+      let val {dir, file} = OS.Path.splitDirFile path_to_file;
+          val _ = set_current_filename (SOME path_to_file);
+          val result = apply_from_dir dir PolyML.use file;
+          val _ = set_current_filename NONE;
+      in result end;
 
   (* simple PolyML.use, but changes to files directory first, notes edit
      time for poject. *)
   fun use_root path_to_file = 
       let val {dir, file} = OS.Path.splitDirFile path_to_file;
-          val _ = depend_on_file path_to_file; 
-      in apply_from_dir dir PolyML.use file end;
+      in depend_on_file path_to_file;
+         apply_from_file path_to_file PolyML.use file
+      end;
 
   (* simple PolyML.use, but changes to files directory first, notes edit
      time for poject. *)
   fun basic_use path_to_file = 
       let val {dir, file} = OS.Path.splitDirFile path_to_file;
-          val _ = set_state_changed ();
-          val _ = set_latest_heappath NONE;
-      in apply_from_dir dir PolyML.use file end;
+      in set_state_changed ();
+         set_latest_heappath NONE;
+         apply_from_file path_to_file PolyML.use file
+      end;
 
   (* create directories in path, as needed. *)
   fun create_dirs path =
@@ -253,7 +273,6 @@ structure Project
   let
     val oldstate = get_state(); 
     val _ = depend_on_file path_to_file;
-
     (* setup paths *)
     val preuse_save_path = savepath_of_filepath "save" path_to_file
     val postuse_save_path = savepath_of_filepath "save2" path_to_file
@@ -283,9 +302,11 @@ structure Project
   fun onload load = 
     let val s = !save_subdir_name_ref;
         val st = !state_ref;
+        val n = !current_filename_ref;
     in (load(); 
         state_ref := st;
         save_subdir_name_ref := s; 
+        current_filename_ref := n;
        ()) 
     end;
   
