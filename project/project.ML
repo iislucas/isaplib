@@ -52,6 +52,9 @@ signature ML_PROJECT = sig
 
   (* save a child heap state to this file-name.  *)
   val save_project_child_state : string -> unit;
+  (* Given a filename, get the pre-save and post-save filenames for it *)
+  val pre_savepath_of : string -> string;
+  val post_savepath_of : string -> string;
 
   (* Returns true is new file is saved. 
      False if heap file exists and is newer than any edits. *)
@@ -82,6 +85,10 @@ signature ML_PROJECT = sig
   val depend_on_file : string -> unit; 
   val depend_on_files : string list -> unit; 
 
+  val state_is_Changed : unit -> bool; 
+  val state_is_Unchanged : unit -> bool; 
+  val state_is_Edited_sometime : unit -> bool; 
+
   (* latest heap saved. In case we need to load it, e.g. edit half way through
      loading old stuff: we then load up the latest heap before compiling the 
      new edit. *)
@@ -108,6 +115,8 @@ structure Project
   val log = Log.log;
   val log_err = Log.log ~2;
 
+  (*** Global project refs ***)
+
   (* When save_states_ref is true, then for each file that make is called on, a 
      heap file is saved. *)
   val save_states_ref = Unsynchronized.ref false;
@@ -126,11 +135,97 @@ structure Project
   fun set_latest_heappath s_opt = (latest_heappath_ref := s_opt); 
   fun get_latest_heappath () = (!latest_heappath_ref); 
 
+  (* check if there is a latest heap state, and that the old state had not
+     changed, but now it has. if so load it. For when we find
+     outselves trying to load a file, but didn't load an of the earlier files.
+  *)
+  fun ensure_at_latest_heap () =
+      (case get_latest_heappath () of NONE => ()
+          | SOME s => 
+            (log 2 ("ensure_at_latest_heap caused loading of heap:" ^ s);
+             PolyML.SaveState.loadState s));
+
   (* the directory in which save_sub_dir_ref is created and in which .save files 
      are stored. *)
   val save_subdir_name_ref = Unsynchronized.ref ".polysave";
   fun set_save_subdir_name s = (save_subdir_name_ref := s);
   fun get_save_subdir_name () = !save_subdir_name_ref;
+
+  (*** Basic filesystem ***)
+
+  (* check if a file or directory exists. *)
+  fun exists_in_filesys s = (OS.FileSys.fileId s; true) 
+      handle OS.SysErr _ => false;
+
+  (* apply function from the given directory. Changes back after application, 
+     and if there is an error. *)
+  fun apply_from_dir dir f x =
+      if dir = "" then f x 
+      else 
+        let val old_dir = OS.FileSys.getDir(); in 
+          let val _ = OS.FileSys.chDir dir;
+              val result = f x;
+              val _ = OS.FileSys.chDir old_dir;
+          in result end handle e => (OS.FileSys.chDir old_dir; raise e)
+        end;
+
+  fun apply_from_file path_to_file f x = 
+      let val {dir, file} = OS.Path.splitDirFile path_to_file;
+          val _ = set_current_filename (SOME path_to_file);
+          val result = apply_from_dir dir PolyML.use file;
+          val _ = set_current_filename NONE;
+      in result end;
+
+  (* create directories in path, as needed. *)
+  fun create_dirs path =
+    if path = "" orelse (OS.FileSys.isDir path handle OS.SysErr _ => false)
+    then ()
+    else (create_dirs (OS.Path.dir path); OS.FileSys.mkDir path);
+
+
+
+  (*** Saving state ***)
+
+  (* gives path to savedirectory for the filename with the additional postfix 
+     added as a file-extension to the existing filename. *)
+  fun savepath_of_filepath save_postfix filepath = 
+      let
+        val {file,dir} = OS.Path.splitDirFile filepath
+        val save_dir = OS.Path.concat (dir, get_save_subdir_name ());
+        val save_file = 
+            OS.Path.joinBaseExt { base = file, ext = SOME save_postfix };
+      in OS.Path.joinDirFile {dir = save_dir, file = save_file } end;
+
+  val pre_savepath_of = savepath_of_filepath "save";
+  val post_savepath_of = savepath_of_filepath "save2";
+
+  (* saves the child state in the given path, returns true if it saved a new 
+     state; returns false is it wasn't needed (state newer than last edit 
+     was found.) *)
+  fun save_project_child_state save_path = 
+      let (* make .polysave dir for preuse saved heaps. *)
+        val _ = log 2 ("save_project_child_state " ^ (save_path));
+        val {file,dir} = OS.Path.splitDirFile save_path
+        val _ = create_dirs dir;
+        val full_save_path = 
+            OS.Path.joinDirFile {dir = OS.FileSys.fullPath dir, file = file};
+        val _ = log 2 ("full_save_path: " ^ full_save_path);
+      in 
+         (log 2 ("saving state...");
+          log 3 ("previous heaps: ");
+          log 3 (List.foldr (fn (x,y) => " * "^x^"\n"^y) ""
+                           (PolyML.SaveState.showHierarchy()));
+          (* save child heap; note save path is full, needed so later save
+             paths can find this one. TODO: think about this, better (relative) 
+             way? *)
+          set_latest_heappath (SOME full_save_path);
+          PolyML.SaveState.saveChild (full_save_path,
+            List.length(PolyML.SaveState.showHierarchy()));
+          (* this is the latest heap path *)
+          log 2 ("saved: " ^ full_save_path))
+       end;
+
+  (*** project state ***)
 
   (* This is to record when files need to be recompiled. *)
   (* IMPROVE: make this a proper graph-like structure: whenever any file that
@@ -171,35 +266,29 @@ structure Project
          (case Time.compare (t2,t) of LESS => false | EQUAL => false
            | GREATER => true));
 
-  (* check if a file or directory exists. *)
-  fun exists_in_filesys s = (OS.FileSys.fileId s; true) 
-      handle OS.SysErr _ => false;
+  (* checks if this heap is after last edit. *)
+  fun heap_is_newer_than_edits heap_path =
+      (exists_in_filesys heap_path
+       andalso state_edited_before (OS.FileSys.modTime heap_path));
 
-  (* apply function from the given directory. Changes back after application, 
-     and if there is an error. *)
-  fun apply_from_dir dir f x =
-      if dir = "" then f x 
-      else 
-        let val old_dir = OS.FileSys.getDir(); in 
-          let val _ = OS.FileSys.chDir dir;
-              val result = f x;
-              val _ = OS.FileSys.chDir old_dir;
-          in result end handle e => (OS.FileSys.chDir old_dir; raise e)
-        end;
+  fun state_is_Changed () = 
+      case get_state() of Changed() => true | _ => false; 
+  fun state_is_Unchanged () = 
+      case get_state() of Unchanged() => true | _ => false; 
+  fun state_is_Edited_sometime () = 
+      case get_state() of EditAtTime _ => true | _ => false; 
 
-  fun apply_from_file path_to_file f x = 
-      let val {dir, file} = OS.Path.splitDirFile path_to_file;
-          val _ = set_current_filename (SOME path_to_file);
-          val result = apply_from_dir dir PolyML.use file;
-          val _ = set_current_filename NONE;
-      in result end;
 
   (* simple PolyML.use, but changes to files directory first, notes edit
      time for poject. *)
   fun use_root path_to_file = 
       let val {dir, file} = OS.Path.splitDirFile path_to_file;
-      in depend_on_file path_to_file;
-         apply_from_file path_to_file PolyML.use file
+      in 
+        if state_is_Changed () 
+        then save_project_child_state (pre_savepath_of path_to_file)
+        else ();
+        depend_on_file path_to_file;
+        apply_from_file path_to_file PolyML.use file
       end;
 
   (* simple PolyML.use, but changes to files directory first, notes edit
@@ -211,84 +300,29 @@ structure Project
          apply_from_file path_to_file PolyML.use file
       end;
 
-  (* create directories in path, as needed. *)
-  fun create_dirs path =
-    if path = "" orelse (OS.FileSys.isDir path handle OS.SysErr _ => false)
-    then ()
-    else (create_dirs (OS.Path.dir path); OS.FileSys.mkDir path);
-
-  (* checks if this heap is after last edit. *)
-  fun heap_is_newer_than_edits heap_path =
-      (exists_in_filesys heap_path
-       andalso state_edited_before (OS.FileSys.modTime heap_path));
-
-  (* saves the child state in the given path, returns true if it saved a new 
-     state; returns false is it wasn't needed (state newer than last edit 
-     was found.) *)
-  fun save_project_child_state save_path = 
-      let (* make .polysave dir for preuse saved heaps. *)
-        val _ = log 2 ("save_project_child_state " ^ (save_path));
-        val {file,dir} = OS.Path.splitDirFile save_path
-        val _ = create_dirs dir;
-        val full_save_path = 
-            OS.Path.joinDirFile {dir = OS.FileSys.fullPath dir, file = file};
-        val _ = log 2 ("full_save_path: " ^ full_save_path);
-      in 
-         (log 2 ("saving state...");
-          log 3 ("previous heaps: ");
-          log 3 (List.foldr (fn (x,y) => " * "^x^"\n"^y) ""
-                           (PolyML.SaveState.showHierarchy()));
-          (* save child heap; note save path is full, needed so later save
-             paths can find this one. TODO: think about this, better (relative) 
-             way? *)
-          set_latest_heappath (SOME full_save_path);
-          PolyML.SaveState.saveChild (full_save_path,
-            List.length(PolyML.SaveState.showHierarchy()));
-          (* this is the latest heap path *)
-          log 2 ("saved: " ^ full_save_path))
-       end;
-
-  (* check if there is a latest heap state, and that the old state had not
-     changed, but now it has. if so load it. For when we find
-     outselves trying to load a file, but didn't load an of the earlier files.
-  *)
-  fun ensure_at_latest_heap () =
-      (case get_latest_heappath () of NONE => ()
-          | SOME s => 
-            (log 2 ("ensure_at_latest_heap caused loading of heap:" ^ s);
-             PolyML.SaveState.loadState s));
-
-  (* gives path to savedirectory for the filename with the additional postfix 
-     added as a file-extension to the existing filename. *)
-  fun savepath_of_filepath save_postfix filepath = 
-      let
-        val {file,dir} = OS.Path.splitDirFile filepath
-        val save_dir = OS.Path.concat (dir, get_save_subdir_name ());
-        val save_file = 
-            OS.Path.joinBaseExt { base = file, ext = SOME save_postfix };
-      in OS.Path.joinDirFile {dir = save_dir, file = save_file } end;
-
   (* *)
   fun make path_to_file =
   let
     val oldstate = get_state(); 
     val _ = depend_on_file path_to_file;
     (* setup paths *)
-    val preuse_save_path = savepath_of_filepath "save" path_to_file
-    val postuse_save_path = savepath_of_filepath "save2" path_to_file
+    val preuse_save_path = pre_savepath_of path_to_file
+    val postuse_save_path = post_savepath_of path_to_file
     (* logging for debugging *)
     val _ = log 2 ("path_to_file: " ^ path_to_file);
     val _ = log 2 ("old state: " ^ (string_of_state oldstate));
     val _ = log 2 ("preuse_save_path: " ^ preuse_save_path);
     val _ = log 2 ("postuse_save_path: " ^ postuse_save_path);
   in
+    (* If file is unedited since last compilation then... *)
     if heap_is_newer_than_edits preuse_save_path
        andalso heap_is_newer_than_edits postuse_save_path
-    then (set_latest_heappath (SOME (OS.FileSys.fullPath postuse_save_path));
+    then (* we skip compilation. *) 
+      (set_latest_heappath (SOME (OS.FileSys.fullPath postuse_save_path));
           log 2 ("unmodified."); ())
     else
-      ((* if old state was also Changed, then no need to load heap, ML is already at the latest state. But otherwise, nothing will have been loaded yet, so we need to make sure that we have the latest heap. *)
-       (case oldstate of Changed () => () | _ => ensure_at_latest_heap());
+      ((* else if old state was also Changed, then no need to load heap as ML is already at the latest state (we compiled the last file). But otherwise, nothing has been loaded yet, so we need to make sure that we have the latest heap loaded before using compiling this file... *)
+       if state_is_Changed () then () else ensure_at_latest_heap();
        save_project_child_state preuse_save_path;
        log 2 ("using file...");
        basic_use path_to_file; 
