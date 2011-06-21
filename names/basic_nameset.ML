@@ -46,10 +46,10 @@ sig
   (* number of elements *)
   val cardinality : T -> int
 
-  (* fold over ranges *)
+  (* fold over ranges, in order smallest to biggest *)
   val fold_ranges : ((name * name) -> 'a -> 'a) -> T -> 'a -> 'a
   val fold_ranges_rev : ((name * name) -> 'a -> 'a) -> T -> 'a -> 'a
-  (* fold all elements *)
+  (* fold all elements, in order, smallest to biggest *)
   val fold : (name -> 'a -> 'a) -> T -> 'a -> 'a
   val fold_rev : (name -> 'a -> 'a) -> T -> 'a -> 'a
   (* fold try, stop early if needed *)
@@ -813,7 +813,7 @@ fun powerset tr =
      | SOME a => powerset_geq a tr)
 
 
-(* fold over the ranges in the name tree *)
+(* fold over the ranges in the name tree, in order smallest to biggest *)
 fun fold_ranges f Empty a = a
   | fold_ranges f (tr as Br (d,v as (b,t),l,r)) a = 
     a |> fold_ranges f l
