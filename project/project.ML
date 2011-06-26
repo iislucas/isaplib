@@ -210,6 +210,7 @@ structure Project
         val full_save_path = 
             OS.Path.joinDirFile {dir = OS.FileSys.fullPath dir, file = file};
         val _ = log 2 ("full_save_path: " ^ full_save_path);
+        val depth = List.length(PolyML.SaveState.showHierarchy());
       in 
          (log 2 ("saving state...");
           log 3 ("previous heaps: ");
@@ -220,7 +221,7 @@ structure Project
              way? *)
           set_latest_heappath (SOME full_save_path);
           PolyML.SaveState.saveChild (full_save_path,
-            List.length(PolyML.SaveState.showHierarchy()));
+            if depth > 200 then 0 else depth); (* don't maintain a heirarchy more than 200 deep *)
           (* this is the latest heap path *)
           log 2 ("saved: " ^ full_save_path))
        end;
