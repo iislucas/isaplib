@@ -8,13 +8,15 @@
     Basic kinds of names and their lifting into FreshNamers.
 
     Requirements: 
-    order must be transitive, and monotomic w.r.t. succ
+    order must be transitive, and monotonic w.r.t. succ
     pred (succ x) = x
     
-    A useful problems to think of: 
+    A useful problem to think of: 
     if "za" = succ("z") and "c7" < "z" then it must be that "c7" < "za"
     standard string-orders (length then alpha, and basic alpha) fail 
     for this notion of succ.
+    
+    AK: if length then alpha, shouldn't c7 be bigger than z?
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)

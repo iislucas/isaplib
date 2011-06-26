@@ -190,7 +190,7 @@ functor BasicNameTabFun(
 
   fun delete n (Tab rep) = 
       Tab{ names = NSet.delete n (#names rep),
-           tab = Tab.delete n (#tab rep) };
+           tab = Tab.delete_safe n (#tab rep) };
 
   fun add' (x as (n,a)) (Tab rep) =
       let val names = #names rep in

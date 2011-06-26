@@ -185,6 +185,8 @@ sig
   val print : T -> unit
 
   val assert_correct : T -> T (* raises if not correct *)
+  
+  val subdivide : int -> T -> T list (* subdivide into N roughly even sets *)
 
 
   (* should never happen *)
@@ -972,6 +974,17 @@ fun forall f ns =
 
 (* {a,b,c,d} => [(a, {b,c,d}), (b, {a,c,d}), (c,{a,b,d}), ... ] *)
 fun pull_each nset = fold (fn n => fn l => (n,delete n nset)::l) nset [];
+
+
+fun subdivide n nset = let
+  val size = ((cardinality nset) div n)
+  fun subdiv []   _ = []
+    | subdiv rest 0 = [of_list rest]
+    | subdiv rest i = let val (l1,l2) = chop size rest
+                      in (of_list l1)::(subdiv l2 (i-1))
+                      end
+in subdiv (list_of nset) (n-1)
+end
 
 (*
 exception stop_exp of unit;
