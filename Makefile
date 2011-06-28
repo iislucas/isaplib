@@ -24,13 +24,16 @@ default: heaps/$(POLYML_ALL_HEAP)
 # make polyml heap
 
 heaps/$(POLYML_SYSTEM_HEAP): $(ML_SYSTEM_FILES)
+	mkdir -p heaps
 	echo 'PolyML.use "ML-Systems/polyml.ML"; PolyML.fullGC (); SaveState.saveState "heaps/$(POLYML_SYSTEM_HEAP)"; OS.Process.exit OS.Process.success;' | $(POLYML)
 
 heaps/$(POLYML_BASIC_HEAP): heaps/$(POLYML_SYSTEM_HEAP) $(ML_BASIC_SRC_FILES)
+	mkdir -p heaps
 	echo 'PolyML.SaveState.loadState "heaps/$(POLYML_SYSTEM_HEAP)"; do_and_exit_or_die (fn () => (cd "basic"; PolyML.use "ROOT.ML"; cd ".."; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_BASIC_HEAP)"));' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_BASIC_HEAP)"
 
 heaps/$(POLYML_ALL_HEAP): $(ML_ALL_FILES) 
+	mkdir -p heaps
 	echo 'use "ROOT.ML"; PolyML.fullGC (); PolyML.SaveState.saveState "heaps/$(POLYML_ALL_HEAP)";' | $(POLYML)
 	@echo "Built polyml heap: $(POLYML_ALL_HEAP)"
 
