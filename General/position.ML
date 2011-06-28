@@ -28,12 +28,15 @@ sig
   val put_id: string -> T -> T
   val of_properties: Properties.T -> T
   val properties_of: T -> Properties.T
+  val def_properties_of: T -> Properties.T
   val default_properties: T -> Properties.T -> Properties.T
   val markup: T -> Markup.T -> Markup.T
   val is_reported: T -> bool
   val reported_text: T -> Markup.T -> string -> string
   val report_text: T -> Markup.T -> string -> unit
   val report: T -> Markup.T -> unit
+  type reports = (T * Markup.T) list
+  val reports: reports Unsynchronized.ref -> T list -> ('a -> Markup.T list) -> 'a -> unit
   val str_of: T -> string
   type range = T * T
   val no_range: range
@@ -140,6 +143,8 @@ fun properties_of (Pos ((i, j, k, l), props)) =
   value Markup.lineN i @ value Markup.columnN j @
   value Markup.offsetN k @ value Markup.end_offsetN l @ props;
 
+val def_properties_of = properties_of #> (map (fn (x, y) => ("def_" ^ x, y)));
+
 fun default_properties default props =
   if exists (member (op =) Markup.position_properties o #1) props then props
   else properties_of default @ props;
@@ -155,6 +160,13 @@ fun reported_text pos m txt = if is_reported pos then Markup.markup (markup pos 
 fun report_text pos markup txt = Output.report (reported_text pos markup txt);
 fun report pos markup = report_text pos markup "";
 
+type reports = (T * Markup.T) list;
+
+fun reports _ [] _ _ = ()
+  | reports (r: reports Unsynchronized.ref) ps markup x =
+      let val ms = markup x
+      in Unsynchronized.change r (fold (fn p => fold (fn m => cons (p, m)) ms) ps) end;
+
 
 (* str_of *)
 
@@ -165,6 +177,7 @@ fun str_of pos =
       (case (line_of pos, file_of pos) of
         (SOME i, NONE) => "(line " ^ string_of_int i ^ ")"
       | (SOME i, SOME name) => "(line " ^ string_of_int i ^ " of " ^ quote name ^ ")"
+      | (NONE, SOME name) => "(" ^ quote name ^ ")"
       | _ => "");
   in
     if null props then ""

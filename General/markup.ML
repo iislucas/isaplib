@@ -16,7 +16,7 @@ sig
   val name: string -> T -> T
   val kindN: string
   val bindingN: string val binding: string -> T
-  val entityN: string val entity: string -> T
+  val entityN: string val entity: string -> string -> T
   val defN: string
   val refN: string
   val lineN: string
@@ -36,15 +36,9 @@ sig
   val hiddenN: string val hidden: T
   val tclassN: string val tclass: string -> T
   val tyconN: string val tycon: string -> T
-  val fixed_declN: string val fixed_decl: string -> T
   val fixedN: string val fixed: string -> T
-  val const_declN: string val const_decl: string -> T
   val constN: string val const: string -> T
-  val fact_declN: string val fact_decl: string -> T
-  val factN: string val fact: string -> T
   val dynamic_factN: string val dynamic_fact: string -> T
-  val local_fact_declN: string val local_fact_decl: string -> T
-  val local_factN: string val local_fact: string -> T
   val tfreeN: string val tfree: T
   val tvarN: string val tvar: T
   val freeN: string val free: T
@@ -53,6 +47,7 @@ sig
   val varN: string val var: T
   val numeralN: string val numeral: T
   val literalN: string val literal: T
+  val delimiterN: string val delimiter: T
   val inner_stringN: string val inner_string: T
   val inner_commentN: string val inner_comment: T
   val token_rangeN: string val token_range: T
@@ -60,8 +55,6 @@ sig
   val typN: string val typ: T
   val termN: string val term: T
   val propN: string val prop: T
-  val attributeN: string val attribute: string -> T
-  val methodN: string val method: string -> T
   val ML_keywordN: string val ML_keyword: T
   val ML_delimiterN: string val ML_delimiter: T
   val ML_identN: string val ML_ident: T
@@ -71,10 +64,9 @@ sig
   val ML_stringN: string val ML_string: T
   val ML_commentN: string val ML_comment: T
   val ML_malformedN: string val ML_malformed: T
-  val ML_defN: string val ML_def: T
-  val ML_openN: string val ML_open: T
-  val ML_structN: string val ML_struct: T
-  val ML_refN: string val ML_ref: T
+  val ML_defN: string
+  val ML_openN: string
+  val ML_structN: string
   val ML_typingN: string val ML_typing: T
   val ML_sourceN: string val ML_source: T
   val doc_sourceN: string val doc_source: T
@@ -100,7 +92,7 @@ sig
   val elapsedN: string
   val cpuN: string
   val gcN: string
-  val timingN: string val timing: timing -> T
+  val timingN: string val timing: Timing.timing -> T
   val subgoalsN: string
   val proof_stateN: string val proof_state: int -> T
   val stateN: string val state: T
@@ -174,7 +166,9 @@ val kindN = "kind";
 (* formal entities *)
 
 val (bindingN, binding) = markup_string "binding" nameN;
-val (entityN, entity) = markup_string "entity" nameN;
+
+val entityN = "entity";
+fun entity kind name = (entityN, [(nameN, name), (kindN, kind)]);
 
 val defN = "def";
 val refN = "ref";
@@ -215,15 +209,9 @@ val (hiddenN, hidden) = markup_elem "hidden";
 
 val (tclassN, tclass) = markup_string "tclass" nameN;
 val (tyconN, tycon) = markup_string "tycon" nameN;
-val (fixed_declN, fixed_decl) = markup_string "fixed_decl" nameN;
 val (fixedN, fixed) = markup_string "fixed" nameN;
-val (const_declN, const_decl) = markup_string "const_decl" nameN;
-val (constN, const) = markup_string "const" nameN;
-val (fact_declN, fact_decl) = markup_string "fact_decl" nameN;
-val (factN, fact) = markup_string "fact" nameN;
+val (constN, const) = markup_string "constant" nameN;
 val (dynamic_factN, dynamic_fact) = markup_string "dynamic_fact" nameN;
-val (local_fact_declN, local_fact_decl) = markup_string "local_fact_decl" nameN;
-val (local_factN, local_fact) = markup_string "local_fact" nameN;
 
 
 (* inner syntax *)
@@ -236,6 +224,7 @@ val (boundN, bound) = markup_elem "bound";
 val (varN, var) = markup_elem "var";
 val (numeralN, numeral) = markup_elem "numeral";
 val (literalN, literal) = markup_elem "literal";
+val (delimiterN, delimiter) = markup_elem "delimiter";
 val (inner_stringN, inner_string) = markup_elem "inner_string";
 val (inner_commentN, inner_comment) = markup_elem "inner_comment";
 
@@ -245,9 +234,6 @@ val (sortN, sort) = markup_elem "sort";
 val (typN, typ) = markup_elem "typ";
 val (termN, term) = markup_elem "term";
 val (propN, prop) = markup_elem "prop";
-
-val (attributeN, attribute) = markup_string "attribute" nameN;
-val (methodN, method) = markup_string "method" nameN;
 
 
 (* ML syntax *)
@@ -262,10 +248,9 @@ val (ML_stringN, ML_string) = markup_elem "ML_string";
 val (ML_commentN, ML_comment) = markup_elem "ML_comment";
 val (ML_malformedN, ML_malformed) = markup_elem "ML_malformed";
 
-val (ML_defN, ML_def) = markup_elem "ML_def";
-val (ML_openN, ML_open) = markup_elem "ML_open";
-val (ML_structN, ML_struct) = markup_elem "ML_struct";
-val (ML_refN, ML_ref) = markup_elem "ML_ref";
+val ML_defN = "ML_def";
+val ML_openN = "ML_open";
+val ML_structN = "ML_struct";
 val (ML_typingN, ML_typing) = markup_elem "ML_typing";
 
 
@@ -312,7 +297,7 @@ val elapsedN = "elapsed";
 val cpuN = "cpu";
 val gcN = "gc";
 
-fun timing ({elapsed, cpu, gc, ...}: timing) =
+fun timing {elapsed, cpu, gc} =
   (timingN,
    [(elapsedN, Time.toString elapsed),
     (cpuN, Time.toString cpu),

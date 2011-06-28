@@ -14,15 +14,14 @@ then ()
 else use "ML-Systems/single_assignment_polyml.ML";
 
 use "ML-Systems/multithreading.ML";
-use "ML-Systems/time_limit.ML";
-use "General/timing.ML";
 use "ML-Systems/ml_pretty.ML";
 use "ML-Systems/use_context.ML";
 
+val seconds = Time.fromReal;
+
+
 
 (** ML system and platform related **)
-
-val forget_structure = PolyML.Compiler.forgetStructure;
 
 val _ = PolyML.Compiler.forgetValue "isSome";
 val _ = PolyML.Compiler.forgetValue "getOpt";
@@ -71,36 +70,6 @@ end;
 val error_depth = PolyML.error_depth;
 
 val ml_make_string = "PolyML.makestring";
-
-
-
-(** interrupts **)
-
-local
-
-val sig_int = 2;
-val default_handler = Signal.SIG_HANDLE (fn _ => Process.interruptConsoleProcesses ());
-
-val _ = Signal.signal (sig_int, default_handler);
-val _ = PolyML.onEntry (fn () => (Signal.signal (sig_int, default_handler); ()));
-
-fun change_signal new_handler f x =
-  let
-    (*RACE wrt. other signals!*)
-    val old_handler = Signal.signal (sig_int, new_handler);
-    val result = Exn.capture (f old_handler) x;
-    val _ = Signal.signal (sig_int, old_handler);
-  in Exn.release result end;
-
-in
-
-fun interruptible f = change_signal default_handler (fn _ => f);
-
-fun uninterruptible f =
-  change_signal Signal.SIG_IGN
-    (fn old_handler => f (fn g => change_signal old_handler (fn _ => g)));
-
-end;
 
 
 

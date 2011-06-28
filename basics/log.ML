@@ -1,15 +1,21 @@
 signature LOG = 
 sig
   (* current level of logging *)
-  val out_level_ref : int Unsynchronized.ref;
+  val level_ref : int Unsynchronized.ref;
+  val stream_ref : TextIO.outstream Unsynchronized.ref;
+
+  val set_log_to_stdout : unit -> unit;
+  val set_log_to_stderr : unit -> unit;
 
   val writeln_to_stream : TextIO.outstream -> string -> unit; 
-  val stdout : string -> unit; 
-  val stderr : string -> unit; 
+  val writeln_to_stdout : string -> unit; 
+  val writeln_to_stderr : string -> unit; 
 
-  (* send this string std-out if log-level is above the int. *)
+  (* log if log-level is above the int. *)
+  val log : int -> string -> unit;
+  (* forced to stdout *)
   val log_stdout : int -> string -> unit;
-  (* send this string std-err if log-level is above the int. *)
+  (* forced to stderr *)
   val log_stderr : int -> string -> unit;
 
   val print : 'a -> unit;
@@ -19,16 +25,24 @@ end;
 functor Log(val level_ref : int Unsynchronized.ref)
 : LOG
 = struct
-  val out_level_ref = Unsynchronized.ref 0;
+  val level_ref = Unsynchronized.ref 0;
+  val stream_ref = Unsynchronized.ref TextIO.stdErr;
 
   fun writeln_to_stream stream s = 
-      (TextIO.output (stream, s); TextIO.flushOut stream);
-  
-  fun stdout s = writeln_to_stream TextIO.stdOut (s ^ "\n");
-  fun stderr s = writeln_to_stream TextIO.stdErr (s ^ "\n");
+      (TextIO.output (stream, s ^ "\n"); TextIO.flushOut stream);
+  fun writeln_to_stdout s = writeln_to_stream TextIO.stdOut s;
+  fun writeln_to_stderr s = writeln_to_stream TextIO.stdErr s;
 
-  fun log_stdout level s = if (!out_level_ref) > level then stdout s else ();
-  fun log_stderr level s = if (!out_level_ref) > level then stderr s else ();
+  fun set_log_to_stdout () = (stream_ref := TextIO.stdOut);
+  fun set_log_to_stderr () = (stream_ref := TextIO.stdErr);
+
+  fun log level s = 
+      if level <= (!level_ref) then writeln_to_stream (!stream_ref) s 
+      else ();
+  fun log_stdout level s = 
+      if level <= (!level_ref) then writeln_to_stdout s else ();
+  fun log_stderr level s = 
+      if level <= (!level_ref) then writeln_to_stderr s else ();
 
   fun print x = (PolyML.print x; ());
 end;

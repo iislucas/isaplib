@@ -34,7 +34,7 @@ struct
 
 (* reserved words *)
 
-val reserved_names = filter Syntax.is_ascii_identifier ML_Lex.keywords;
+val reserved_names = filter Lexicon.is_ascii_identifier ML_Lex.keywords;
 val reserved = Name.make_context reserved_names;
 val is_reserved = Name.is_declared reserved;
 
@@ -42,7 +42,7 @@ val is_reserved = Name.is_declared reserved;
 (* identifiers *)
 
 fun is_identifier name =
-  not (is_reserved name) andalso Syntax.is_ascii_identifier name;
+  not (is_reserved name) andalso Lexicon.is_ascii_identifier name;
 
 
 (* literal output -- unformatted *)
@@ -106,7 +106,7 @@ fun pretty_string max_len str =
         handle Fail _ => Symbol.explode str;
     val body' =
       if length body <= max_len then body
-      else take max_len body @ ["..."];
+      else take (Int.max (max_len, 0)) body @ ["..."];
   in Pretty.str (quote (implode (map print_char body'))) end;
 
 end;

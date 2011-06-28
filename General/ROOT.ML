@@ -13,6 +13,7 @@ PolyML.Project.make "alist.ML";
 PolyML.Project.make "table.ML";
 PolyML.Project.make "output.ML";
 PolyML.Project.make "properties.ML";
+PolyML.Project.make "timing.ML";
 PolyML.Project.make "markup.ML";
 PolyML.Project.make "scan.ML";
 PolyML.Project.make "source.ML";
@@ -37,13 +38,14 @@ PolyML.Project.make "balanced_tree.ML";
 PolyML.Project.make "long_name.ML";
 PolyML.Project.make "graph.ML";
 PolyML.Project.make "binding.ML";
-PolyML.Project.make "name_space.ML";
+
+(*PolyML.Project.make "name_space.ML";*)
 PolyML.Project.make "path.ML";
 PolyML.Project.make "url.ML";
 PolyML.Project.make "buffer.ML";
+PolyML.Project.make "file.ML";
 PolyML.Project.make "xml.ML";
 PolyML.Project.make "yxml.ML";
-PolyML.Project.make "file.ML";
 
 (* from Isabelle/src/General, but loaded late in Isabelle, 
    I've cut out Isabelle term specifics. *)
