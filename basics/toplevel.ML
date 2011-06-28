@@ -3,6 +3,7 @@ val print = PolyML.print;
 (* a bit hacky here, maybe move to library.ML or basics.ML *)
 fun maybef f NONE = NONE
   | maybef f (SOME x) = SOME (f x);
+fun then_try f1 f2 x = (case f1 x of NONE => NONE | SOME x2 => f2 x2);
 
 fun do_and_exit_or_die f = 
     (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
