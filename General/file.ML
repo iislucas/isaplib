@@ -11,15 +11,17 @@ sig
   val shell_path: Path.T -> string
   val cd: Path.T -> unit
   val pwd: unit -> Path.T
-  val full_path: Path.T -> Path.T
+  val full_path: Path.T -> Path.T -> Path.T
   val tmp_path: Path.T -> Path.T
   val exists: Path.T -> bool
-  val check: Path.T -> unit
   val rm: Path.T -> unit
   val is_dir: Path.T -> bool
+  val check_dir: Path.T -> Path.T
+  val check_file: Path.T -> Path.T
   val open_input: (TextIO.instream -> 'a) -> Path.T -> 'a
   val open_output: (TextIO.outstream -> 'a) -> Path.T -> 'a
   val open_append: (TextIO.outstream -> 'a) -> Path.T -> 'a
+  val fold_fields: (char -> bool) -> (string -> 'a -> 'a) -> Path.T -> 'a -> 'a
   val fold_lines: (string -> 'a -> 'a) -> Path.T -> 'a -> 'a
   val read: Path.T -> string
   val write: Path.T -> string -> unit
@@ -51,9 +53,18 @@ val shell_path = shell_quote o platform_path;
 val cd = cd o platform_path;
 val pwd = Path.explode o pwd;
 
-fun full_path path =
-  if Path.is_absolute path then path
-  else Path.append (pwd ()) path;
+
+(* full_path *)
+
+fun full_path dir path =
+  let
+    val path' = Path.expand path;
+    val _ = Path.is_current path' andalso error "Bad file specification";
+    val path'' = Path.append dir path';
+  in
+    if Path.is_absolute path'' then path''
+    else Path.append (pwd ()) path''
+  end;
 
 
 (* tmp_path *)
@@ -66,14 +77,18 @@ fun tmp_path path =
 
 val exists = can OS.FileSys.modTime o platform_path;
 
-fun check path =
-  if exists path then ()
-  else error ("No such file or directory: " ^ quote (Path.implode path));
-
 val rm = OS.FileSys.remove o platform_path;
 
 fun is_dir path =
   the_default false (try OS.FileSys.isDir (platform_path path));
+
+fun check_dir path =
+  if exists path andalso is_dir path then path
+  else error ("No such directory: " ^ Path.print path);
+
+fun check_file path =
+  if exists path andalso not (is_dir path) then path
+  else error ("No such file: " ^ Path.print path);
 
 
 (* open files *)
@@ -96,18 +111,20 @@ end;
 (* input *)
 
 (*scalable iterator -- avoid size limit of TextIO.inputAll, and overhead of many TextIO.inputLine*)
-fun fold_lines f path a = open_input (fn file =>
+fun fold_fields sep f path a = open_input (fn file =>
   let
     fun read buf x =
       (case TextIO.input file of
         "" => (case Buffer.content buf of "" => x | line => f line x)
       | input =>
-          (case String.fields (fn c => c = #"\n") input of
+          (case String.fields sep input of
             [rest] => read (Buffer.add rest buf) x
-          | line :: more => read_lines more (f (Buffer.content (Buffer.add line buf)) x)))
-    and read_lines [rest] x = read (Buffer.add rest Buffer.empty) x
-      | read_lines (line :: more) x = read_lines more (f line x);
+          | field :: more => read_fields more (f (Buffer.content (Buffer.add field buf)) x)))
+    and read_fields [rest] x = read (Buffer.add rest Buffer.empty) x
+      | read_fields (field :: more) x = read_fields more (f field x);
   in read Buffer.empty a end) path;
+
+fun fold_lines f path a = fold_fields (fn c => c = #"\n") f path a;
 
 val read = open_input TextIO.inputAll;
 
