@@ -86,8 +86,12 @@ val set_ignored : nset -> T -> T
 
 val get_avoids : T -> nset (* all used names which can't be clashed with *)
 val get_nmap : T -> name nmap
-(* edit internal mapping *)
+(* edit internal data *)
 val update_nmap : (name nmap -> name nmap) -> T -> T
+val update_avoids : (nset -> nset) -> T -> T
+val update_newnames : (nset -> nset) -> T -> T
+val update_ignored : (nset -> nset) -> T -> T
+
 
 (* internal representation *)
 val constr : {ignore : nset, (* considered to already be renamed, so not renamed again *)
@@ -204,6 +208,19 @@ fun get_avoids (Renaming rep) = (#avoids rep);
 fun get_newnames (Renaming rep) = (#new rep);
 fun get_nmap (Renaming rep) = (#nmap rep);
 fun get_ignored (Renaming rep) = (#ignore rep);
+
+fun update_avoids f (Renaming rep) = 
+    Renaming { avoids = f(#avoids rep),  ignore = #ignore rep,
+               new = #new rep, nmap = #nmap rep };
+fun update_newnames f (Renaming rep) = 
+    Renaming { avoids = #avoids rep,  ignore = #ignore rep,
+               new = f(#new rep), nmap = #nmap rep };
+fun update_nmap f (Renaming rep) = 
+    Renaming { avoids = #avoids rep,  ignore = #ignore rep,
+               new = #new rep, nmap = f(#nmap rep) };
+fun update_ignored f (Renaming rep) = 
+    Renaming { avoids = f(#avoids rep), ignore = f(#ignore rep),
+               new = #new rep, nmap = #nmap rep };
 
 val restrict_to_avoiding = mk_from_avoids o get_avoids;
 

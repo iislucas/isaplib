@@ -78,18 +78,25 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
 (* note: takes time of nset * ln(nset), 
    could be inverted to take time of avoids(rn) * ln(nset) *)
   fun rename rn x = 
-      Nm.NSet.fold 
-        (fn n => fn (rn2,x2) =>
-            case Rnm.rename1 n rn2 of 
-              (NONE, rn3) => (rn3,x2)
-            | (SOME n2, rn3) => 
-              (case CR.try_rename1 n n2 x2 
-                of NONE => 
-                   raise Rnm.invalid_renaming_exp ("compound rename: " ^  
-                     (Nm.string_of_name n) ^ " -> " ^ (Nm.string_of_name n2))
-                 | SOME x3 => (rn3, x3)))
-        (CR.get_nameset x) (rn,x);
-        
+      let val nset = (CR.get_nameset x);
+          val avoids = Rnm.get_avoids rn;
+          val id_names = Nm.NSet.subtract nset avoids;
+          (* first make sure that we set ignore (naming id) on all names not in 
+             the avoid set: avoids us creating a name-crossing renaming (where we'd need to do simultainous substitution) *)
+          val rn = Rnm.update_ignored (Nm.NSet.union_merge id_names) rn;
+      in 
+        Nm.NSet.fold 
+          (fn n => fn (rn2,x2) =>
+              case Rnm.rename1 n rn2 of 
+                (NONE, rn3) => (rn3,x2)
+              | (SOME n2, rn3) => 
+                (case CR.try_rename1 n n2 x2 
+                  of NONE => 
+                     raise Rnm.invalid_renaming_exp ("compound rename: " ^  
+                       (Nm.string_of_name n) ^ " -> " ^ (Nm.string_of_name n2))
+                   | SOME x3 => (rn3, x3)))
+          nset (rn,x)
+      end;
 end;
 
 
