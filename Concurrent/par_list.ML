@@ -16,6 +16,7 @@ Notes:
 
 signature PAR_LIST =
 sig
+  val map_name: string -> ('a -> 'b) -> 'a list -> 'b list
   val map: ('a -> 'b) -> 'a list -> 'b list
   val get_some: ('a -> 'b option) -> 'a list -> 'b option
   val find_some: ('a -> bool) -> 'a list -> 'a option
@@ -26,18 +27,22 @@ end;
 structure Par_List: PAR_LIST =
 struct
 
-fun managed_results f xs =
-  if Multithreading.enabled () andalso not (Multithreading.self_critical ()) then
+fun managed_results name f xs =
+  if null xs orelse null (tl xs) orelse
+      not (Multithreading.enabled ()) orelse Multithreading.self_critical ()
+  then map (Exn.capture f) xs
+  else
     let
-      val shared_group = Task_Queue.new_group (Future.worker_group ());
-      val results =
-        Future.join_results (map (fn x => Future.fork_group shared_group (fn () => f x)) xs)
-          handle exn =>
-            (if Exn.is_interrupt exn then Future.cancel_group shared_group else (); reraise exn);
-    in results end
-  else map (Exn.capture f) xs;
+      val group = Task_Queue.new_group (Future.worker_group ());
+      val futures =
+        Future.forks {name = name, group = SOME group, deps = [], pri = 0}
+          (map (fn x => fn () => f x) xs);
+      val results = Future.join_results futures
+        handle exn => (if Exn.is_interrupt exn then Future.cancel_group group else (); reraise exn);
+    in results end;
 
-fun map f xs = Exn.release_first (managed_results f xs);
+fun map_name name f xs = Exn.release_first (managed_results name f xs);
+fun map f = map_name "Par_List.map" f;
 
 fun get_some f xs =
   let
@@ -45,7 +50,8 @@ fun get_some f xs =
     fun found (Exn.Exn (FOUND some)) = some
       | found _ = NONE;
     val results =
-      managed_results (fn x => (case f x of NONE => () | some => raise FOUND some)) xs;
+      managed_results "Par_List.get_some"
+        (fn x => (case f x of NONE => () | some => raise FOUND some)) xs;
   in
     (case get_first found results of
       SOME y => SOME y

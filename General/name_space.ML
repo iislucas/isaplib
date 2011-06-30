@@ -7,16 +7,8 @@ are considered global; no support for absolute addressing.
 
 type xstring = string;    (*external names*)
 
-signature BASIC_NAME_SPACE =
-sig
-  val long_names: bool Unsynchronized.ref
-  val short_names: bool Unsynchronized.ref
-  val unique_names: bool Unsynchronized.ref
-end;
-
 signature NAME_SPACE =
 sig
-  include BASIC_NAME_SPACE
   val hidden: string -> string
   val is_hidden: string -> bool
   type T
@@ -24,11 +16,20 @@ sig
   val kind_of: T -> string
   val the_entry: T -> string ->
     {concealed: bool, group: serial option, theory_name: string, pos: Position.T, id: serial}
+  val entry_ord: T -> string * string -> order
+  val markup: T -> string -> Markup.T
   val is_concealed: T -> string -> bool
   val intern: T -> xstring -> string
-  val extern_flags: {long_names: bool, short_names: bool, unique_names: bool} ->
-    T -> string -> xstring
-  val extern: T -> string -> xstring
+  val names_long_default: bool Unsynchronized.ref
+  val names_long_raw: Config.raw
+  val names_long: bool Config.T
+  val names_short_default: bool Unsynchronized.ref
+  val names_short_raw: Config.raw
+  val names_short: bool Config.T
+  val names_unique_default: bool Unsynchronized.ref
+  val names_unique_raw: Config.raw
+  val names_unique: bool Config.T
+  val extern: Proof.context -> T -> string -> xstring
   val hide: bool -> string -> T -> T
   val merge: T * T -> T
   type naming
@@ -46,16 +47,18 @@ sig
   val qualified_path: bool -> binding -> naming -> naming
   val transform_binding: naming -> binding -> binding
   val full_name: naming -> binding -> string
-  val declare: bool -> naming -> binding -> T -> string * T
+  val declare: Proof.context -> bool -> naming -> binding -> T -> string * T
   val alias: naming -> binding -> string -> T -> T
   type 'a table = T * 'a Symtab.table
-  val define: bool -> naming -> binding * 'a -> 'a table -> string * 'a table
+  val check: Proof.context -> 'a table -> xstring * Position.T -> string
+  val get: 'a table -> string -> 'a
+  val define: Proof.context -> bool -> naming -> binding * 'a -> 'a table -> string * 'a table
   val empty_table: string -> 'a table
   val merge_tables: 'a table * 'a table -> 'a table
   val join_tables: (string -> 'a * 'a -> 'a) (*Symtab.SAME*) ->
     'a table * 'a table -> 'a table
-  val dest_table: 'a table -> (string * 'a) list
-  val extern_table: 'a table -> (xstring * 'a) list
+  val dest_table: Proof.context -> 'a table -> (string * 'a) list
+  val extern_table: Proof.context -> 'a table -> (xstring * 'a) list
 end;
 
 structure Name_Space: NAME_SPACE =
@@ -79,15 +82,21 @@ type entry =
   pos: Position.T,
   id: serial};
 
-fun str_of_entry def (name, {pos, id, ...}: entry) =
+fun entry_markup def kind (name, {pos, id, ...}: entry) =
   let
-    val occurrence = (if def then Markup.defN else Markup.refN, string_of_int id);
-    val props = occurrence :: Position.properties_of pos;
-  in Markup.markup (Markup.properties props (Markup.entity name)) name end;
+    val props =
+      if def then (Markup.defN, string_of_int id) :: Position.properties_of pos
+      else (Markup.refN, string_of_int id) :: Position.def_properties_of pos;
+  in Markup.properties props (Markup.entity kind name) end;
+
+fun print_entry def kind (name, entry) =
+  quote (Markup.markup (entry_markup def kind (name, entry)) name);
 
 fun err_dup kind entry1 entry2 =
   error ("Duplicate " ^ kind ^ " declaration " ^
-    quote (str_of_entry true entry1) ^ " vs. " ^ quote (str_of_entry true entry2));
+    print_entry true kind entry1 ^ " vs. " ^ print_entry true kind entry2);
+
+fun undefined kind name = "Undefined " ^ kind ^ ": " ^ quote name;
 
 
 (* datatype T *)
@@ -117,6 +126,13 @@ fun the_entry (Name_Space {kind, entries, ...}) name =
     NONE => error ("Unknown " ^ kind ^ " " ^ quote name)
   | SOME (_, entry) => entry);
 
+fun entry_ord space = int_ord o pairself (#id o the_entry space);
+
+fun markup (Name_Space {kind, entries, ...}) name =
+  (case Symtab.lookup entries name of
+    NONE => Markup.hilite
+  | SOME (_, entry) => entry_markup false kind (name, entry));
+
 fun is_concealed space name = #concealed (the_entry space name);
 
 
@@ -144,29 +160,36 @@ fun valid_accesses (Name_Space {internals, ...}) name =
 
 fun intern space xname = #1 (lookup space xname);
 
-fun extern_flags {long_names, short_names, unique_names} space name =
+
+val names_long_default = Unsynchronized.ref false;
+val names_long_raw = Config.declare "names_long" (fn _ => Config.Bool (! names_long_default));
+val names_long = Config.bool names_long_raw;
+
+val names_short_default = Unsynchronized.ref false;
+val names_short_raw = Config.declare "names_short" (fn _ => Config.Bool (! names_short_default));
+val names_short = Config.bool names_short_raw;
+
+val names_unique_default = Unsynchronized.ref true;
+val names_unique_raw = Config.declare "names_unique" (fn _ => Config.Bool (! names_unique_default));
+val names_unique = Config.bool names_unique_raw;
+
+fun extern ctxt space name =
   let
+    val names_long = Config.get ctxt names_long;
+    val names_short = Config.get ctxt names_short;
+    val names_unique = Config.get ctxt names_unique;
+
     fun valid require_unique xname =
       let val (name', is_unique) = lookup space xname
       in name = name' andalso (not require_unique orelse is_unique) end;
 
     fun ext [] = if valid false name then name else hidden name
-      | ext (nm :: nms) = if valid unique_names nm then nm else ext nms;
+      | ext (nm :: nms) = if valid names_unique nm then nm else ext nms;
   in
-    if long_names then name
-    else if short_names then Long_Name.base_name name
+    if names_long then name
+    else if names_short then Long_Name.base_name name
     else ext (get_accesses space name)
   end;
-
-val long_names = Unsynchronized.ref false;
-val short_names = Unsynchronized.ref false;
-val unique_names = Unsynchronized.ref true;
-
-fun extern space name =
-  extern_flags
-   {long_names = ! long_names,
-    short_names = ! short_names,
-    unique_names = ! unique_names} space name;
 
 
 (* modify internals *)
@@ -319,7 +342,7 @@ fun new_entry strict (name, (externals, entry)) =
             err_dup kind (dup, #2 (the (Symtab.lookup entries dup))) (name, entry);
     in (kind, internals, entries') end);
 
-fun declare strict naming binding space =
+fun declare ctxt strict naming binding space =
   let
     val Naming {group, theory_name, ...} = naming;
     val (concealed, spec) = name_spec naming binding;
@@ -328,15 +351,17 @@ fun declare strict naming binding space =
     val name = Long_Name.implode (map fst spec);
     val _ = name = "" andalso err_bad binding;
 
+    val pos = Position.default (Binding.pos_of binding);
     val entry =
      {concealed = concealed,
       group = group,
       theory_name = theory_name,
-      pos = Position.default (Binding.pos_of binding),
+      pos = pos,
       id = serial ()};
     val space' = space
       |> fold (add_name name) accs
       |> new_entry strict (name, (accs', entry));
+    val _ = Context_Position.report ctxt pos (entry_markup true (kind_of space) (name, entry));
   in (name, space') end;
 
 
@@ -349,8 +374,7 @@ fun alias naming binding name space =
       |> fold (add_name name) accs
       |> map_name_space (fn (kind, internals, entries) =>
         let
-          val _ = Symtab.defined entries name orelse
-            error ("Undefined " ^ kind ^ " " ^ quote name);
+          val _ = Symtab.defined entries name orelse error (undefined kind name);
           val entries' = entries
             |> Symtab.map_entry name (fn (externals, entry) =>
               (Library.merge (op =) (externals, accs'), entry))
@@ -363,8 +387,20 @@ fun alias naming binding name space =
 
 type 'a table = T * 'a Symtab.table;
 
-fun define strict naming (binding, x) (space, tab) =
-  let val (name, space') = declare strict naming binding space
+fun check ctxt (space, tab) (xname, pos) =
+  let val name = intern space xname in
+    if Symtab.defined tab name
+    then (Context_Position.report ctxt pos (markup space name); name)
+    else error (undefined (kind_of space) name ^ Position.str_of pos)
+  end;
+
+fun get (space, tab) name =
+  (case Symtab.lookup tab name of
+    SOME x => x
+  | NONE => error (undefined (kind_of space) name));
+
+fun define ctxt strict naming (binding, x) (space, tab) =
+  let val (name, space') = declare ctxt strict naming binding space
   in (name, (space', Symtab.update (name, x) tab)) end;
 
 fun empty_table kind = (empty kind, Symtab.empty);
@@ -375,15 +411,12 @@ fun merge_tables ((space1, tab1), (space2, tab2)) =
 fun join_tables f ((space1, tab1), (space2, tab2)) =
   (merge (space1, space2), Symtab.join f (tab1, tab2));
 
-fun ext_table (space, tab) =
-  Symtab.fold (fn (name, x) => cons ((name, extern space name), x)) tab []
+fun ext_table ctxt (space, tab) =
+  Symtab.fold (fn (name, x) => cons ((name, extern ctxt space name), x)) tab []
   |> Library.sort_wrt (#2 o #1);
 
-fun dest_table tab = map (apfst #1) (ext_table tab);
-fun extern_table tab = map (apfst #2) (ext_table tab);
+fun dest_table ctxt tab = map (apfst #1) (ext_table ctxt tab);
+fun extern_table ctxt tab = map (apfst #2) (ext_table ctxt tab);
 
 end;
-
-structure Basic_Name_Space: BASIC_NAME_SPACE = Name_Space;
-open Basic_Name_Space;
 
