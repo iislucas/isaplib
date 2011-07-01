@@ -49,6 +49,6 @@ run: run-$(POLYML_ALL_HEAP)
 
 clean: 
 	rm -f heaps/*.polyml-heap
-	rm -rf **/.polysave
+	find -type d -name .polysave | xargs rm -rf
 
 #	@if test -e heaps/*.polyml-heap; then rm -f heaps/*.polyml-heap; echo "Removed heaps, now clean."; else echo "No heaps to remove, already clean."; fi
