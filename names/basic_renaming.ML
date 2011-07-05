@@ -86,7 +86,8 @@ val set_ignored : nset -> T -> T
 
 val get_avoids : T -> nset (* all used names which can't be clashed with *)
 val get_nmap : T -> name nmap
-(* edit internal data *)
+(* edit internal data: be careful! you typically need to update avoids as well
+   as ignores or others. Else you can have clash in ignored named. *)
 val update_nmap : (name nmap -> name nmap) -> T -> T
 val update_avoids : (nset -> nset) -> T -> T
 val update_newnames : (nset -> nset) -> T -> T
@@ -230,7 +231,8 @@ val get = NTab.get o get_nmap;
 (* rename an old name *)
 fun rename1 oldn (rn as Renaming rep) = 
     let val ignore = (#ignore rep) in
-      if NSet.contains ignore oldn then (NONE, rn) (* ignore it, already renamed *)
+      (* ignore it, it is already renamed or renaming is the id function *)
+      if NSet.contains ignore oldn then (NONE, rn) 
       else 
         let val nmap = (#nmap rep) in 
           (case NTab.lookup nmap oldn of

@@ -73,7 +73,15 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
         (CR.get_nameset x) x;
 
   fun mk_renaming x rn = 
-      Nm.NSet.fold (snd oo Rnm.rename1) (CR.get_nameset x) rn;
+      let val nset = (CR.get_nameset x);
+          val avoids = Rnm.get_avoids rn;
+          val id_names = Nm.NSet.subtract nset avoids;
+          (* first make sure that we set ignore (naming id) on all names not in 
+             the avoid set: avoids us creating a name-crossing renaming (where we'd need to do simultainous substitution) *)
+          val rn = Rnm.union_ignores id_names rn;
+      in 
+        Nm.NSet.fold (snd oo Rnm.rename1) (CR.get_nameset x) rn
+      end;
 
 (* note: takes time of nset * ln(nset), 
    could be inverted to take time of avoids(rn) * ln(nset) *)
@@ -83,7 +91,7 @@ functor CompoundRenamingFun(CR : COMPOUND_RENAMABLE)
           val id_names = Nm.NSet.subtract nset avoids;
           (* first make sure that we set ignore (naming id) on all names not in 
              the avoid set: avoids us creating a name-crossing renaming (where we'd need to do simultainous substitution) *)
-          val rn = Rnm.update_ignored (Nm.NSet.union_merge id_names) rn;
+          val rn = Rnm.union_ignores id_names rn;
       in 
         Nm.NSet.fold 
           (fn n => fn (rn2,x2) =>
