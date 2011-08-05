@@ -172,7 +172,7 @@ structure Project
   fun apply_from_file path_to_file f x = 
       let val {dir, file} = OS.Path.splitDirFile path_to_file;
           val _ = set_current_filename (SOME path_to_file);
-          val result = apply_from_dir dir PolyML.use file;
+          val result = apply_from_dir dir f file;
           val _ = set_current_filename NONE;
       in result end;
 
@@ -194,11 +194,20 @@ structure Project
         val save_dir = OS.Path.concat (dir, get_save_subdir_name ());
         val save_file = 
             OS.Path.joinBaseExt { base = file, ext = SOME save_postfix };
-      in OS.Path.joinDirFile {dir = save_dir, file = save_file } end;
+      in OS.Path.joinDirFile { dir = save_dir, file = save_file } end;
 
   val pre_savepath_of = savepath_of_filepath "save";
   val post_savepath_of = savepath_of_filepath "save2";
 
+  fun string_of_save_hierarchy () = 
+      let 
+        val l = PolyML.SaveState.showHierarchy();
+        val size = length l;
+        val l' = if size >= 5 
+                 then (List.take (l,2)) @ ["..."] @ (List.drop (l,size - 2))
+                 else l
+      in (List.foldr (fn (x,y) => " * "^x^"\n"^y) (" Total heapsize: " ^ (Int.toString size)) l') end;
+  
   (* saves the child state in the given path, returns true if it saved a new 
      state; returns false is it wasn't needed (state newer than last edit 
      was found.) *)
@@ -214,8 +223,7 @@ structure Project
       in 
          (log 2 ("saving state...");
           log 3 ("previous heaps: ");
-          log 3 (List.foldr (fn (x,y) => " * "^x^"\n"^y) ""
-                           (PolyML.SaveState.showHierarchy()));
+          log 3 (string_of_save_hierarchy ());
           (* save child heap; note save path is full, needed so later save
              paths can find this one. TODO: think about this, better (relative) 
              way? *)
@@ -323,7 +331,7 @@ structure Project
           log 2 ("unmodified."); ())
     else
       ((* else if old state was also Changed, then no need to load heap as ML is already at the latest state (we compiled the last file). But otherwise, nothing has been loaded yet, so we need to make sure that we have the latest heap loaded before using compiling this file... *)
-       if state_is_Changed () then () else ensure_at_latest_heap();
+       if state_is_Changed () then () else ensure_at_latest_heap ();
        save_project_child_state preuse_save_path;
        log 2 ("using file...");
        basic_use path_to_file; 
