@@ -50,6 +50,9 @@ signature ML_PROJECT = sig
      does nothing more call depend_on_file. *)
   val make : string -> unit; 
 
+  (* only makes the file is it exists. Useful for loading config files etc. *)
+  val optional_make : string -> unit;
+  
   (* save a child heap state to this file-name.  *)
   val save_project_child_state : string -> unit;
   (* Given a filename, get the pre-save and post-save filenames for it *)
@@ -67,7 +70,7 @@ signature ML_PROJECT = sig
 
   (* name of subdirectory in which .save files are stored. *)
   val save_subdir_name_ref : string Unsynchronized.ref;
-
+  
   (* true when state is unchanged or at an edit-time before the given time
      argument: i.e. if time is heap-timestamp, we can load the heap rather than
      recompile the file that made the heap. *)
@@ -341,7 +344,13 @@ structure Project
        ())
     (* handle IO.Io d => raise IO.Io d; *)
   end;
+  
+  
+  (* optional make; for config files etc, which may not actually exist. *)
+  fun optional_make path_to_file =
+      if exists_in_filesys path_to_file then make path_to_file else ();
 
+  
   fun onload load = 
     let val s = !save_subdir_name_ref;
         val st = !state_ref;
