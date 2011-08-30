@@ -321,13 +321,14 @@ structure Project
     val preuse_save_path = pre_savepath_of path_to_file
     val postuse_save_path = post_savepath_of path_to_file
     (* logging for debugging *)
-    val _ = log 2 ("path_to_file: " ^ path_to_file ^ " : "
-      ^ (Time.toString (OS.FileSys.modTime path_to_file)));
+    fun logPath name path = 
+          (log 2 (name ^ ": " ^ path ^ " ("
+      ^ (Time.toString (OS.FileSys.modTime path)) ^ ")")
+	handle OS.SysErr _ => log 2 (name ^ ": " ^ path ^ " (mtime not available)"));
+    val _ = logPath "path_to_file" path_to_file;
     val _ = log 2 ("old state: " ^ (string_of_state oldstate));
-    val _ = log 2 ("preuse_save_path: " ^ preuse_save_path ^ " : " 
-      ^ (Time.toString (OS.FileSys.modTime preuse_save_path)));
-    val _ = log 2 ("postuse_save_path: " ^ postuse_save_path  ^ " : "
-      ^ (Time.toString (OS.FileSys.modTime postuse_save_path)));
+    val _ = logPath "preuse_save_path" preuse_save_path;
+    val _ = logPath "postuse_save_path" postuse_save_path;
   in
     (* If file is unedited since last compilation then... *)
     if heap_is_newer_than_edits preuse_save_path
