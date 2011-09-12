@@ -3,9 +3,7 @@
 (* Boot-stapping code, to make sure project is loaded *)
 use "ML-Systems/polyml.ML";
 use "basics/log.ML";
-cd "project";
-use "ROOT.ML";
-cd "..";
+use "project/ROOT.ML";
 
 (* For debugging Project turn on logging: 
    PolyML.Project.Log.level_ref := 5; 
@@ -21,12 +19,11 @@ PolyML.Project.depend_on_files
    "ML-Systems/compiler_polyml-5.3.ML",
    "General/exn.ML",
    "ML-Systems/multithreading.ML",
-   "ML-Systems/time_limit.ML",
    "General/timing.ML",
    "ML-Systems/ml_pretty.ML",
    "ML-Systems/use_context.ML",
 
-   (* isaplib bootsrapping *)
+   (* isaplib bootsrapping: log and project *)
    "basics/log.ML",
    "project/ROOT.ML",
    "project/project.ML",
@@ -35,10 +32,67 @@ PolyML.Project.depend_on_files
    "ROOT.ML"
   ];
 
-PolyML.Project.use_root "General/ROOT.ML";
-PolyML.Project.use_root "Concurrent/ROOT.ML";
+(* from Isabelle/src/Pure/Generic *)
+PolyML.Project.make "General/basics.ML";
+(* from Isabelle/src/Pure *)
+PolyML.Project.make "basics/library.ML";
+
+(* Global version variable *)
+val version = "Isabelle/IsaPlanner Library";
+
+(* from Isabelle/src/Pure/Generic *)
+PolyML.Project.make "General/print_mode.ML";
+PolyML.Project.make "General/alist.ML";
+PolyML.Project.make "General/table.ML";
+PolyML.Project.make "General/properties.ML";
+
+(* from Isabelle/src/Pure/Concurrent *)
+PolyML.Project.make "Concurrent/simple_thread.ML";
+PolyML.Project.make "Concurrent/synchronized.ML";
+
+(* from Isabelle/src/Pure/Generic *)
+PolyML.Project.make "General/output.ML";
+PolyML.Project.make "General/timing.ML";
+PolyML.Project.make "General/markup.ML";
+PolyML.Project.make "General/scan.ML";
+PolyML.Project.make "General/source.ML";
+PolyML.Project.make "General/symbol.ML";
+PolyML.Project.make "General/seq.ML";
+PolyML.Project.make "General/position.ML";
+PolyML.Project.make "General/symbol_pos.ML";
+PolyML.Project.make "General/integer.ML";
+PolyML.Project.make "General/stack.ML";
+PolyML.Project.make "General/queue.ML";
+PolyML.Project.make "General/heap.ML";
+PolyML.Project.make "General/ord_list.ML";
+PolyML.Project.make "General/balanced_tree.ML";
+PolyML.Project.make "General/long_name.ML";
+PolyML.Project.make "General/graph.ML";
+PolyML.Project.make "General/pretty.ML";
+PolyML.Project.make "General/binding.ML";
+PolyML.Project.make "General/path.ML";
+PolyML.Project.make "General/url.ML";
+PolyML.Project.make "General/buffer.ML";
+PolyML.Project.make "General/file.ML";
+PolyML.Project.make "General/xml.ML";
+PolyML.Project.make "General/yxml.ML";
+
+(* from Isabelle/src/Pure/Concurrent *)
+PolyML.Project.make "Concurrent/mailbox.ML";
+PolyML.Project.make "Concurrent/task_queue.ML";
+PolyML.Project.make "Concurrent/single_assignment.ML";
+PolyML.Project.make "Concurrent/future.ML";
+PolyML.Project.make "Concurrent/par_list.ML";
+
+(* Other IsapLib Special stuff: names and graphs *)
 PolyML.Project.use_root "names/ROOT.ML";
 PolyML.Project.use_root "graph/ROOT.ML";
+
+(* Other basic top level things *)
+PolyML.Project.make "basics/collection.ML";
+PolyML.Project.make "basics/polym_table.ML";
+PolyML.Project.make "basics/toplevel.ML";
+
 (* PolyML.Project.use_root "parser/ROOT.ML"; *)
 
 if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap" then () 
