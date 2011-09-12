@@ -257,7 +257,8 @@ structure Project
        | EditAtTime t => 
          (case Time.compare (t2,t) of LESS => () | EQUAL => () 
           | GREATER => set_state_edittime t2));
-  fun depend_on_file s = add_state_edittime (OS.FileSys.modTime s);
+  fun depend_on_file s = add_state_edittime (OS.FileSys.modTime s) 
+        handle e => (log 0 ("Failed to read file: " ^ s); raise e); 
   fun depend_on_files l = List.foldr (fn (s,()) => depend_on_file s) () l;
 
   fun state_edited_before t2 =
