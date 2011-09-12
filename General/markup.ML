@@ -398,3 +398,7 @@ fun markup m =
 fun markup_only m = markup m "";
 
 end;
+
+(* Copied from Isabelle loading code *)
+fun legacy_feature s = warning (Markup.markup Markup.legacy ("Legacy feature! " ^ s));
+

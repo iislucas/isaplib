@@ -26,8 +26,8 @@ PolyML.Project.depend_on_files
 
    (* isaplib bootsrapping: log and project *)
    "basics/log.ML",
-   "project/ROOT.ML",
    "project/project.ML",
+   "project/testing.ML",
 
    (* this file *)
    "ROOT.ML"
@@ -69,21 +69,18 @@ PolyML.Project.make "General/ord_list.ML";
 PolyML.Project.make "General/balanced_tree.ML";
 PolyML.Project.make "General/long_name.ML";
 PolyML.Project.make "General/graph.ML";
+PolyML.Project.make "General/buffer.ML";
 PolyML.Project.make "General/pretty.ML";
 PolyML.Project.make "General/binding.ML";
 PolyML.Project.make "General/path.ML";
 PolyML.Project.make "General/url.ML";
-PolyML.Project.make "General/buffer.ML";
 PolyML.Project.make "General/file.ML";
 PolyML.Project.make "General/xml.ML";
 PolyML.Project.make "General/yxml.ML";
 
-(* from Isabelle/src/Pure/Concurrent *)
-PolyML.Project.make "Concurrent/mailbox.ML";
-PolyML.Project.make "Concurrent/task_queue.ML";
-PolyML.Project.make "Concurrent/single_assignment.ML";
-PolyML.Project.make "Concurrent/future.ML";
-PolyML.Project.make "Concurrent/par_list.ML";
+(* from Isabelle/src/Pure/Concurrent; this is the main stuff loaded in 
+   Pure/ROOT.ML *)
+PolyML.Project.make "Concurrent/ROOT.ML";
 
 (* Other IsapLib Special stuff: names and graphs *)
 PolyML.Project.use_root "names/ROOT.ML";
