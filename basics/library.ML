@@ -28,7 +28,7 @@ sig
   val funpow: int -> ('a -> 'a) -> 'a -> 'a
   val funpow_yield: int -> ('a -> 'b * 'a) -> 'a -> 'b list * 'a
 
-  (*errors*)
+  (*user errors*)
   exception ERROR of string
   val error: string -> 'a
   val cat_error: string -> string -> 'a
@@ -211,13 +211,17 @@ sig
     'a -> 'b -> 'c * 'b
   val partition_eq: ('a * 'a -> bool) -> 'a list -> 'a list list
   val partition_list: (int -> 'a -> bool) -> int -> int -> 'a list -> 'a list list
-  val gensym: string -> string
+  val legacy_gensym: string -> string
   type stamp = unit Unsynchronized.ref
   val stamp: unit -> stamp
   type serial = int
   val serial: unit -> serial
   val serial_string: unit -> string
   structure Object: sig type T = exn end
+  val cd: string -> unit
+  val pwd: unit -> string
+  val getenv: string -> string
+  val getenv_strict: string -> string
 end;
 
 signature LIBRARY =
@@ -256,7 +260,7 @@ fun funpow_yield (0 : int) _ x = ([], x)
   | funpow_yield n f x = x |> f ||>> funpow_yield (n - 1) f |>> op ::;
 
 
-(* errors *)
+(* user errors *)
 
 exception ERROR of string;
 fun error msg = raise ERROR msg;
@@ -904,7 +908,8 @@ val int_ord = Int.compare;
 val string_ord = String.compare;
 
 fun fast_string_ord (s1, s2) =
-  (case int_ord (size s1, size s2) of EQUAL => string_ord (s1, s2) | ord => ord);
+  if pointer_eq (s1, s2) then EQUAL
+  else (case int_ord (size s1, size s2) of EQUAL => string_ord (s1, s2) | ord => ord);
 
 fun option_ord ord (SOME x, SOME y) = ord (x, y)
   | option_ord _ (NONE, NONE) = EQUAL
@@ -954,7 +959,7 @@ fun sort ord = quicksort false ord;
 fun sort_distinct ord = quicksort true ord;
 
 val sort_strings = sort string_ord;
-fun sort_wrt sel xs = sort (string_ord o pairself sel) xs;
+fun sort_wrt key xs = sort (string_ord o pairself key) xs;
 
 
 (* items tagged by integer index *)
@@ -1043,9 +1048,8 @@ fun partition_eq (eq: 'a * 'a -> bool) =
 
 
 
-(* generating identifiers *)
+(* generating identifiers -- often fresh *)
 
-(** Freshly generated identifiers; supplied prefix MUST start with a letter **)
 local
 (*Maps 0-61 to A-Z, a-z, 0-9; exclude _ or ' to avoid clash with internal/unusual indentifiers*)
 fun gensym_char i =
@@ -1059,8 +1063,8 @@ fun newid n = implode (map (fn i => Vector.sub (char_vec, i)) (radixpand (62, n)
 val gensym_seed = Unsynchronized.ref (0: int);
 
 in
-  fun gensym pre =
-    pre ^ newid (NAMED_CRITICAL "gensym" (fn () => Unsynchronized.inc gensym_seed));
+  fun legacy_gensym pre =
+    pre ^ newid (NAMED_CRITICAL "legacy_gensym" (fn () => Unsynchronized.inc gensym_seed));
 end;
 
 
@@ -1079,6 +1083,25 @@ val serial_string = string_of_int o serial;
 (*note that the builtin exception datatype may be extended by new
   constructors at any time*)
 structure Object = struct type T = exn end;
+
+
+(* current directory *)
+
+val cd = OS.FileSys.chDir;
+val pwd = OS.FileSys.getDir;
+
+
+(* getenv *)
+
+fun getenv x =
+  (case OS.Process.getEnv x of
+    NONE => ""
+  | SOME y => y);
+
+fun getenv_strict x =
+  (case getenv x of
+    "" => error ("Undefined Isabelle environment variable: " ^ quote x)
+  | y => y);
 
 end;
 

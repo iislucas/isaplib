@@ -3,7 +3,8 @@
 (* Boot-stapping code, to make sure project is loaded *)
 use "ML-Systems/polyml.ML";
 use "basics/log.ML";
-use "project/ROOT.ML";
+use "project/project.ML";
+use "project/testing.ML";
 
 (* For debugging Project turn on logging: 
    PolyML.Project.Log.level_ref := 5; 

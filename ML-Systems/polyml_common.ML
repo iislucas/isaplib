@@ -41,7 +41,7 @@ PolyML.Compiler.maxInlineSize := 80;
 
 (* old Poly/ML emulation *)
 
-fun quit () = exit 0;
+fun quit () = OS.Process.exit OS.Process.success;
 
 
 (* restore old-style character / string functions *)

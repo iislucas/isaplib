@@ -31,5 +31,6 @@ use "ML-Systems/compiler_polyml-5.2.ML";
 use "ML-Systems/pp_polyml.ML";
 use "ML-Systems/pp_dummy.ML";
 
-use "ML-Systems/ml_system.ML";
+(* gets ML_SYSTEM env variable.
+use "ML-Systems/ml_system.ML"; *)
 
