@@ -9,7 +9,6 @@ sig
   val writeln: string -> unit
   val tracing: string -> unit
   val warning: string -> unit
-  val legacy_feature: string -> unit
 end;
 
 signature OUTPUT =
@@ -22,25 +21,28 @@ sig
   val output_width: string -> output * int
   val output: string -> output
   val escape: output -> string
-  val raw_stdout: output -> unit
-  val raw_stderr: output -> unit
-  val raw_writeln: output -> unit
+  val physical_stdout: output -> unit
+  val physical_stderr: output -> unit
+  val physical_writeln: output -> unit
   structure Private_Hooks:
   sig
     val writeln_fn: (output -> unit) Unsynchronized.ref
     val urgent_message_fn: (output -> unit) Unsynchronized.ref
     val tracing_fn: (output -> unit) Unsynchronized.ref
     val warning_fn: (output -> unit) Unsynchronized.ref
-    val error_fn: (output -> unit) Unsynchronized.ref
+    val error_fn: (serial * output -> unit) Unsynchronized.ref
     val prompt_fn: (output -> unit) Unsynchronized.ref
     val status_fn: (output -> unit) Unsynchronized.ref
     val report_fn: (output -> unit) Unsynchronized.ref
+    val raw_message_fn: (Properties.T -> output -> unit) Unsynchronized.ref
   end
   val urgent_message: string -> unit
+  val error_msg': serial * string -> unit
   val error_msg: string -> unit
   val prompt: string -> unit
   val status: string -> unit
   val report: string -> unit
+  val raw_message: Properties.T -> string -> unit
 end;
 
 structure Output: OUTPUT =
@@ -55,12 +57,13 @@ fun default_escape (s: output) = s;
 
 local
   val default = {output = default_output, escape = default_escape};
-  val modes = Unsynchronized.ref (Symtab.make [("", default)]);
+  val modes = Synchronized.var "Output.modes" (Symtab.make [("", default)]);
 in
-  fun add_mode name output escape = CRITICAL (fn () =>
-    Unsynchronized.change modes (Symtab.update_new (name, {output = output, escape = escape})));
+  fun add_mode name output escape =
+    Synchronized.change modes (Symtab.update_new (name, {output = output, escape = escape}));
   fun get_mode () =
-    the_default default (Library.get_first (Symtab.lookup (! modes)) (print_mode_value ()));
+    the_default default
+      (Library.get_first (Symtab.lookup (Synchronized.value modes)) (print_mode_value ()));
 end;
 
 fun output_width x = #output (get_mode ()) x;
@@ -74,37 +77,40 @@ fun escape x = #escape (get_mode ()) x;
 
 (* raw output primitives -- not to be used in user-space *)
 
-fun raw_stdout s = (TextIO.output (TextIO.stdOut, s); TextIO.flushOut TextIO.stdOut);
-fun raw_stderr s = (TextIO.output (TextIO.stdErr, s); TextIO.flushOut TextIO.stdErr);
+fun physical_stdout s = (TextIO.output (TextIO.stdOut, s); TextIO.flushOut TextIO.stdOut);
+fun physical_stderr s = (TextIO.output (TextIO.stdErr, s); TextIO.flushOut TextIO.stdErr);
 
-fun raw_writeln "" = ()
-  | raw_writeln s = raw_stdout (suffix "\n" s);  (*atomic output!*)
+fun physical_writeln "" = ()
+  | physical_writeln s = physical_stdout (suffix "\n" s);  (*atomic output!*)
 
 
 (* Isabelle output channels *)
 
 structure Private_Hooks =
 struct
-  val writeln_fn = Unsynchronized.ref raw_writeln;
+  val writeln_fn = Unsynchronized.ref physical_writeln;
   val urgent_message_fn = Unsynchronized.ref (fn s => ! writeln_fn s);
   val tracing_fn = Unsynchronized.ref (fn s => ! writeln_fn s);
-  val warning_fn = Unsynchronized.ref (raw_stdout o suffix "\n" o prefix_lines "### ");
-  val error_fn = Unsynchronized.ref (raw_stdout o suffix "\n" o prefix_lines "*** ");
-  val prompt_fn = Unsynchronized.ref raw_stdout;
-  val status_fn = Unsynchronized.ref (fn _: string => ());
-  val report_fn = Unsynchronized.ref (fn _: string => ());
+  val warning_fn = Unsynchronized.ref (physical_stdout o suffix "\n" o prefix_lines "### ");
+  val error_fn =
+    Unsynchronized.ref (fn (_: serial, s) => physical_stdout (suffix "\n" (prefix_lines "*** " s)));
+  val prompt_fn = Unsynchronized.ref physical_stdout;
+  val status_fn = Unsynchronized.ref (fn _: output => ());
+  val report_fn = Unsynchronized.ref (fn _: output => ());
+  val raw_message_fn: (Properties.T -> output -> unit) Unsynchronized.ref =
+    Unsynchronized.ref (fn _ => fn _ => raise Fail "Output.raw_message undefined in TTY mode");
 end;
 
 fun writeln s = ! Private_Hooks.writeln_fn (output s);
 fun urgent_message s = ! Private_Hooks.urgent_message_fn (output s);
 fun tracing s = ! Private_Hooks.tracing_fn (output s);
 fun warning s = ! Private_Hooks.warning_fn (output s);
-fun error_msg s = ! Private_Hooks.error_fn (output s);
+fun error_msg' (i, s) = ! Private_Hooks.error_fn (i, output s);
+fun error_msg s = error_msg' (serial (), s);
 fun prompt s = ! Private_Hooks.prompt_fn (output s);
 fun status s = ! Private_Hooks.status_fn (output s);
 fun report s = ! Private_Hooks.report_fn (output s);
-
-fun legacy_feature s = warning ("Legacy feature! " ^ s);
+fun raw_message props s = ! Private_Hooks.raw_message_fn props (output s);
 
 end;
 

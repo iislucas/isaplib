@@ -47,8 +47,8 @@ fun timed_access (Var {name, lock, cond, var}) time_limit f =
           (case f x of
             NONE =>
               (case Multithreading.sync_wait NONE (time_limit x) cond lock of
-                Exn.Result true => try_change ()
-              | Exn.Result false => NONE
+                Exn.Res true => try_change ()
+              | Exn.Res false => NONE
               | Exn.Exn exn => reraise exn)
           | SOME (y, x') =>
               uninterruptible (fn _ => fn () =>
@@ -71,11 +71,11 @@ end;
 
 fun counter () =
   let
-    val counter = var "counter" 0;
+    val counter = var "counter" (0: int);
     fun next () =
       change_result counter
         (fn i =>
-          let val j = i + 1
+          let val j = i + (1: int)
           in (j, j) end);
   in next end;
 

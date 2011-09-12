@@ -1,8 +1,9 @@
-(*  Title:      Pure/General/yxml.ML
+(*  Title:      Pure/PIDE/yxml.ML
     Author:     Makarius
 
 Efficient text representation of XML trees using extra characters X
-and Y -- no escaping, may nest marked text verbatim.
+and Y -- no escaping, may nest marked text verbatim.  Suitable for
+direct inlining into plain text.
 
 Markup <elem att="val" ...>...body...</elem> is encoded as:
 
@@ -15,13 +16,16 @@ Markup <elem att="val" ...>...body...</elem> is encoded as:
 
 signature YXML =
 sig
-  val escape_controls: string -> string
+  val X: Symbol.symbol
+  val Y: Symbol.symbol
+  val embed_controls: string -> string
+  val detect: string -> bool
   val output_markup: Markup.T -> string * string
   val element: string -> XML.attributes -> string list -> string
+  val string_of_body: XML.body -> string
   val string_of: XML.tree -> string
   val parse_body: string -> XML.body
   val parse: string -> XML.tree
-  val parse_file: (XML.tree -> 'a -> 'a) -> Path.T -> 'a -> 'a
 end;
 
 structure YXML: YXML =
@@ -36,7 +40,7 @@ fun pseudo_utf8 c =
   then chr 192 ^ chr (128 + ord c)
   else c;
 
-fun escape_controls str =
+fun embed_controls str =
   if exists_string Symbol.is_ascii_control str
   then translate_string pseudo_utf8 str
   else str;
@@ -44,10 +48,12 @@ fun escape_controls str =
 
 (* markers *)
 
-val X = Symbol.ENQ;
-val Y = Symbol.ACK;
+val X = chr 5;
+val Y = chr 6;
 val XY = X ^ Y;
 val XYX = XY ^ X;
+
+val detect = exists_string (fn s => s = X orelse s = Y);
 
 
 (* output *)
@@ -60,17 +66,20 @@ fun element name atts body =
   let val (pre, post) = output_markup (name, atts)
   in pre ^ implode body ^ post end;
 
-fun string_of t =
+fun string_of_body body =
   let
     fun attrib (a, x) =
       Buffer.add Y #>
       Buffer.add a #> Buffer.add "=" #> Buffer.add x;
     fun tree (XML.Elem ((name, atts), ts)) =
           Buffer.add XY #> Buffer.add name #> fold attrib atts #> Buffer.add X #>
-          fold tree ts #>
+          trees ts #>
           Buffer.add XYX
-      | tree (XML.Text s) = Buffer.add s;
-  in Buffer.empty |> tree t |> Buffer.content end;
+      | tree (XML.Text s) = Buffer.add s
+    and trees ts = fold tree ts;
+  in Buffer.empty |> trees body |> Buffer.content end;
+
+val string_of = string_of_body o single;
 
 
 
@@ -107,7 +116,6 @@ fun push "" _ _ = err_element ()
 fun pop ((("", _), _) :: _) = err_unbalanced ""
   | pop ((markup, body) :: pending) = add (XML.Elem (markup, rev body)) pending;
 
-val stack_init = [(("", []), [])];
 
 (* parsing *)
 
@@ -121,16 +129,10 @@ fun parse_chunk ["", ""] = pop
   | parse_chunk ("" :: name :: atts) = push name (map parse_attrib atts)
   | parse_chunk txts = fold (add o XML.Text) txts;
 
-fun preparse_chunk _ "" x = x
-  | preparse_chunk f str (pending, results) =
-      (case parse_chunk (String.fields (is_char Y) str) pending of
-        [(("", _), [result])] => (stack_init, f result results)
-      | x => (x, results));
-
 in
 
 fun parse_body source =
-  (case fold parse_chunk (split_string source) stack_init of
+  (case fold parse_chunk (split_string source) [(("", []), [])] of
     [(("", _), result)] => rev result
   | ((name, _), _) :: _ => err_unbalanced name);
 
@@ -139,13 +141,6 @@ fun parse source =
     [result] => result
   | [] => XML.Text ""
   | _ => err "multiple results");
-
-(*folds a function over each XML.Tree in the file*)
-fun parse_file f path s =
-  (case File.fold_fields (is_char X) (preparse_chunk f)
-      path (stack_init, s) of
-    ([(("", _), [])], result) => result
-  | (((name, _), _) :: _, _) => err_unbalanced name);
 
 end;
 

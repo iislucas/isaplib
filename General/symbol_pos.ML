@@ -11,15 +11,17 @@ sig
   val $$$ : Symbol.symbol -> T list -> T list * T list
   val ~$$$ : Symbol.symbol -> T list -> T list * T list
   val content: T list -> string
-  val untabify_content: T list -> string
   val is_eof: T -> bool
   val stopper: T Scan.stopper
-  val !!! : string -> (T list -> 'a) -> T list -> 'a
+  val !!! : Scan.message -> (T list -> 'a) -> T list -> 'a
   val change_prompt: ('a -> 'b) -> 'a -> 'b
   val scan_pos: T list -> Position.T * T list
   val scan_string_q: T list -> (Position.T * (T list * Position.T)) * T list
   val scan_string_qq: T list -> (Position.T * (T list * Position.T)) * T list
   val scan_string_bq: T list -> (Position.T * (T list * Position.T)) * T list
+  val quote_string_q: string -> string
+  val quote_string_qq: string -> string
+  val quote_string_bq: string -> string
   val scan_comment: (string -> (T list -> T list * T list) -> T list -> T list * T list) ->
     T list -> T list * T list
   val scan_comment_body: (string -> (T list -> T list * T list) -> T list -> T list * T list) ->
@@ -42,21 +44,7 @@ type T = Symbol.symbol * Position.T;
 
 fun symbol ((s, _): T) = s;
 
-
-(* content *)
-
 val content = implode o map symbol;
-
-
-val tab_width = (8: int);
-
-fun untabify ("\t", pos) =
-      (case Position.column_of pos of
-        SOME n => Symbol.spaces (tab_width - ((n - 1) mod tab_width))
-      | NONE => Symbol.space)
-  | untabify (s, _) = s;
-
-val untabify_content = implode o map untabify;
 
 
 (* stopper *)
@@ -77,9 +65,9 @@ fun !!! text scan =
     fun get_pos [] = " (past end-of-text!)"
       | get_pos ((_, pos) :: _) = Position.str_of pos;
 
-    fun err (syms, msg) =
-      text ^ get_pos syms ^ " at " ^ Symbol.beginning 10 (map symbol syms) ^
-      (case msg of NONE => "" | SOME s => "\n" ^ s);
+    fun err (syms, msg) = fn () =>
+      text () ^ get_pos syms ^ " at " ^ Symbol.beginning 10 (map symbol syms) ^
+      (case msg of NONE => "" | SOME m => "\n" ^ m ());
   in Scan.!! err scan end;
 
 fun change_prompt scan = Scan.prompt "# " scan;
@@ -90,7 +78,7 @@ fun ~$$$ s = Scan.one (fn x => symbol x <> s) >> single;
 val scan_pos = Scan.ahead (Scan.one (K true)) >> (fn (_, pos): T => pos);
 
 
-(* Isabelle strings *)
+(* scan string literals *)
 
 local
 
@@ -103,11 +91,11 @@ val char_code =
     in if n <= 255 then Scan.succeed [(chr n, pos)] else Scan.fail end);
 
 fun scan_str q =
-  $$$ "\\" |-- !!! "bad escape character in string" ($$$ q || $$$ "\\" || char_code) ||
+  $$$ "\\" |-- !!! (fn () => "bad escape character in string") ($$$ q || $$$ "\\" || char_code) ||
   Scan.one (fn (s, _) => s <> q andalso s <> "\\" andalso Symbol.is_regular s) >> single;
 
 fun scan_strs q =
-  (scan_pos --| $$$ q) -- !!! "missing quote at end of string"
+  (scan_pos --| $$$ q) -- !!! (fn () => "missing quote at end of string")
     (change_prompt ((Scan.repeat (scan_str q) >> flat) -- ($$$ q |-- scan_pos)));
 
 in
@@ -115,6 +103,29 @@ in
 val scan_string_q = scan_strs "'";
 val scan_string_qq = scan_strs "\"";
 val scan_string_bq = scan_strs "`";
+
+end;
+
+
+(* quote string literals *)
+
+local
+
+fun char_code i =
+  (if i < 10 then "00" else if i < 100 then "0" else "") ^ string_of_int i;
+
+fun quote_str q s =
+  if Symbol.is_ascii_control s then "\\" ^ char_code (ord s)
+  else if s = q orelse s = "\\" then "\\" ^ s
+  else s;
+
+fun quote_string q = enclose q q o implode o map (quote_str q) o Symbol.explode;
+
+in
+
+val quote_string_q = quote_string "'";
+val quote_string_qq = quote_string "\"";
+val quote_string_bq = quote_string "`";
 
 end;
 

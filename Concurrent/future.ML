@@ -1,19 +1,15 @@
 (*  Title:      Pure/Concurrent/future.ML
     Author:     Makarius
 
-Future values, see also
+Value-oriented parallelism via futures and promises.  See also
 http://www4.in.tum.de/~wenzelm/papers/parallel-isabelle.pdf
 http://www4.in.tum.de/~wenzelm/papers/parallel-ml.pdf
 
 Notes:
 
   * Futures are similar to delayed evaluation, i.e. delay/force is
-    generalized to fork/join (and variants).  The idea is to model
-    parallel value-oriented computations, but *not* communicating
-    processes.
-
-  * Futures are grouped; failure of one group member causes the whole
-    group to be interrupted eventually.  Groups are block-structured.
+    generalized to fork/join.  The idea is to model parallel
+    value-oriented computations (not communicating processes).
 
   * Forked futures are evaluated spontaneously by a farm of worker
     threads in the background; join resynchronizes the computation and
@@ -21,44 +17,61 @@ Notes:
 
   * The pool of worker threads is limited, usually in correlation with
     the number of physical cores on the machine.  Note that allocation
-    of runtime resources is distorted either if workers yield CPU time
-    (e.g. via system sleep or wait operations), or if non-worker
+    of runtime resources may be distorted either if workers yield CPU
+    time (e.g. via system sleep or wait operations), or if non-worker
     threads contend for significant runtime resources independently.
+    There is a limited number of replacement worker threads that get
+    activated in certain explicit wait conditions.
 
-  * Promised futures are fulfilled by external means.  There is no
-    associated evaluation task, but other futures can depend on them
-    as usual.
+  * Future tasks are organized in groups, which are block-structured.
+    When forking a new new task, the default is to open an individual
+    subgroup, unless some common group is specified explicitly.
+    Failure of one group member causes the immediate peers to be
+    interrupted eventually (i.e. none by default).  Interrupted tasks
+    that lack regular result information, will pick up parallel
+    exceptions from the cumulative group context (as Par_Exn).
+
+  * Future task groups may be canceled: present and future group
+    members will be interrupted eventually.
+
+  * Promised "passive" futures are fulfilled by external means.  There
+    is no associated evaluation task, but other futures can depend on
+    them via regular join operations.
 *)
 
 signature FUTURE =
 sig
-  val worker_task: unit -> Task_Queue.task option
-  val worker_group: unit -> Task_Queue.group option
-  val worker_subgroup: unit -> Task_Queue.group
+  type task = Task_Queue.task
+  type group = Task_Queue.group
+  val new_group: group option -> group
+  val worker_task: unit -> task option
+  val worker_group: unit -> group option
+  val worker_subgroup: unit -> group
   type 'a future
-  val task_of: 'a future -> Task_Queue.task
+  val task_of: 'a future -> task
   val peek: 'a future -> 'a Exn.result option
   val is_finished: 'a future -> bool
-  val forks:
-    {name: string, group: Task_Queue.group option, deps: Task_Queue.task list, pri: int} ->
-      (unit -> 'a) list -> 'a future list
+  val interruptible_task: ('a -> 'b) -> 'a -> 'b
+  val cancel_group: group -> task list
+  val cancel: 'a future -> task list
+  type params = {name: string, group: group option, deps: task list, pri: int, interrupts: bool}
+  val default_params: params
+  val forks: params -> (unit -> 'a) list -> 'a future list
   val fork_pri: int -> (unit -> 'a) -> 'a future
   val fork: (unit -> 'a) -> 'a future
   val join_results: 'a future list -> 'a Exn.result list
   val join_result: 'a future -> 'a Exn.result
+  val joins: 'a future list -> 'a list
   val join: 'a future -> 'a
+  val join_tasks: task list -> unit
+  val value_result: 'a Exn.result -> 'a future
   val value: 'a -> 'a future
+  val cond_forks: params -> (unit -> 'a) list -> 'a future list
   val map: ('a -> 'b) -> 'a future -> 'b future
-  val cond_forks:
-    {name: string, group: Task_Queue.group option, deps: Task_Queue.task list, pri: int} ->
-      (unit -> 'a) list -> 'a future list
-  val promise_group: Task_Queue.group -> 'a future
-  val promise: unit -> 'a future
+  val promise_group: group -> (unit -> unit) -> 'a future
+  val promise: (unit -> unit) -> 'a future
   val fulfill_result: 'a future -> 'a Exn.result -> unit
   val fulfill: 'a future -> 'a -> unit
-  val interruptible_task: ('a -> 'b) -> 'a -> 'b
-  val cancel_group: Task_Queue.group -> unit
-  val cancel: 'a future -> unit
   val shutdown: unit -> unit
   val status: (unit -> 'a) -> 'a
 end;
@@ -68,18 +81,22 @@ struct
 
 (** future values **)
 
+type task = Task_Queue.task;
+type group = Task_Queue.group;
+val new_group = Task_Queue.new_group;
+
+
 (* identifiers *)
 
 local
-  val tag = Universal.tag () : Task_Queue.task option Universal.tag;
+  val tag = Universal.tag () : task option Universal.tag;
 in
   fun worker_task () = the_default NONE (Thread.getLocal tag);
-  fun setmp_worker_task data f x =
-    Library.setmp_thread_data tag (worker_task ()) (SOME data) f x;
+  fun setmp_worker_task task f x = setmp_thread_data tag (worker_task ()) (SOME task) f x;
 end;
 
 val worker_group = Option.map Task_Queue.group_of_task o worker_task;
-fun worker_subgroup () = Task_Queue.new_group (worker_group ());
+fun worker_subgroup () = new_group (worker_group ());
 
 fun worker_joining e =
   (case worker_task () of
@@ -98,7 +115,7 @@ type 'a result = 'a Exn.result Single_Assignment.var;
 
 datatype 'a future = Future of
  {promised: bool,
-  task: Task_Queue.task,
+  task: task,
   result: 'a result};
 
 fun task_of (Future {task, ...}) = task;
@@ -106,19 +123,6 @@ fun result_of (Future {result, ...}) = result;
 
 fun peek x = Single_Assignment.peek (result_of x);
 fun is_finished x = is_some (peek x);
-
-fun assign_result group result res =
-  let
-    val _ = Single_Assignment.assign result res
-      handle exn as Fail _ =>
-        (case Single_Assignment.peek result of
-          SOME (Exn.Exn e) => reraise (if Exn.is_interrupt e then e else exn)
-        | _ => reraise exn);
-    val ok =
-      (case the (Single_Assignment.peek result) of
-        Exn.Exn exn => (Task_Queue.cancel_group group exn; false)
-      | Exn.Result _ => true);
-  in ok end;
 
 
 
@@ -160,7 +164,7 @@ end;
 val queue = Unsynchronized.ref Task_Queue.empty;
 val next = Unsynchronized.ref 0;
 val scheduler = Unsynchronized.ref (NONE: Thread.thread option);
-val canceled = Unsynchronized.ref ([]: Task_Queue.group list);
+val canceled = Unsynchronized.ref ([]: group list);
 val do_shutdown = Unsynchronized.ref false;
 val max_workers = Unsynchronized.ref 0;
 val max_active = Unsynchronized.ref 0;
@@ -173,32 +177,38 @@ fun count_workers state = (*requires SYNCHRONIZED*)
   fold (fn (_, state_ref) => fn i => if ! state_ref = state then i + 1 else i) (! workers) 0;
 
 
-(* execute future jobs *)
-
-fun future_job group (e: unit -> 'a) =
-  let
-    val result = Single_Assignment.var "future" : 'a result;
-    val pos = Position.thread_data ();
-    fun job ok =
-      let
-        val res =
-          if ok then
-            Exn.capture (fn () =>
-              Multithreading.with_attributes Multithreading.private_interrupts
-                (fn _ => Position.setmp_thread_data pos e ()) before
-              Multithreading.interrupted ()) ()
-          else Exn.interrupt_exn;
-      in assign_result group result res end;
-  in (result, job) end;
+(* cancellation primitives *)
 
 fun cancel_now group = (*requires SYNCHRONIZED*)
-  Task_Queue.cancel (! queue) group;
+  let
+    val (tasks, threads) = Task_Queue.cancel (! queue) group;
+    val _ = List.app Simple_Thread.interrupt_unsynchronized threads;
+  in tasks end;
+
+fun cancel_all () = (*requires SYNCHRONIZED*)
+  let
+    val (groups, threads) = Task_Queue.cancel_all (! queue);
+    val _ = List.app Simple_Thread.interrupt_unsynchronized threads;
+  in groups end;
 
 fun cancel_later group = (*requires SYNCHRONIZED*)
  (Unsynchronized.change canceled (insert Task_Queue.eq_group group);
   broadcast scheduler_event);
 
-fun execute (task, jobs) =
+fun interruptible_task f x =
+  (if Multithreading.available then
+    Multithreading.with_attributes
+      (if is_some (worker_task ())
+       then Multithreading.private_interrupts
+       else Multithreading.public_interrupts)
+      (fn _ => f x)
+   else interruptible f x)
+  before Multithreading.interrupted ();
+
+
+(* worker threads *)
+
+fun worker_exec (task, jobs) =
   let
     val group = Task_Queue.group_of_task task;
     val valid = not (Task_Queue.is_canceled group);
@@ -208,24 +218,22 @@ fun execute (task, jobs) =
           fold (fn job => fn ok => job valid andalso ok) jobs true) ());
     val _ = Multithreading.tracing 2 (fn () =>
       let
-        val s = Task_Queue.str_of_task task;
+        val s = Task_Queue.str_of_task_groups task;
         fun micros time = string_of_int (Time.toNanoseconds time div 1000);
         val (run, wait, deps) = Task_Queue.timing_of_task task;
       in "TASK " ^ s ^ " " ^ micros run ^ " " ^ micros wait ^ " (" ^ commas deps ^ ")" end);
     val _ = SYNCHRONIZED "finish" (fn () =>
       let
         val maximal = Unsynchronized.change_result queue (Task_Queue.finish task);
+        val test = Exn.capture Multithreading.interrupted ();
         val _ =
-          if ok then ()
-          else if cancel_now group then ()
+          if ok andalso not (Exn.is_interrupt_exn test) then ()
+          else if null (cancel_now group) then ()
           else cancel_later group;
         val _ = broadcast work_finished;
         val _ = if maximal then () else signal work_available;
       in () end);
   in () end;
-
-
-(* worker threads *)
 
 fun worker_wait active cond = (*requires SYNCHRONIZED*)
   let
@@ -253,7 +261,7 @@ fun worker_next () = (*requires SYNCHRONIZED*)
 fun worker_loop name =
   (case SYNCHRONIZED name (fn () => worker_next ()) of
     NONE => ()
-  | SOME work => (execute work; worker_loop name));
+  | SOME work => (worker_exec work; worker_loop name));
 
 fun worker_start name = (*requires SYNCHRONIZED*)
   Unsynchronized.change workers (cons (Simple_Thread.fork false (fn () => worker_loop name),
@@ -331,7 +339,7 @@ fun scheduler_next () = (*requires SYNCHRONIZED*)
     val _ =
       if mm = 0 orelse ! worker_trend > 50 orelse ! worker_trend < ~50 then
         max_workers := mm
-      else if ! worker_trend > 5 andalso ! max_workers < 2 * m then
+      else if ! worker_trend > 5 andalso ! max_workers < 2 * m orelse ! max_workers = 0 then
         max_workers := Int.min (mm, 2 * m)
       else ();
 
@@ -354,7 +362,7 @@ fun scheduler_next () = (*requires SYNCHRONIZED*)
       else
        (Multithreading.tracing 1 (fn () =>
           string_of_int (length (! canceled)) ^ " canceled groups");
-        Unsynchronized.change canceled (filter_out cancel_now);
+        Unsynchronized.change canceled (filter_out (null o cancel_now));
         broadcast_work ());
 
 
@@ -374,16 +382,16 @@ fun scheduler_next () = (*requires SYNCHRONIZED*)
   handle exn =>
     if Exn.is_interrupt exn then
      (Multithreading.tracing 1 (fn () => "Interrupt");
-      List.app cancel_later (Task_Queue.cancel_all (! queue));
+      List.app cancel_later (cancel_all ());
       broadcast_work (); true)
     else reraise exn;
 
 fun scheduler_loop () =
-  while
+ (while
     Multithreading.with_attributes
       (Multithreading.sync_interrupts Multithreading.public_interrupts)
       (fn _ => SYNCHRONIZED "scheduler" (fn () => scheduler_next ()))
-  do ();
+  do (); last_round := Time.zeroTime);
 
 fun scheduler_active () = (*requires SYNCHRONIZED*)
   (case ! scheduler of NONE => false | SOME thread => Thread.isActive thread);
@@ -397,9 +405,63 @@ fun scheduler_check () = (*requires SYNCHRONIZED*)
 
 (** futures **)
 
+(* cancel *)
+
+fun cancel_group group = SYNCHRONIZED "cancel_group" (fn () =>
+  let
+    val running = cancel_now group;
+    val _ =
+      if null running then ()
+      else (cancel_later group; signal work_available; scheduler_check ());
+  in running end);
+
+fun cancel x = cancel_group (Task_Queue.group_of_task (task_of x));
+
+
+(* future jobs *)
+
+fun assign_result group result raw_res =
+  let
+    val res =
+      (case raw_res of
+        Exn.Exn exn => Exn.Exn (#2 (Par_Exn.serial exn))
+      | _ => raw_res);
+    val _ = Single_Assignment.assign result res
+      handle exn as Fail _ =>
+        (case Single_Assignment.peek result of
+          SOME (Exn.Exn e) => reraise (if Exn.is_interrupt e then e else exn)
+        | _ => reraise exn);
+    val ok =
+      (case the (Single_Assignment.peek result) of
+        Exn.Exn exn =>
+          (SYNCHRONIZED "cancel" (fn () => Task_Queue.cancel_group group exn); false)
+      | Exn.Res _ => true);
+  in ok end;
+
+fun future_job group interrupts (e: unit -> 'a) =
+  let
+    val result = Single_Assignment.var "future" : 'a result;
+    val pos = Position.thread_data ();
+    fun job ok =
+      let
+        val res =
+          if ok then
+            Exn.capture (fn () =>
+              Multithreading.with_attributes
+                (if interrupts
+                 then Multithreading.private_interrupts else Multithreading.no_interrupts)
+                (fn _ => Position.setmp_thread_data pos e ())) ()
+          else Exn.interrupt_exn;
+      in assign_result group result res end;
+  in (result, job) end;
+
+
 (* fork *)
 
-fun forks {name, group, deps, pri} es =
+type params = {name: string, group: group option, deps: task list, pri: int, interrupts: bool};
+val default_params: params = {name = "", group = NONE, deps = [], pri = 0, interrupts = true};
+
+fun forks ({name, group, deps, pri, interrupts}: params) es =
   if null es then []
   else
     let
@@ -409,7 +471,7 @@ fun forks {name, group, deps, pri} es =
         | SOME grp => grp);
       fun enqueue e queue =
         let
-          val (result, job) = future_job grp e;
+          val (result, job) = future_job grp interrupts e;
           val (task, queue') = Task_Queue.enqueue name grp deps pri job queue;
           val future = Future {promised = false, task = task, result = result};
         in (future, queue') end;
@@ -424,7 +486,9 @@ fun forks {name, group, deps, pri} es =
         in futures end)
     end;
 
-fun fork_pri pri e = singleton (forks {name = "", group = NONE, deps = [], pri = pri}) e;
+fun fork_pri pri e =
+  (singleton o forks) {name = "fork", group = NONE, deps = [], pri = pri, interrupts = true} e;
+
 fun fork e = fork_pri 0 e;
 
 
@@ -437,9 +501,9 @@ fun get_result x =
     NONE => Exn.Exn (Fail "Unfinished future")
   | SOME res =>
       if Exn.is_interrupt_exn res then
-        (case Exn.flatten_list (Task_Queue.group_status (Task_Queue.group_of_task (task_of x))) of
-          [] => res
-        | exns => Exn.Exn (Exn.EXCEPTIONS exns))
+        (case Task_Queue.group_status (Task_Queue.group_of_task (task_of x)) of
+          NONE => res
+        | SOME exn => Exn.Exn exn)
       else res);
 
 fun join_next deps = (*requires SYNCHRONIZED*)
@@ -452,7 +516,8 @@ fun join_next deps = (*requires SYNCHRONIZED*)
     | (SOME work, deps') => SOME (work, deps'));
 
 fun execute_work NONE = ()
-  | execute_work (SOME (work, deps')) = (worker_joining (fn () => execute work); join_work deps')
+  | execute_work (SOME (work, deps')) =
+      (worker_joining (fn () => worker_exec work); join_work deps')
 and join_work deps =
   Multithreading.with_attributes Multithreading.no_interrupts
     (fn _ => execute_work (SYNCHRONIZED "join" (fn () => join_next deps)));
@@ -472,24 +537,38 @@ fun join_results xs =
 end;
 
 fun join_result x = singleton join_results x;
+fun joins xs = Par_Exn.release_all (join_results xs);
 fun join x = Exn.release (join_result x);
 
+fun join_tasks [] = ()
+  | join_tasks tasks =
+      (singleton o forks)
+        {name = "join_tasks", group = SOME (new_group NONE),
+          deps = tasks, pri = 0, interrupts = false} I
+      |> join;
 
-(* fast-path versions -- bypassing full task management *)
 
-fun value (x: 'a) =
+(* fast-path versions -- bypassing task queue *)
+
+fun value_result (res: 'a Exn.result) =
   let
     val task = Task_Queue.dummy_task ();
     val group = Task_Queue.group_of_task task;
     val result = Single_Assignment.var "value" : 'a result;
-    val _ = assign_result group result (Exn.Result x);
+    val _ = assign_result group result res;
   in Future {promised = false, task = task, result = result} end;
+
+fun value x = value_result (Exn.Res x);
+
+fun cond_forks args es =
+  if Multithreading.enabled () then forks args es
+  else map (fn e => value_result (Exn.interruptible_capture e ())) es;
 
 fun map_future f x =
   let
     val task = task_of x;
-    val group = Task_Queue.new_group (SOME (Task_Queue.group_of_task task));
-    val (result, job) = future_job group (fn () => f (join x));
+    val group = new_group (SOME (Task_Queue.group_of_task task));
+    val (result, job) = future_job group true (fn () => f (join x));
 
     val extended = SYNCHRONIZED "extend" (fn () =>
       (case Task_Queue.extend task job (! queue) of
@@ -498,32 +577,32 @@ fun map_future f x =
   in
     if extended then Future {promised = false, task = task, result = result}
     else
-      singleton
-        (forks {name = "Future.map", group = SOME group,
-          deps = [task], pri = Task_Queue.pri_of_task task})
+      (singleton o cond_forks)
+        {name = "map_future", group = SOME group, deps = [task],
+          pri = Task_Queue.pri_of_task task, interrupts = true}
         (fn () => f (join x))
   end;
-
-fun cond_forks args es =
-  if Multithreading.enabled () then forks args es
-  else map (fn e => value (e ())) es;
 
 
 (* promised futures -- fulfilled by external means *)
 
-fun promise_group group : 'a future =
+fun promise_group group abort : 'a future =
   let
     val result = Single_Assignment.var "promise" : 'a result;
-    fun abort () = assign_result group result Exn.interrupt_exn
+    fun assign () = assign_result group result Exn.interrupt_exn
       handle Fail _ => true
         | exn =>
-            if Exn.is_interrupt exn then raise Fail "Concurrent attempt to fulfill promise"
+            if Exn.is_interrupt exn
+            then raise Fail "Concurrent attempt to fulfill promise"
             else reraise exn;
+    fun job () =
+      Multithreading.with_attributes Multithreading.no_interrupts
+        (fn _ => assign () before abort ());
     val task = SYNCHRONIZED "enqueue_passive" (fn () =>
-      Unsynchronized.change_result queue (Task_Queue.enqueue_passive group abort));
+      Unsynchronized.change_result queue (Task_Queue.enqueue_passive group job));
   in Future {promised = true, task = task, result = result} end;
 
-fun promise () = promise_group (worker_subgroup ());
+fun promise abort = promise_group (worker_subgroup ()) abort;
 
 fun fulfill_result (Future {promised, task, result}) res =
   if not promised then raise Fail "Not a promised future"
@@ -538,32 +617,13 @@ fun fulfill_result (Future {promised, task, result}) res =
               SYNCHRONIZED "fulfill_result" (fn () =>
                 Unsynchronized.change_result queue
                   (Task_Queue.dequeue_passive (Thread.self ()) task));
-          in if still_passive then execute (task, [job]) else () end);
+          in if still_passive then worker_exec (task, [job]) else () end);
       val _ =
         if is_some (Single_Assignment.peek result) then ()
         else worker_waiting [task] (fn () => ignore (Single_Assignment.await result));
     in () end;
 
-fun fulfill x res = fulfill_result x (Exn.Result res);
-
-
-(* cancellation *)
-
-fun interruptible_task f x =
-  if Multithreading.available then
-    Multithreading.with_attributes
-      (if is_some (worker_task ())
-       then Multithreading.private_interrupts
-       else Multithreading.public_interrupts)
-      (fn _ => f x)
-  else interruptible f x;
-
-(*cancel: present and future group members will be interrupted eventually*)
-fun cancel_group group = SYNCHRONIZED "cancel" (fn () =>
- (if cancel_now group then () else cancel_later group;
-  signal work_available; scheduler_check ()));
-
-fun cancel x = cancel_group (Task_Queue.group_of_task (task_of x));
+fun fulfill x res = fulfill_result x (Exn.Res res);
 
 
 (* shutdown *)
@@ -584,9 +644,9 @@ fun status e =
       (case worker_task () of
         NONE => I
       | SOME task => Markup.properties [(Markup.taskN, Task_Queue.str_of_task task)]);
-    val _ = Output.status (Markup.markup (task_props Markup.forked) "");
+    val _ = Output.status (Markup.markup_only (task_props Markup.forked));
     val x = e ();  (*sic -- report "joined" only for success*)
-    val _ = Output.status (Markup.markup (task_props Markup.joined) "");
+    val _ = Output.status (Markup.markup_only (task_props Markup.joined));
   in x end;
 
 

@@ -3,10 +3,13 @@
 Compatibility file for Standard ML of New Jersey 110 or later.
 *)
 
+use "ML-Systems/proper_int.ML";
+
 exception Interrupt;
 fun reraise exn = raise exn;
+fun set_exn_serial (_: int) (exn: exn) = exn;
+fun get_exn_serial (exn: exn) : int option = NONE;
 
-use "ML-Systems/proper_int.ML";
 use "ML-Systems/overloading_smlnj.ML";
 use "General/exn.ML";
 use "ML-Systems/single_assignment.ML";
@@ -159,19 +162,5 @@ end;
 
 use "ML-Systems/unsynchronized.ML";
 
+use "ML-Systems/ml_system.ML";
 
-
-(** OS related **)
-
-(* current directory *)
-
-val cd = OS.FileSys.chDir;
-val pwd = OS.FileSys.getDir;
-
-
-(* getenv *)
-
-fun getenv var =
-  (case OS.Process.getEnv var of
-    NONE => ""
-  | SOME txt => txt);

@@ -30,11 +30,10 @@ val _ = PolyML.Compiler.forgetValue "foldl";
 val _ = PolyML.Compiler.forgetValue "foldr";
 val _ = PolyML.Compiler.forgetValue "print";
 val _ = PolyML.Compiler.forgetValue "explode";
+val _ = PolyML.Compiler.forgetValue "concat";
 
 
 (* Compiler options *)
-
-val ml_system_fix_ints = false;
 
 PolyML.Compiler.printInAlphabeticalOrder := false;
 PolyML.Compiler.maxInlineSize := 80;
@@ -42,7 +41,7 @@ PolyML.Compiler.maxInlineSize := 80;
 
 (* old Poly/ML emulation *)
 
-fun quit () = OS.Process.exit OS.Process.success;
+fun quit () = exit 0;
 
 
 (* restore old-style character / string functions *)
@@ -70,23 +69,6 @@ end;
 val error_depth = PolyML.error_depth;
 
 val ml_make_string = "PolyML.makestring";
-
-
-
-(** OS related **)
-
-(* current directory *)
-
-val cd = OS.FileSys.chDir;
-val pwd = OS.FileSys.getDir;
-
-
-(* getenv *)
-
-fun getenv var =
-  (case OS.Process.getEnv var of
-    NONE => ""
-  | SOME txt => txt);
 
 
 

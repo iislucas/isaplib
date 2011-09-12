@@ -16,6 +16,7 @@ Notes:
 
 signature PAR_LIST =
 sig
+  val managed_results: string -> ('a -> 'b) -> 'a list -> 'b Exn.result list
   val map_name: string -> ('a -> 'b) -> 'a list -> 'b list
   val map: ('a -> 'b) -> 'a list -> 'b list
   val get_some: ('a -> 'b option) -> 'a list -> 'b option
@@ -33,15 +34,16 @@ fun managed_results name f xs =
   then map (Exn.capture f) xs
   else
     let
-      val group = Task_Queue.new_group (Future.worker_group ());
+      val group = Future.new_group (Future.worker_group ());
       val futures =
-        Future.forks {name = name, group = SOME group, deps = [], pri = 0}
+        Future.forks {name = name, group = SOME group, deps = [], pri = 0, interrupts = true}
           (map (fn x => fn () => f x) xs);
       val results = Future.join_results futures
-        handle exn => (if Exn.is_interrupt exn then Future.cancel_group group else (); reraise exn);
+        handle exn =>
+          (if Exn.is_interrupt exn then ignore (Future.cancel_group group) else (); reraise exn);
     in results end;
 
-fun map_name name f xs = Exn.release_first (managed_results name f xs);
+fun map_name name f xs = Par_Exn.release_first (managed_results name f xs);
 fun map f = map_name "Par_List.map" f;
 
 fun get_some f xs =
@@ -55,7 +57,7 @@ fun get_some f xs =
   in
     (case get_first found results of
       SOME y => SOME y
-    | NONE => (Exn.release_first results; NONE))
+    | NONE => (Par_Exn.release_first results; NONE))
   end;
 
 fun find_some P = get_some (fn x => if P x then SOME x else NONE);

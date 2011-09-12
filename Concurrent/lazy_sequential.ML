@@ -23,7 +23,9 @@ fun peek (Lazy r) =
   | Result res => SOME res);
 
 fun lazy e = Lazy (Unsynchronized.ref (Expr e));
-fun value a = Lazy (Unsynchronized.ref (Result (Exn.Result a)));
+fun value a = Lazy (Unsynchronized.ref (Result (Exn.Res a)));
+
+fun is_finished x = is_some (peek x);
 
 
 (* force result *)
@@ -38,6 +40,14 @@ fun force_result (Lazy r) =
   in result end;
 
 fun force r = Exn.release (force_result r);
+fun map f x = lazy (fn () => f (force x));
+
+
+(* future evaluation *)
+
+fun future params x =
+  if is_finished x then Future.value_result (force_result x)
+  else (singleton o Future.forks) params (fn () => force x);
 
 end;
 end;

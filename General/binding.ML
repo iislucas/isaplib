@@ -24,12 +24,11 @@ sig
   val qualify: bool -> string -> binding -> binding
   val qualified: bool -> string -> binding -> binding
   val qualified_name: string -> binding
-  val qualified_name_of: binding -> string
   val prefix_of: binding -> (string * bool) list
   val map_prefix: ((string * bool) list -> (string * bool) list) -> binding -> binding
   val prefix: bool -> string -> binding -> binding
   val conceal: binding -> binding
-  val str_of: binding -> string
+  val pretty: binding -> Pretty.T
   val print: binding -> string
   val bad: binding -> string
   val check: binding -> unit
@@ -100,10 +99,6 @@ fun qualified_name "" = empty
       let val (qualifier, name) = split_last (Long_Name.explode s)
       in make_binding (false, [], map (rpair false) qualifier, name, Position.none) end;
 
-fun qualified_name_of (b as Binding {qualifier, name, ...}) =
-  if is_empty b then ""
-  else Long_Name.implode (map #1 qualifier @ [name]);
-
 
 (* system prefix *)
 
@@ -126,11 +121,12 @@ val conceal =
 
 (* print *)
 
-fun str_of binding =
-  qualified_name_of binding
-  |> Markup.markup (Position.markup (pos_of binding) (Markup.binding (name_of binding)));
+fun pretty (Binding {prefix, qualifier, name, pos, ...}) =
+  Pretty.markup (Position.markup pos Markup.binding)
+    [Pretty.str (Long_Name.implode (map #1 (prefix @ qualifier) @ [name]))]
+  |> Pretty.quote;
 
-val print = quote o str_of;
+val print = Pretty.str_of o pretty;
 
 
 (* check *)

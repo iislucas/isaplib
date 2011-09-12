@@ -10,10 +10,13 @@ signature LAZY =
 sig
   type 'a lazy
   val peek: 'a lazy -> 'a Exn.result option
+  val is_finished: 'a lazy -> bool
   val lazy: (unit -> 'a) -> 'a lazy
   val value: 'a -> 'a lazy
   val force_result: 'a lazy -> 'a Exn.result
   val force: 'a lazy -> 'a
+  val map: ('a -> 'b) -> 'a lazy -> 'b lazy
+  val future: Future.params -> 'a lazy -> 'a future
 end;
 
 structure Lazy: LAZY =
@@ -36,6 +39,8 @@ fun peek (Lazy var) =
 fun lazy e = Lazy (Synchronized.var "lazy" (Expr e));
 fun value a = Lazy (Synchronized.var "lazy" (Result (Future.value a)));
 
+fun is_finished x = is_some (peek x);
+
 
 (* force result *)
 
@@ -48,7 +53,7 @@ fun force_result (Lazy var) =
           val (expr, x) =
             Synchronized.change_result var
               (fn Expr e =>
-                    let val x = Future.promise ()
+                    let val x = Future.promise I
                     in ((SOME e, x), Result x) end
                 | Result x => ((NONE, x), Result x));
         in
@@ -68,9 +73,19 @@ fun force_result (Lazy var) =
           | NONE => Exn.capture (restore_attributes (fn () => Future.join x)) ())
         end) ());
 
-fun force r = Exn.release (force_result r);
 
 end;
+
+fun force r = Exn.release (force_result r);
+fun map f x = lazy (fn () => f (force x));
+
+
+(* future evaluation *)
+
+fun future params x =
+  if is_finished x then Future.value_result (force_result x)
+  else (singleton o Future.forks) params (fn () => force x);
+
 end;
 
 type 'a lazy = 'a Lazy.lazy;

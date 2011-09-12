@@ -7,10 +7,7 @@ Generalized characters with infinitely many named symbols.
 signature SYMBOL =
 sig
   type symbol = string
-  val SOH: symbol
   val STX: symbol
-  val ENQ: symbol
-  val ACK: symbol
   val DEL: symbol
   val space: symbol
   val spaces: int -> string
@@ -43,7 +40,7 @@ sig
   val encode_raw: string -> string
   datatype sym =
     Char of string | UTF8 of string | Sym of string | Ctrl of string | Raw of string |
-    Malformed of string
+    Malformed of string | EOF
   val decode: symbol -> sym
   datatype kind = Letter | Digit | Quasi | Blank | Other
   val kind: symbol -> kind
@@ -89,10 +86,7 @@ struct
 
 type symbol = string;
 
-val SOH = chr 1;
 val STX = chr 2;
-val ENQ = chr 5;
-val ACK = chr 6;
 val DEL = chr 127;
 
 val space = chr 32;
@@ -157,7 +151,7 @@ fun is_ascii_quasi "_" = true
   | is_ascii_quasi _ = false;
 
 val is_ascii_blank =
-  fn " " => true | "\t" => true | "\n" => true | "\^K" => true | "\^L" => true | "\^M" => true
+  fn " " => true | "\t" => true | "\n" => true | "\^K" => true | "\f" => true | "\^M" => true
     | _ => false;
 
 fun is_ascii_control s = is_char s andalso ord s < 32 andalso not (is_ascii_blank s);
@@ -222,10 +216,11 @@ fun decode_raw s =
 
 datatype sym =
   Char of string | UTF8 of string | Sym of string | Ctrl of string | Raw of string |
-  Malformed of string;
+  Malformed of string | EOF;
 
 fun decode s =
-  if is_char s then Char s
+  if s = "" then EOF
+  else if is_char s then Char s
   else if is_utf8 s then UTF8 s
   else if is_raw s then Raw (decode_raw s)
   else if is_malformed s then Malformed s
@@ -409,13 +404,13 @@ fun is_ident [] = false
 
 fun scanner msg scan chs =
   let
-    fun message (cs, NONE) = msg ^ ": " ^ quote (beginning 10 cs)
-      | message (cs, SOME msg') = msg ^ ", " ^ msg' ^ ": " ^ quote (beginning 10 cs);
+    fun message (cs, NONE) = (fn () => msg ^ ": " ^ quote (beginning 10 cs))
+      | message (cs, SOME msg') = (fn () => msg ^ ", " ^ msg' () ^ ": " ^ quote (beginning 10 cs));
     val fin_scan = Scan.error (Scan.finite stopper (!! message scan));
   in
     (case fin_scan chs of
       (result, []) => result
-    | (_, rest) => error (message (rest, NONE)))
+    | (_, rest) => error (message (rest, NONE) ()))
   end;
 
 val scan_id = Scan.one is_letter ^^ (Scan.many is_letdig >> implode);
