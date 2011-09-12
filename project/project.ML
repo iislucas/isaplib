@@ -50,6 +50,9 @@ signature ML_PROJECT = sig
      does nothing more call depend_on_file. *)
   val make : string -> unit; 
 
+  (* only makes the file is it exists. Useful for loading config files etc. *)
+  val optional_make : string -> unit;
+  
   (* save a child heap state to this file-name.  *)
   val save_project_child_state : string -> unit;
   (* Given a filename, get the pre-save and post-save filenames for it *)
@@ -67,7 +70,7 @@ signature ML_PROJECT = sig
 
   (* name of subdirectory in which .save files are stored. *)
   val save_subdir_name_ref : string Unsynchronized.ref;
-
+  
   (* true when state is unchanged or at an edit-time before the given time
      argument: i.e. if time is heap-timestamp, we can load the heap rather than
      recompile the file that made the heap. *)
@@ -172,7 +175,7 @@ structure Project
   fun apply_from_file path_to_file f x = 
       let val {dir, file} = OS.Path.splitDirFile path_to_file;
           val _ = set_current_filename (SOME path_to_file);
-          val result = apply_from_dir dir PolyML.use file;
+          val result = apply_from_dir dir f file;
           val _ = set_current_filename NONE;
       in result end;
 
@@ -194,11 +197,20 @@ structure Project
         val save_dir = OS.Path.concat (dir, get_save_subdir_name ());
         val save_file = 
             OS.Path.joinBaseExt { base = file, ext = SOME save_postfix };
-      in OS.Path.joinDirFile {dir = save_dir, file = save_file } end;
+      in OS.Path.joinDirFile { dir = save_dir, file = save_file } end;
 
   val pre_savepath_of = savepath_of_filepath "save";
   val post_savepath_of = savepath_of_filepath "save2";
 
+  fun string_of_save_hierarchy () = 
+      let 
+        val l = PolyML.SaveState.showHierarchy();
+        val size = length l;
+        val l' = if size >= 5 
+                 then (List.take (l,2)) @ ["..."] @ (List.drop (l,size - 2))
+                 else l
+      in (List.foldr (fn (x,y) => " * "^x^"\n"^y) (" Total heapsize: " ^ (Int.toString size)) l') end;
+  
   (* saves the child state in the given path, returns true if it saved a new 
      state; returns false is it wasn't needed (state newer than last edit 
      was found.) *)
@@ -214,8 +226,7 @@ structure Project
       in 
          (log 2 ("saving state...");
           log 3 ("previous heaps: ");
-          log 3 (List.foldr (fn (x,y) => " * "^x^"\n"^y) ""
-                           (PolyML.SaveState.showHierarchy()));
+          log 3 (string_of_save_hierarchy ());
           (* save child heap; note save path is full, needed so later save
              paths can find this one. TODO: think about this, better (relative) 
              way? *)
@@ -311,10 +322,14 @@ structure Project
     val preuse_save_path = pre_savepath_of path_to_file
     val postuse_save_path = post_savepath_of path_to_file
     (* logging for debugging *)
-    val _ = log 2 ("path_to_file: " ^ path_to_file);
+    fun logPath name path = 
+          (log 2 (name ^ ": " ^ path ^ " ("
+      ^ (Time.toString (OS.FileSys.modTime path)) ^ ")")
+	handle OS.SysErr _ => log 2 (name ^ ": " ^ path ^ " (mtime not available)"));
+    val _ = logPath "path_to_file" path_to_file;
     val _ = log 2 ("old state: " ^ (string_of_state oldstate));
-    val _ = log 2 ("preuse_save_path: " ^ preuse_save_path);
-    val _ = log 2 ("postuse_save_path: " ^ postuse_save_path);
+    val _ = logPath "preuse_save_path" preuse_save_path;
+    val _ = logPath "postuse_save_path" postuse_save_path;
   in
     (* If file is unedited since last compilation then... *)
     if heap_is_newer_than_edits preuse_save_path
@@ -324,7 +339,7 @@ structure Project
           log 2 ("unmodified."); ())
     else
       ((* else if old state was also Changed, then no need to load heap as ML is already at the latest state (we compiled the last file). But otherwise, nothing has been loaded yet, so we need to make sure that we have the latest heap loaded before using compiling this file... *)
-       if state_is_Changed () then () else ensure_at_latest_heap();
+       if state_is_Changed () then () else ensure_at_latest_heap ();
        save_project_child_state preuse_save_path;
        log 2 ("using file...");
        basic_use path_to_file; 
@@ -334,7 +349,13 @@ structure Project
        ())
     (* handle IO.Io d => raise IO.Io d; *)
   end;
+  
+  
+  (* optional make; for config files etc, which may not actually exist. *)
+  fun optional_make path_to_file =
+      if exists_in_filesys path_to_file then make path_to_file else ();
 
+  
   fun onload load = 
     let val s = !save_subdir_name_ref;
         val st = !state_ref;

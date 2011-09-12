@@ -35,7 +35,8 @@ sig
   val try_ins : (name * 'a) -> 'a T -> 'a T option
   val ins : (name * 'a) -> 'a T -> 'a T (* raises on duplicate *)
   val add : (name * 'a) -> 'a T -> (name * 'a T)
-  val add' : (name * 'a) -> 'a T -> (name option * 'a T) (* tell me only if changed *)
+  val add' : (name * 'a) -> 'a T -> (name option * 
+  'a T) (* tell me only if changed *)
   val doadd : (name * 'a) -> 'a T -> 'a T (* add with new name, don't tell me *)
 
   (* create new name and use it up: update must be used to set entry's data *)

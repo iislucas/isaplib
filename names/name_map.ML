@@ -102,6 +102,11 @@ val get_codtab : T -> Dom.NSet.T Cod.NTab.T
 val restrict_dom_to : Dom.NSet.T -> T -> T
 val restrict_cod_to : Cod.NSet.T -> T -> T
 
+val premap : {ignore : Dom.NSet.T,
+              avoids : Dom.NSet.T,
+              domf : Dom.name Dom.NTab.T,
+              codf : Dom.name Dom.NTab.T } -> T -> T
+
 (* pretty printing *)
 val pretty : T -> Pretty.T
 val print : T -> unit
@@ -394,7 +399,10 @@ fun restrict_cod_to vs m =
       (get_codset m)
       m;
 
-
+(* EXTREME HACKING. We need some nice, unified way of combining maps. *)
+fun premap a (NameMap b) =
+    NameMap ({domf = Dom.NTab.map_all (K (domf (NameMap b))) (#domf a),
+              codf = #codf b });
 
 (* pretty printing *)
 fun pretty m = 

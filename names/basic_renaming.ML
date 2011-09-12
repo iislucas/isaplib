@@ -35,9 +35,9 @@ val union_avoids : nset -> T -> T
    rename something into the ignore map... 
    THINK: should the interface disallow this by always making ignore<=avoids? 
 *)
-val mk : nset (* do not create new fresh names for these *)
-         -> nset (* avoid these names for new names *)
-         -> name nmap (* use this renaming map *)
+val mk : nset (* ignore: do not create new fresh names for these *)
+         -> nset (* avoids: avoid these names for new names *)
+         -> name nmap (* nmap: use this renaming map *)
          -> T
 
 (* avoid these *)
