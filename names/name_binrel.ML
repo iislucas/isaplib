@@ -18,8 +18,8 @@
 *)
 signature NAME_BINREL_SHARING
 = sig
-structure Dom : NAMES_SHARING
-structure Cod : NAMES_SHARING
+structure Dom : NAME_SHARING
+structure Cod : NAME_SHARING
 type T
 end;
 
@@ -27,8 +27,8 @@ end;
 signature NAME_BINREL 
 = sig
 
-structure Dom : NAMES (* domain elements *)
-structure Cod : NAMES (* codomain elements *)
+structure Dom : NAME (* domain elements *)
+structure Cod : NAME (* codomain elements *)
 type T
 
 val empty : T
@@ -109,7 +109,7 @@ end;
 
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
-functor NameBRelFun(structure Dom : NAMES and Cod : NAMES) 
+functor NameBRelFun(structure Dom : NAME and Cod : NAME) 
 : NAME_BINREL
 = struct
 
@@ -401,6 +401,3 @@ functor TwoRelsFun(R : NAME_BINREL) : TWO_CONV_NAME_BINRELS
   fun coerceAR x  = (x : R.T);
   fun coerceBR x = (x : R.T);
 end;
-
-(* binary relations between safe string names *)
-structure SStrBRel = NameBRelFun(structure Dom = SStrName and Cod = SStrName);

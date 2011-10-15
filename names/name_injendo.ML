@@ -6,7 +6,7 @@ Note: Injective Endomorphisms on Names  (1-1) functions with same type of
 
 (usually used for representing isomorphism from one name kind to itself)
 
- name_injendo = CHANGE_NAMES where
+ name_injendo = CHANGE_NAME where
  translate_name = id; Unlike renaming, we don't keep cache of newnames.
 
 *)
@@ -37,7 +37,7 @@ sig
 end;
 
 (* Name endomorphisms *)
-functor NameInjEndoFun(Nm : NAMES) 
+functor NameInjEndoFun(Nm : NAME) 
 : NAME_INJENDO
 = struct 
   structure Nm = Nm;

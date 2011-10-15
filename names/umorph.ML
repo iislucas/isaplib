@@ -49,7 +49,7 @@ end;
 (* to simplify sharing constraints *)
 signature UNIFIABLE_DATA_NAME_SHARING =
 sig
-  include NAMES_SHARING
+  include NAME_SHARING
   structure Map : NAME_MAP_SHARING
   structure InjEndo : NAME_INJ_SHARING
   sharing InjEndo.Dom = InjEndo.Cod
@@ -61,7 +61,7 @@ sig
      This issue is a bit deeper really: we need a language to specify 
      signatures and their relations sensibly. 
   
-     Below is essentially: "this.NAMES_SHARING = Map.Dom"
+     Below is essentially: "this.NAME_SHARING = Map.Dom"
   *)
   sharing type name = Map.Dom.name;
   sharing type table = Map.Dom.table;
@@ -85,9 +85,9 @@ sig
 end;
 
 (* string based names with maps and inj endos *)
-signature SSTR_NAMES_AND_MAPS 
+signature SSTR_NAME_AND_MAPS 
 = sig
-  include SSTR_NAMES
+  include SSTR_NAME
   structure Map : NAME_MAP;
   structure InjEndo : NAME_INJENDO;
   sharing InjEndo.Dom = InjEndo.Cod
@@ -98,7 +98,7 @@ end;
 
 signature NAME_AND_DATA
 = sig
-  include SSTR_NAMES_AND_MAPS
+  include SSTR_NAME_AND_MAPS
   include ORD_DATA
   val default_data : data
   structure SharingWithData : NAME_AND_DATA_SHARING 
@@ -111,7 +111,7 @@ end;
 
 signature NAME_AND_UNIFIABLE_DATA
 = sig
-  include SSTR_NAMES_AND_MAPS
+  include SSTR_NAME_AND_MAPS
   include UNIFIABLE_DATA
   val default_data : data
   structure SharingWithData : NAME_AND_UNIFIABLE_DATA_SHARING 

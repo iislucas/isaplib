@@ -27,7 +27,7 @@ end;
 (* see comments below: we end up with a second copy of the same code
    as in compound_renaming: very crappy, better if we could share
    ground function with free type *)
-functor NameTabFun(Nm : BASIC_NAMES) 
+functor NameTabFun(Nm : BASIC_NAME) 
 : NAME_TAB
 = struct
   structure Rnm = Nm.Rnm;

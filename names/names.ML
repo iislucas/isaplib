@@ -19,7 +19,7 @@ of "n" are ignored.
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
 (* Types within a NAME structure, to ease writing of sharing constraints *)
-signature NAMES_SHARING = 
+signature NAME_SHARING = 
 sig 
   type name
   type 'a table
@@ -29,7 +29,7 @@ sig
 end;
 
 (* names + renaming *)
-signature NAMES
+signature NAME
 = sig
   type name
 
@@ -100,7 +100,7 @@ signature NAMES
 
 
   (** types which want to be shared **) 
-  structure Sharing : NAMES_SHARING
+  structure Sharing : NAME_SHARING
   where type name = name
     and type 'a table = 'a Tab.table
     and type nset = NSet.T
@@ -119,21 +119,21 @@ end;
 constructor so the underlying string type is not normally revealed,
 thus harder to confuse name types. *)
 
-signature SNAMES
+signature SNAME
 = sig
-include NAMES
+include NAME
 type src
 val mk : src -> name
 val dest : name -> src
 end;
 
-functor NamesFun(
+functor NameFun(
   structure Namer : NAMER 
   val default_name : Namer.name
-) : NAMES
+) : NAME
 = struct
   (* create basic names *)
-  structure Nm : BASIC_NAMES = 
+  structure Nm : BASIC_NAME = 
     BasicNameFun(
       structure Namer = Namer 
       val default_name = default_name);
@@ -197,16 +197,15 @@ functor NamesFun(
 
 end;
 
-
 (* add data to a names type - makes new names type with extra data *)
 functor AddDataNameFun(
-  structure Nm : NAMES 
+  structure Nm : NAME
   type data
   val ord_data : data * data -> order
   val pretty : data * Nm.name -> Pretty.T
   val default_name : data * Nm.name
 )
-: NAMES
+: NAME
 = struct 
   structure Namer2 = 
     AddDataNamerFun(
@@ -214,81 +213,8 @@ functor AddDataNameFun(
       type data = data
       val ord_data = ord_data
       val pretty = pretty);
-  structure Names = NamesFun(
+  structure Names = NameFun(
     structure Namer = Namer2
     val default_name = default_name);
   open Names;
 end;
-
-(* IMRPOVE: stop using StrNames and use SStrNames - can be more
-   efficient and is safer *)
-signature STR_NAMES = NAMES where type name = string;
-structure StrName : STR_NAMES = 
-  NamesFun(structure Namer = StrNamer val default_name = "a");
-
-(* FIXME: seriously improve SNAMER's by internally using (string * int),
-and parsing the last alphanum to the int representation. This would
-give much faster suc, pred, and ord relationships. pretty printing and
-parsing from string would still be slowish, but would not really
-matter. *)
-signature SSTR_NAMES = SNAMES where type src = string;
-
-(* safe strings as names *)
-structure SStrName :> SSTR_NAMES
-= struct
-structure S = NamesFun(structure Namer = StrSNamer 
-                       val default_name = StrSNamer.StrName("",1));
-open S;
-type src = string;
-val mk = StrSNamer.mk;
-val dest = StrSNamer.dest;
-end;
-
-
-signature STR_INT_NAMES = NAMES where type name = string * int;
-structure StrIntName : STR_INT_NAMES = 
-  NamesFun(structure Namer = StrIntNamer val default_name = ("a",0));
-
-(* safe (string * int) names *)
-signature SSTR_INT_NAMES = SNAMES where type src = string * int;
-structure SStrIntName :> SSTR_INT_NAMES
-= struct
-  open StrIntName;
-  type src = string * int;
-  val mk = I;
-  val dest = I;
-end;
-
-signature INT_NAMES = NAMES where type name = int;
-structure IntName : INT_NAMES = 
-  NamesFun(structure Namer = IntNamer 
-           val default_name = 0);
-
-(* safe int names *)
-signature SINT_NAMES = SNAMES where type src = int;
-structure SIntName :> SINT_NAMES
-= struct
-open IntName;
-type src = int;
-val mk = I;
-val dest = I;
-end;
-
-(* done in basic names  
-install_pp (make_pp ["IntName", "NSet", "T"] (Pretty.pprint o IntName.NSet.pretty));
-*)
-
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-(* Lifting into FreshNamers *)
-structure IntNSet = IntName.NSet;
-structure StrNSet = StrName.NSet;
-structure StrIntNSet = StrIntName.NSet;
-
-
-structure IntNTab = IntName.NTab;
-structure StrNTab = StrName.NTab;
-structure StrIntNTab = StrIntName.NTab;
-
-structure IntTab = IntNTab.Tab;
-structure StrTab = StrNTab.Tab;
-structure StrIntTab = StrIntNTab.Tab;

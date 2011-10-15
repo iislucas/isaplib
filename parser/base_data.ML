@@ -1,7 +1,7 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  Foundational basic types for building on *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-structure BName : SSTR_NAMES = SStrName;
+structure BName : SSTR_NAME = SStrName;
 
 signature BASE_DATA 
 = sig

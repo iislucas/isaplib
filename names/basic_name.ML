@@ -7,10 +7,10 @@
 
 (* names with an ordering, sets of names, and tables from names to objects *)
 
-(* NOTE: this signature is unused, its just for building NAMES which
+(* NOTE: this signature is unused, its just for building NAME which
    is used, see names.ML *)
 
-signature BASIC_NAMES
+signature BASIC_NAME
 = sig
   type name
 
@@ -43,7 +43,7 @@ end;
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 functor BasicNameFun(structure Namer : NAMER 
                      val default_name : Namer.name)
-: BASIC_NAMES
+: BASIC_NAME
 = struct
 type name = Namer.name;
 val pretty_name = Namer.pretty;
@@ -63,13 +63,13 @@ end;
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* basic names: strings, integers, and pairs of strings and ints     *)
 (* 
-structure BasicStrName : BASIC_NAMES where type name = string
+structure BasicStrName : BASIC_NAME where type name = string
 = BasicNameFun(structure Namer = StrNamer val default_name = "a");
 
-structure BasicIntName : BASIC_NAMES where type name = int
+structure BasicIntName : BASIC_NAME where type name = int
 = BasicNameFun(structure Namer = IntNamer val default_name = 0);
 
-structure BasicStrIntName : BASIC_NAMES where type name = string * int
+structure BasicStrIntName : BASIC_NAME where type name = string * int
 = BasicNameFun(structure Namer = StrIntNamer val default_name = ("a",0));
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)

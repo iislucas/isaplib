@@ -9,7 +9,6 @@ use "project/testing.ML";
 (* For debugging Project turn on logging: 
    PolyML.Project.Log.level_ref := 5; 
 *)
-   PolyML.Project.Log.level_ref := 5; 
 PolyML.Project.set_state_unchanged ();
 PolyML.Project.depend_on_files 
   [(* stuff loaded by "ML-Systems/polyml.ML" *)

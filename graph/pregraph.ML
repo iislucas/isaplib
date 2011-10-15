@@ -6,23 +6,24 @@
   edge, or the target end of the edge. 
 *)
 signature EHN_SHARING = 
-sig include NAMES_SHARING; type halfid; end;
+sig include NAME_SHARING; type halfid; end;
 
 (* names for half edges and edge directions *)
-signature EHN_NAMES
+signature EHN_NAME
 = sig
 
 (* my own bool type for clarity, 
    Its used for two meaning: 1. direction, 2. half edge id. 
    TargetEnd = normal direction, Target-end
    SourceEnd = reversed direction, Source-end
+   TODO: check is it used for direction? Refactor: start and end => src and tgt.
 *)
   datatype halfid = TargetEnd | SourceEnd;
   val other_half : halfid -> halfid (* not *)
   val ord_half : halfid * halfid -> order (* Src < Tgt *)
 
   type edgename;
-  include SNAMES
+  include SNAME
     where type src = halfid * edgename; 
   structure EhnSharing : EHN_SHARING where type halfid = halfid
   sharing Sharing = EhnSharing;
@@ -43,8 +44,8 @@ signature EHN_NAMES
   val is_end : name -> bool
 end;
 
-functor EhnFun(Nm : NAMES) 
-: EHN_NAMES 
+functor EhnFun(Nm : NAME) 
+: EHN_NAME 
 (* where type edgename = Nm.name *)
 = struct 
   type edgename = Nm.name;
@@ -86,80 +87,6 @@ functor EhnFun(Nm : NAMES)
   fun mk_end e = mk (TargetEnd,e);
 end;
 
-
-
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-signature VERTEX = NAME_AND_UNIFIABLE_DATA;
-
-(* Special Sharing sigs for Edges which include half-edge names *)
-
-signature EDGE_SHARING = sig 
-  include NAMES_SHARING; structure Ehn : EHN_SHARING; 
-end;
-
-(* a classic case of multiple ways to express this, and a nice one that uses multiple overlapping inheritence: 
-include EDGE_SHARING + NAME_AND_DATA
-*)
-signature EDGE_AND_DATA_SHARING = sig 
-  include NAME_AND_DATA_SHARING; structure Ehn : EHN_SHARING; 
-end;
-
-signature EDGE_AND_UNIFIABLE_DATA_SHARING = sig 
-  include NAME_AND_UNIFIABLE_DATA_SHARING; structure Ehn : EHN_SHARING; 
-end;
-
-(* Edges *)
-signature EDGE = 
-sig 
-  include NAME_AND_UNIFIABLE_DATA;
-  
-  structure Ehn : EHN_NAMES where type edgename = name; 
-  
-  val add_start_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
-  val add_end_ehns : NSet.T -> Ehn.NSet.T -> Ehn.NSet.T;
-  
-  structure EdgeSharing : EDGE_SHARING 
-  
-  sharing Ehn.EhnSharing = EdgeSharing.Ehn;
-  sharing Sharing = EdgeSharing;
-  
-  structure EdgeSharingWithData : EDGE_AND_UNIFIABLE_DATA_SHARING 
-    where type data = data and type subst = subst
-  
-  sharing EdgeSharing = EdgeSharingWithData;
-  sharing Map.Sharing = EdgeSharingWithData.Map;
-  sharing InjEndo.Sharing = EdgeSharingWithData.InjEndo;
-end;
-
-
-
-
-functor EdgeFun(Nm : NAME_AND_UNIFIABLE_DATA)
- : EDGE
-= struct
-  open Nm;
-  
-  structure Ehn = EhnFun(Nm); 
-  
-  val add_start_ehns = 
-      NSet.fold (Ehn.NSet.add o Ehn.mk_start);
-  val add_end_ehns = 
-      NSet.fold (Ehn.NSet.add o Ehn.mk_end);
-  
-  structure EdgeSharing = struct 
-    open Sharing; 
-    structure Ehn = Ehn.EhnSharing; 
-  end;
-  structure EdgeSharingWithData = struct 
-    open EdgeSharing; 
-    type data = data;
-    type subst = subst;
-    structure Map = Map.Sharing;
-    structure InjEndo = InjEndo.Sharing;
-  end;
-end;
-
-
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
 (*  Kinds of data *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
@@ -197,79 +124,3 @@ structure UnitData : UNIFIABLE_DATA where type data = unit
   fun pretty_subst _ = Pretty.str "()";
   val print_subst = Pretty.writeln o pretty_subst;
 end;
-
-
-
-structure SStrNameAndMaps 
-(* : SSTR_NAMES_AND_MAPS *) 
-= struct
-  open SStrName;
-  val default_name = mk "a";
-  structure Map = NameMapFun(structure Dom = SStrName and Cod = SStrName);
-  structure InjEndo = NameInjEndoFun(SStrName);
-end;
-
-
-(* *)
-functor StrNmData(
-  structure D : UNIFIABLE_DATA
-  val default_data : D.data
-) : NAME_AND_UNIFIABLE_DATA
-= struct
-  open SStrNameAndMaps;
-  open D;
-  val default_data = default_data;
-
-  structure SharingWithData = struct 
-    open Sharing; 
-    type data = D.data;
-    type subst = D.subst;
-    structure Map = Map.Sharing;
-    structure InjEndo = InjEndo.Sharing;
-  end;
-  (* signature constraint will remove what we want to hide *)
-  structure SharingWithoutData = SharingWithData;
-end;
-
-
-structure StrNmStrData = 
-StrNmData(structure D = StrData 
-          val default_data = "");
-
-structure StrNmUnitData = 
-StrNmData(structure D = UnitData 
-          val default_data = ());
-
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-(*  Some instances of edges and vertices *)
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-structure StrVertex 
-:> VERTEX where type data = string
-= struct
-  open StrNmStrData;
-  val default_name = mk "Va";
-end;
-
-structure UnitVertex 
-:> VERTEX where type data = unit
-= struct
-  open StrNmUnitData;
-  val default_name = mk "Va";
-end;
-
-structure UnitEdge 
-:> EDGE where type data = unit
-= struct
-  structure E = EdgeFun(StrNmUnitData);
-  open E;
-  val default_name = mk "Ea";
-end;
-
-structure StrEdge 
-:> EDGE where type data = string
-= struct
-  structure E = EdgeFun(StrNmStrData);
-  open E;
-  val default_name = mk "Ea";
-end;
-
