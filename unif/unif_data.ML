@@ -1,6 +1,5 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-(*  unification name morphisms: morphisms of data that respect/construct an 
-    injective endomorphism on names  *) 
+(*  unification data  *) 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* FIXME/TODO: name/move this file somewhere more appropriate. This has more to 
    do with unification. *) 
@@ -23,20 +22,32 @@ sig
   val print_subst : subst -> unit
 end;
 
+signature UNIFIABLE_DATA_SHARING 
+= sig 
+  type data 
+  type subst 
+end;
+
 signature UNIFIABLE_DATA
 = sig
-  include ORD_DATA
+  include ORD_DATA;
   include BASIC_SUBST;
   val unify_data : data * data -> subst -> subst option
   val match_data : data * data -> subst -> subst option
   val subst_in_data : subst -> data -> data
+  val default_data : data
+
+  structure Sharing : UNIFIABLE_DATA_SHARING
+  sharing type Sharing.data = data
+  sharing type Sharing.subst = subst
 end;
 
 (* *)
 functor IgnoredUnifiableData(
   structure S : BASIC_SUBST
-  structure D : ORD_DATA) 
-: UNIFIABLE_DATA 
+  structure D : ORD_DATA
+  val default_data : D.data) 
+: UNIFIABLE_DATA
 = 
 struct
   open D;
@@ -44,6 +55,12 @@ struct
   fun unify_data d s = SOME s;
   fun match_data d s = SOME s;
   fun subst_in_data s d = d;
+  val default_data = default_data
+
+  structure Sharing = struct
+    type data = data
+    type subst = subst
+  end;
 end;
 
 (* to simplify sharing constraints *)
@@ -100,7 +117,6 @@ signature NAME_AND_DATA
 = sig
   include SSTR_NAME_AND_MAPS
   include ORD_DATA
-  val default_data : data
   structure SharingWithData : NAME_AND_DATA_SHARING 
   where type data = data
   sharing Sharing = SharingWithData;
@@ -108,6 +124,22 @@ signature NAME_AND_DATA
   sharing SharingWithData.Map = Map.Sharing;
   sharing SharingWithData.InjEndo = InjEndo.Sharing;
 end;
+
+
+
+structure UnitSubst : BASIC_SUBST = 
+struct
+  type subst = unit (* substitution within data *)
+  val empty_subst = ()
+  fun compose_subst ((),()) = ()
+  fun pretty_subst () = Pretty.str "unit";
+  val print_subst = Pretty.writeln o pretty_subst;
+end;
+
+
+
+(* 
+PolyML Bug: very srange location of error message! 
 
 signature NAME_AND_UNIFIABLE_DATA
 = sig
@@ -122,84 +154,4 @@ signature NAME_AND_UNIFIABLE_DATA
   sharing SharingWithData.Map = Map.Sharing;
   sharing SharingWithData.InjEndo = InjEndo.Sharing;
 end;
-
-
-signature UMORPH
-= sig
-  type T (* unification morphism *)
-
-  (* Entity: internal names and their data *)
-  structure Entity : NAME_AND_UNIFIABLE_DATA
-  
-  (* get unification (vertex & edge) data associated with graph automorphism *)
-  val get_subst : T -> Entity.subst
-  
-  (* morphism of variables in internal data *)
-  val get_injendo : T -> Entity.InjEndo.T
-  
-  (* for alpha-equivalance/isomorphism checking *)
-  (* try to add mapping,  *)
-  val try_unify : Entity.name * Entity.data
-                    -> Entity.name * Entity.data
-                    -> T (* renaming so far *)
-                    -> T option (* new name and extended renaming *)
-
-  val try_match : Entity.name * Entity.data
-                    -> Entity.name * Entity.data
-                    -> T (* renaming so far *)
-                    -> T option (* new name and extended renaming *)
-
-  exception subst_exp of unit
-  (* as above, but raises exception *)
-  val unify : Entity.name * Entity.data
-              -> Entity.name * Entity.data 
-              -> T -> T
-  (* as above, but raises exception *)
-  val match : Entity.name * Entity.data
-              -> Entity.name * Entity.data 
-              -> T -> T
-
-end;
-
-
-functor UmorphFun(Entity : NAME_AND_UNIFIABLE_DATA) : UMORPH
-= struct
-
-  structure Entity = Entity;
-
-  datatype T = UMorph of Entity.subst * Entity.InjEndo.T;
-  
-  fun get_subst (UMorph (u,m)) = u;
-  fun get_injendo (UMorph (u,m)) = m;
-  fun update_subst f (UMorph (u,m)) = UMorph (f u,m);
-  fun update_injendo f (UMorph (u,m)) = UMorph (u,f m);
-  val set_subst = update_subst o K;
-  val set_injendo = update_injendo o K;
-  
-  fun try_unify (n1,d1) (n2,d2) um = 
-      (case Entity.InjEndo.try_change1 n1 n2 (get_injendo um) of
-         NONE    => NONE
-       | SOME cn => (case Entity.unify_data (d1,d2) (get_subst um) of
-                       NONE    => NONE
-                     | SOME un => SOME (UMorph (un, cn))));
-
-  fun try_match (n1,d1) (n2,d2) um = 
-      (case Entity.InjEndo.try_change1 n1 n2 (get_injendo um) of
-         NONE    => NONE
-       | SOME cn => (case Entity.match_data (d1,d2) (get_subst um) of
-                       NONE    => NONE
-                     | SOME un => SOME (UMorph (un, cn))));
-
-  exception subst_exp of unit
-
-  fun unify (nd1 as (n1,d1)) (nd2 as (n2,d2)) cn =
-    (case try_unify nd1 nd2 cn of 
-       NONE => raise subst_exp ()
-     | SOME cn2 => cn2);
-
-  fun match (nd1 as (n1,d1)) (nd2 as (n2,d2)) cn =
-    (case try_match nd1 nd2 cn of 
-       NONE => raise subst_exp ()
-     | SOME cn2 => cn2);
-                            
-end;
+*)

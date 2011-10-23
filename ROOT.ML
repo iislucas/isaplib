@@ -83,6 +83,7 @@ PolyML.Project.make "Concurrent/ROOT.ML";
 
 (* Other IsapLib Special stuff: names and graphs *)
 PolyML.Project.use_root "names/ROOT.ML";
+PolyML.Project.use_root "unif/ROOT.ML";
 PolyML.Project.use_root "graph/ROOT.ML";
 
 (* Other basic top level things *)

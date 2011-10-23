@@ -28,9 +28,6 @@ signature EHN_NAME
   structure EhnSharing : EHN_SHARING where type halfid = halfid
   sharing Sharing = EhnSharing;
 
-  structure InjEndo : NAME_INJENDO;
-  sharing InjEndo.Dom.Sharing = Sharing; 
-
   val get_ename : name -> edgename
   val get_halfid : name -> halfid
 
@@ -69,8 +66,6 @@ functor EhnFun(Nm : NAME)
   open EhnN;
 
   structure EhnSharing = struct open Sharing; type halfid = halfid; end;
-  
-  structure InjEndo = NameInjEndoFun(EhnN);
 
   fun get_ename ((h,en) : name) = en;
   fun get_halfid ((h,en) : name) = h;
@@ -106,6 +101,8 @@ structure StrData : UNIFIABLE_DATA where type data = string
   fun subst_in_data u d = d;
   fun pretty_subst _ = Pretty.str "()";
   val print_subst = Pretty.writeln o pretty_subst;
+  val default_data = "";
+  structure Sharing = struct type data = data; type subst = subst end;
 end;
 
 structure UnitData : UNIFIABLE_DATA where type data = unit 
@@ -123,4 +120,6 @@ structure UnitData : UNIFIABLE_DATA where type data = unit
   fun subst_in_data u d = d;
   fun pretty_subst _ = Pretty.str "()";
   val print_subst = Pretty.writeln o pretty_subst;
+  val default_data = (); 
+  structure Sharing = struct type data = data; type subst = subst end;
 end;

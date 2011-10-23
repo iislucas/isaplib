@@ -30,7 +30,5 @@ PolyML.Project.make "name_binrel.ML"; (* bin relations on names *)
 (* Defines SStrName, StrName, StrIntName and common maps. *)
 PolyML.Project.make "names_common.ML"; 
 
-PolyML.Project.make "umorph.ML"; (* functions/mappings on names *)
-
 (* testing *)
 PolyML.Project.use_root "test/ROOT.ML";
