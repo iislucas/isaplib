@@ -38,7 +38,7 @@ type failure = { file: string option,
                  err_exn : exn };
 
 
-structure Log = Log(val level_ref = Unsynchronized.ref 0);
+structure Log = Log(val init_level = 0);
 
 val tests_failed_ref = Unsynchronized.ref ([] : failure list);
 val test_num_ref = Unsynchronized.ref 0;

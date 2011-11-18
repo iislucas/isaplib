@@ -114,7 +114,7 @@ structure Project
 : ML_PROJECT
 = struct
 
-  structure Log = Log(val level_ref = Unsynchronized.ref 3); 
+  structure Log = Log(val init_level = 3); 
   val log = Log.log;
   val log_err = Log.log ~2;
 
