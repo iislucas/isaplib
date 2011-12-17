@@ -22,10 +22,10 @@ sig
 end;
 
 (* handy little library for writing logs specific to a bit of code. *)
-functor Log(val level_ref : int Unsynchronized.ref)
+functor Log(val init_level : int)
 : LOG
 = struct
-  val level_ref = Unsynchronized.ref 0;
+  val level_ref = Unsynchronized.ref init_level;
   val stream_ref = Unsynchronized.ref TextIO.stdErr;
 
   fun writeln_to_stream stream s = 

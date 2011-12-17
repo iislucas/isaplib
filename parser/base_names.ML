@@ -4,13 +4,13 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
 (* datatype names *)
-structure Dn :> SSTR_NAMES = SStrName;
+structure Dn :> SSTR_NAME = SStrName;
 structure DnTab = Dn.NTab;
 (* consturctor names: or-choice names *)
-structure Cn :> SSTR_NAMES = SStrName;
+structure Cn :> SSTR_NAME = SStrName;
 structure CnTab = Cn.NTab;
 (* element names: and-choice names *)
-structure En :> SSTR_NAMES = SStrName;
+structure En :> SSTR_NAME = SStrName;
 structure EnTab = En.NTab;
 
 (* 
@@ -23,7 +23,7 @@ PolyML.addPrettyPrinter (pprint_of_prettyf Cn.pretty_name);
 *)
 
 (* Agenda element names *)
-structure An :> SINT_NAMES = SIntName;
+structure An :> SINT_NAME = SIntName;
 (* 
 PolyML.addPrettyPrinter (pprint_of_prettyf An.pretty_name);
 *)

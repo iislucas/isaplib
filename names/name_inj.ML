@@ -10,7 +10,7 @@ renaming, but is a little less efficient, amd with a different
 treatment of new names, so renaming is written as it's own structure.
 
 Renaming =aprox= 
-  CHANGE_NAMES where Dom = Cod, 
+  CHANGE_NAME where Dom = Cod, 
                and translate_name = identify function. 
 
 Inj are less efficient than renaming in that we also store in
@@ -26,8 +26,8 @@ a table of renamings (the name translation used).
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 signature NAME_INJ_SHARING = (* all types for sharing *)
 sig
-  structure Dom : NAMES_SHARING
-  structure Cod : NAMES_SHARING
+  structure Dom : NAME_SHARING
+  structure Cod : NAME_SHARING
   type T
 end;
 
@@ -35,8 +35,8 @@ end;
 signature NAME_INJ
 = sig
 
-structure Dom : NAMES
-structure Cod : NAMES
+structure Dom : NAME
+structure Cod : NAME
 
 (* when Dom and Cod are not the same, a translation function is needed *)
 val translate_name : Dom.name -> Cod.name 
@@ -140,8 +140,8 @@ end;
 
 
 (* *)
-functor NameInjFun(structure Dom : NAMES 
-  structure Cod : NAMES 
+functor NameInjFun(structure Dom : NAME 
+  structure Cod : NAME 
   val translate_name : Dom.name -> Cod.name) 
 : NAME_INJ
 = struct

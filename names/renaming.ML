@@ -31,7 +31,7 @@ end;
 
 
 (* *)
-functor RenamingFun(Nm : BASIC_NAMES)
+functor RenamingFun(Nm : BASIC_NAME)
 : RENAMING
 = struct
   open Nm.Rnm;

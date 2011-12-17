@@ -14,15 +14,15 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 signature NAME_MAP_SHARING = (* all types for sharing *)
 sig
-  structure Dom : NAMES_SHARING
-  structure Cod : NAMES_SHARING
+  structure Dom : NAME_SHARING
+  structure Cod : NAME_SHARING
   type T
 end;
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 signature NAME_MAP = 
 sig 
-structure Dom : NAMES (* domain elements *)
-structure Cod : NAMES (* codomain elements *)
+structure Dom : NAME (* domain elements *)
+structure Cod : NAME (* codomain elements *)
 
 (* name map type *)
 type T
@@ -119,7 +119,7 @@ sharing type Sharing.T = T;
 end;
 
 (* *)
-functor NameMapFun(structure Dom : NAMES and Cod : NAMES) 
+functor NameMapFun(structure Dom : NAME and Cod : NAME) 
 : NAME_MAP
 = struct 
 

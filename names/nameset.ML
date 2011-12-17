@@ -24,7 +24,7 @@ sig
 end;
 
 
-functor NameSetFun(Nm : BASIC_NAMES) =
+functor NameSetFun(Nm : BASIC_NAME) =
 struct
   open Nm.NSet;
 

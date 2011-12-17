@@ -10,7 +10,7 @@ PolyML.Project.make "basic_nametab.ML"; (* name tables which provide fresh names
 PolyML.Project.make "basic_renaming.ML"; (* renaming, based on tables and sets *)
 
 (* generic Name structure; provies nametables, namesets and collections *)
-PolyML.Project.make "basic_names.ML";
+PolyML.Project.make "basic_name.ML";
 PolyML.Project.make "compound_renaming.ML"; (* renaming within datatypes *)
 PolyML.Project.make "renaming.ML"; (* renamings which can be renamed *)
 
@@ -27,7 +27,8 @@ PolyML.Project.make "name_inj.ML"; (* name iso-morphisms *)
 PolyML.Project.make "name_injendo.ML"; (* name auto-morphisms (name iso where dom = cod) *)
 PolyML.Project.make "name_binrel.ML"; (* bin relations on names *)
 
-PolyML.Project.make "umorph.ML"; (* functions/mappings on names *)
+(* Defines SStrName, StrName, StrIntName and common maps. *)
+PolyML.Project.make "names_common.ML"; 
 
 (* testing *)
 PolyML.Project.use_root "test/ROOT.ML";

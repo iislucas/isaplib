@@ -2,7 +2,7 @@
    allows separation of name spaces *)
 signature COMPOUND_RENAMABLE =
 sig
-structure Nm : BASIC_NAMES
+structure Nm : BASIC_NAME
 type obj
 
 (* get set of all names *)
@@ -169,7 +169,7 @@ end;
 
 
 (* for when obj has no names in it. *)
-functor EmptyCompoundRenamingFun(structure Nm : BASIC_NAMES type obj)
+functor EmptyCompoundRenamingFun(structure Nm : BASIC_NAME type obj)
 : COMPOUND_RENAMING
 = struct
 type renaming = Nm.Rnm.T;

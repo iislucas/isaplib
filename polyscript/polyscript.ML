@@ -140,8 +140,7 @@ local
         end;
 
 in
-  
   (* polyscript simply evaluates *)
-  fun main() = (fold eval_filename (CommandLine.arguments()); OS.Process.exit OS.Process.success);
-
+  fun main() = (fold eval_filename (CommandLine.arguments()); 
+                OS.Process.exit OS.Process.success);
 end;
