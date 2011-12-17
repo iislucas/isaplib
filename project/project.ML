@@ -232,7 +232,8 @@ structure Project
              way? *)
           set_latest_heappath (SOME full_save_path);
           PolyML.SaveState.saveChild (full_save_path,
-            if depth > 200 then 0 else depth); (* don't maintain a heirarchy more than 200 deep *)
+            (* if depth > 200 then 0 else *) 
+            depth); (* don't maintain a heirarchy more than 200 deep *)
           (* this is the latest heap path *)
           log 2 ("saved: " ^ full_save_path))
        end;

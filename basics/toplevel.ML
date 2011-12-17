@@ -21,6 +21,3 @@ fun forget_all () =
          (List.filter (fn s => s <> "PolyML" andalso s <> "OS") 
                  (PolyML.Compiler.structureNames()));
      ());
-
-
-
