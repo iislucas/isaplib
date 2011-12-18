@@ -224,16 +224,19 @@ structure Project
         val _ = log 2 ("full_save_path: " ^ full_save_path);
         val depth = List.length(PolyML.SaveState.showHierarchy());
       in 
-         (log 2 ("saving state...");
-          log 3 ("previous heaps: ");
+         (log 3 ("previous heaps: ");
           log 3 (string_of_save_hierarchy ());
           (* save child heap; note save path is full, needed so later save
              paths can find this one. TODO: think about this, better (relative) 
              way? *)
           set_latest_heappath (SOME full_save_path);
-          PolyML.SaveState.saveChild (full_save_path,
-            (* if depth > 200 then 0 else *) 
-            depth); (* don't maintain a heirarchy more than 200 deep *)
+          (* don't maintain a chain of more than 100 child states; if the depth if 100 or more, write a new full heap. *)
+          if (depth < 100) then 
+            (log 2 ("saving child state...");
+             PolyML.SaveState.saveChild (full_save_path, depth))
+          else 
+            (log 2 ("saving full state...");
+             PolyML.SaveState.saveState full_save_path);
           (* this is the latest heap path *)
           log 2 ("saved: " ^ full_save_path))
        end;
