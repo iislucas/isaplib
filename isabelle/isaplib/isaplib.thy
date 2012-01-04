@@ -41,6 +41,11 @@ uses
 "../../graph/pregraph.ML"
 "../../graph/rgraph.ML"
 
+(* search *)
+"../../search/gsearch.ML"
+"../../search/msearch.ML"
+"../../search/lsearch.ML"
+
 (* Other basic top level things *)
 "../../basics/collection.ML"
 "../../basics/polym_table.ML"
