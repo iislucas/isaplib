@@ -32,6 +32,7 @@ sig
   datatype tree =
       Elem of Markup.T * tree list
     | Text of string
+    | CData of string
   type body = tree list
   val add_content: tree -> Buffer.T -> Buffer.T
   val content_of: body -> string
@@ -63,12 +64,14 @@ type attributes = Properties.T;
 
 datatype tree =
     Elem of Markup.T * tree list
-  | Text of string;
+  | Text of string
+  | CData of string;
 
 type body = tree list;
 
 fun add_content (Elem (_, ts)) = fold add_content ts
-  | add_content (Text s) = Buffer.add s;
+  | add_content (Text s) = Buffer.add s
+  | add_content (CData s) = Buffer.add s;
 
 fun content_of body = Buffer.empty |> fold add_content body |> Buffer.content;
 
@@ -125,6 +128,8 @@ fun buffer_of depth tree =
           traverse_body d ts #>
           Buffer.add "</" #> Buffer.add name #> Buffer.add ">"
       | traverse _ (Text s) = Buffer.add (text s)
+      | traverse _ (CData s) = Buffer.add "<![CDATA[" #> Buffer.add (text s) #>
+          Buffer.add "]]>"
     and traverse_body 0 _ = Buffer.add "..."
       | traverse_body d ts = fold (traverse (d - 1)) ts;
   in Buffer.empty |> traverse depth tree end;
@@ -237,6 +242,11 @@ fun tree_ord tu =
     (case tu of
       (Text _, Elem _) => LESS
     | (Elem _, Text _) => GREATER
+    | (Text _, CData _) => GREATER
+    | (CData _, Text _) => LESS
+    | (Elem _, CData _) => GREATER
+    | (CData _, Elem _) => LESS
+    | (CData s, CData s') => fast_string_ord (s, s')
     | (Text s, Text s') => fast_string_ord (s, s')
     | (Elem e, Elem e') =>
         prod_ord
@@ -265,7 +275,8 @@ fun cache () =
             val t' =
               (case t of
                 Elem ((a, ps), b) => Elem ((string a, map (pairself string) ps), map tree b)
-              | Text s => Text (string s));
+              | Text s => Text (string s)
+              | CData s => CData (string s));
             val _ = Unsynchronized.change trees (Treetab.update (t', ()));
           in t' end);
   in tree end;
