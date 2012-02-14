@@ -1,8 +1,6 @@
 theory isaplib
 imports Main
 uses
-(* TODO: remove xml being reloaded here. *)
-"../../General/xml.ML" 
 (* basic logging, testing and project tools. *)
 "../../basics/log.ML" 
 "../../project/project.ML" 

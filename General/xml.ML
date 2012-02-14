@@ -263,13 +263,13 @@ fun cache () =
     fun string s =
       if size s <= 1 then s
       else
-        (case Symtab.lookup_key (! strings) s of
-          SOME (s', ()) => s'
+        (case Symtab.lookup (! strings) s of
+          SOME _ => s
         | NONE => (Unsynchronized.change strings (Symtab.update (s, ())); s));
 
     fun tree t =
-      (case Treetab.lookup_key (! trees) t of
-        SOME (t', ()) => t'
+      (case Treetab.lookup (! trees) t of
+        SOME _ => t
       | NONE =>
           let
             val t' =
