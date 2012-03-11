@@ -151,7 +151,7 @@ sig
      [1,2,3] => [(1,[2,3]), (2,[1,3]), (3,[1,2])]                     *)
   val pull_each : T -> (name * T) list
 
-  (* check subset relation *)
+  (* check subset relation: true iff first set is a subset of the second set. *)
   val sub_set : T -> T -> bool
 
   (* the list of all subsets *)
