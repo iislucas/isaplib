@@ -73,7 +73,7 @@ val try_compose_rename1 : name (* old name *)
 val do_compose_rename1 : name -> name -> T -> T (* raises invalid_renaming_exp *)
 
 
-(* given a renaming, name a new renaming that is just the avoid set *)
+(* given a renaming, make a new renaming that is just the avoid set *)
 val restrict_to_avoiding : T -> T (* = mk_from_avoids o get_avoids *)
 
 (* cached info about new names created during renaming *)
@@ -271,7 +271,8 @@ fun try_rename1_renaming n1 n2 (Renaming rep) =
                          new = the (NSet.try_rename1 n1 n2 (#new rep)),
                          nmap = the (NTab.try_rename1 n1 n2 (#nmap rep))});
 
-(* add oldn => newn to the renaming, as long as it doesn't clash, and isn't part of the avoid set *)
+(* add oldn => newn to the renaming, as long as it doesn't clash, 
+   and isn't part of the avoid set *)
 fun try_compose_rename1 oldn newn (rn as Renaming rep) =
     let val nmap = (#nmap rep) in 
       case NTab.lookup nmap oldn of
@@ -282,7 +283,8 @@ fun try_compose_rename1 oldn newn (rn as Renaming rep) =
             (SOME 
                (Renaming {ignore = #ignore rep, 
                           new = NSet.add newn (#new rep),
-                          avoids = NSet.ins_fresh oldn avoids, 
+                          avoids = avoids |> NSet.ins_fresh newn
+                                          |> NSet.add oldn, 
                           nmap = NTab.ins (oldn,newn) nmap }))
         end
       | SOME n2 => if Namer.eq (n2, newn) then SOME rn

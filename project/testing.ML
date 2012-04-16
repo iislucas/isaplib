@@ -72,3 +72,25 @@ fun make_test path_to_file =
     if !run_tests_ref then PolyML.Project.make path_to_file else ();
     
 end;
+
+(* small example usage: *)
+local 
+  (* define some basic values*)
+  val a = "a";
+in
+(* *)
+val _ = Testing.test "the name of the first test" (fn () => let 
+  (* the test code goes in here, and is assumed not to raise an exception. *)
+  val true = (a = "a"); 
+  in () end) ();
+
+(* more tests... *)
+val _ = Testing.test "the name of another test" (fn () => let 
+  val false = (a = "b"); 
+  in () end) ();
+
+(* This raises an exception if some test fails and prints details for all 
+   failed tests *)
+val _ = Testing.assert_no_failed_tests();
+val _ = "Toy UNIT TESTS for Testing PASSED!";
+end; (* ends local namespace used for testing *)

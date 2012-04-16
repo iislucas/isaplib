@@ -11,7 +11,7 @@
     (objects with order and fresh construction operations)
     (e.g. two way linked dependencies on names)
 
-    Curretly removes element from dom, if there is nothing in cod to 
+    Curretly removes element from dom if there is nothing in cod to 
     related to it; and visa-versa for cod/dom. 
 
     POSSIBLE IMPROVEMENT: lazy updates? allow unrelated elements? 

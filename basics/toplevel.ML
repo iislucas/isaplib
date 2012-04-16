@@ -9,6 +9,19 @@ fun while_some f a =
   case f a of NONE => a
             | SOME a' => while_some f a';
 
+exception tryify_failed of unit
+      
+fun tryify ff f x = 
+    (SOME (ff (fn x => case f x of NONE => raise tryify_failed () 
+                                 | SOME y => y)
+              x))
+    handle tryify_failed () => NONE;
+
+fun untryify f x =  
+    (case f x of NONE => raise tryify_failed ()
+     | SOME y => y);
+         
+     
 fun do_and_exit_or_die f = 
     (PolyML.exception_trace f; OS.Process.exit OS.Process.success : unit)
     handle _ => OS.Process.exit OS.Process.failure;
