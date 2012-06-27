@@ -660,30 +660,37 @@ fun union_merge Empty tr = tr
 (* val union_merge = assert_correct oo union_merge; *)
 
 
-
-
+fun drop_right (Br(_,(b,t),l,_)) = Br(1+(depth_of l),(b,t),l,Empty)
+  | drop_right _ = raise bug0_exp "Tried to drop right from Empty tree";
+fun drop_left  (Br(_,(b,t),_,r)) = Br(1+(depth_of r),(b,t),Empty,r)
+  | drop_left _ = raise bug0_exp "Tried to drop left from Empty tree";
 
 (* fast(est?) sub_set check arg1 is a subset of arg2 *)
 fun sub_set Empty tr = true
   | sub_set (Br _) Empty = false
   | sub_set (n1 as Br(d1,(b1,t1),l1,r1)) (n2 as Br(d2,(b2,t2),l2,r2)) = 
     (case N.ord (t1,b2) 
-      of LESS => sub_set n1 l2
+      of LESS => sub_set (drop_right n1) l2 andalso sub_set r1 n2
        | EQUAL => (case N.ord (b1, b2) 
-                    of EQUAL => sub_set l1 l2 andalso sub_set r1 n2
+                    of EQUAL => sub_set l1 l2 andalso sub_set r1 (drop_left n2)
                      | _ => false)
-       | GREATER => 
+       | GREATER =>
          (case N.ord (b1,t2)
            of LESS => (case N.ord (b1,b2) 
-                        of EQUAL => (case N.ord (t1,t2) 
-                                      of EQUAL => true 
-                                       | _ => false)
-                         | _ => false)
-            | EQUAL => 
+                         of LESS => false
+                          | EQUAL => (case N.ord (t1,t2)
+                                        of GREATER => false
+                                         | EQUAL => sub_set l1 l2 andalso sub_set r1 r2
+                                         | LESS => sub_set l1 l2 andalso sub_set r1 (drop_left n2))
+                          | GREATER => (case N.ord (t1,t2)
+                                          of GREATER => false
+                                           | EQUAL => sub_set l1 (drop_right n2) andalso sub_set r1 r2
+                                           | LESS => sub_set l1 (drop_right n2) andalso sub_set r1 (drop_left n2)))
+            | EQUAL =>
               (case N.ord (t1, t2) 
-                of EQUAL => sub_set l1 n2 andalso sub_set r1 l2
+                of EQUAL => sub_set l1 (drop_right n2) andalso sub_set r1 r2
                  | _ => false)
-            | GREATER => sub_set n1 r2));    
+            | GREATER => sub_set (drop_left n1) r2 andalso sub_set l1 n2));
 
 (* assumes b < t *)
 fun contains_range tr (r as (b,t)) = 
