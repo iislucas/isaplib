@@ -21,6 +21,13 @@ sig
   (* if (!run_tests_ref) then loads the file. *)
   val make_test : string -> unit;
 
+  exception assertion_failed_exp of string;
+
+  (* raises assertion_failed_exp with the string arg if the bool arg is false *)
+  val assert : string -> bool -> unit;
+  (* raises assertion_failed_exp with the string arg if the function returns false *)
+  val fassert : string -> ('a -> bool) -> 'a -> unit;
+
   (* *)
   exception failed_tests_exp of failure list;
   
@@ -70,6 +77,11 @@ fun assert_no_failed_tests () =
 val run_tests_ref = Unsynchronized.ref true;
 fun make_test path_to_file =
     if !run_tests_ref then PolyML.Project.make path_to_file else ();
+
+exception assertion_failed_exp of string;
+fun assert msg true = ()
+  | assert msg false = raise assertion_failed_exp ("Assertion '" ^ msg ^ "' failed")
+fun fassert msg f x = assert msg (f x)
     
 end;
 
