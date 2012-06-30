@@ -163,6 +163,8 @@ fun lookup rel (a,b) =
 
 (* add and remove things from the binary relation. *)
 fun add_many aset bset rel = 
+    if (Dom.NSet.is_empty aset) orelse (Cod.NSet.is_empty bset) then rel
+    else
     rel |> update_domf 
         (fn abtab => 
             Dom.NSet.fold
