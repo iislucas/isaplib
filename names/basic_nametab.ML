@@ -33,7 +33,7 @@ sig
   val tryget_singleton : 'a T -> (name * 'a) option
 
   val try_ins : (name * 'a) -> 'a T -> 'a T option
-  val ins : (name * 'a) -> 'a T -> 'a T (* raises on duplicate *)
+  val ins : (name * 'a) -> 'a T -> 'a T (* raises NSet.duplicate_exp *)
   val add : (name * 'a) -> 'a T -> (name * 'a T)
   val add' : (name * 'a) -> 'a T -> (name option * 
   'a T) (* tell me only if changed *)

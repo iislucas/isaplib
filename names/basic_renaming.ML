@@ -231,7 +231,7 @@ val get = NTab.get o get_nmap;
 (* rename an old name *)
 fun rename1 oldn (rn as Renaming rep) = 
     let val ignore = (#ignore rep) in
-      (* ignore it, it is already renamed or renaming is the id function *)
+      (* ignore it, it is already renamed (or renaming is the id function) *)
       if NSet.contains ignore oldn then (NONE, rn) 
       else 
         let val nmap = (#nmap rep) in 
