@@ -7,9 +7,13 @@ sig
   val set_log_to_stdout : unit -> unit;
   val set_log_to_stderr : unit -> unit;
 
-  val writeln_to_stream : TextIO.outstream -> string -> unit; 
-  val writeln_to_stdout : string -> unit; 
-  val writeln_to_stderr : string -> unit; 
+  val writeln_to_stream : TextIO.outstream -> string -> unit;
+  val writeln_to_stdout : string -> unit;
+  val writeln_to_stderr : string -> unit;
+
+  (* deferred logging; the function will never be called
+   * if the log level is not high enough *)
+  val logf : int -> ('a -> string) -> 'a -> unit;
 
   (* log if log-level is above the int. *)
   val log : int -> string -> unit;
@@ -28,7 +32,7 @@ functor Log(val init_level : int)
   val level_ref = Unsynchronized.ref init_level;
   val stream_ref = Unsynchronized.ref TextIO.stdErr;
 
-  fun writeln_to_stream stream s = 
+  fun writeln_to_stream stream s =
       (TextIO.output (stream, s ^ "\n"); TextIO.flushOut stream);
   fun writeln_to_stdout s = writeln_to_stream TextIO.stdOut s;
   fun writeln_to_stderr s = writeln_to_stream TextIO.stdErr s;
@@ -36,12 +40,16 @@ functor Log(val init_level : int)
   fun set_log_to_stdout () = (stream_ref := TextIO.stdOut);
   fun set_log_to_stderr () = (stream_ref := TextIO.stdErr);
 
-  fun log level s = 
-      if level <= (!level_ref) then writeln_to_stream (!stream_ref) s 
+  fun logf level f x =
+      if level <= (!level_ref) then writeln_to_stream (!stream_ref) (f x)
       else ();
-  fun log_stdout level s = 
+
+  fun log level s =
+      if level <= (!level_ref) then writeln_to_stream (!stream_ref) s
+      else ();
+  fun log_stdout level s =
       if level <= (!level_ref) then writeln_to_stdout s else ();
-  fun log_stderr level s = 
+  fun log_stderr level s =
       if level <= (!level_ref) then writeln_to_stderr s else ();
 
   fun print x = (PolyML.print x; ());
