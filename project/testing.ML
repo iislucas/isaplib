@@ -52,14 +52,20 @@ val test_num_ref = Unsynchronized.ref 0;
 fun test testname f x = 
     let val _ = test_num_ref := (!test_num_ref) + 1;
         val test_num_str = (Int.toString (!test_num_ref));
+        val test_desc = "'"^testname^"' ("^test_num_str^")"
+        val test_text = "Test named "^test_desc
+        val file_text = case PolyML.Project.get_current_filename()
+                          of NONE => ""
+                           | SOME s => " from file '"^s^"'"
+        fun run_test () = let val result = f x in
+          Log.log 0 (test_text^" succeeded"); result
+        end
     in 
       (* do something with the current compiler-file line number? 
         (for quick knowledfe of which test raised an exception...) *)
-      Log.log 0 ("From file: " ^ (PolyML.Project.string_of_current_filename()));
-      Log.log 0 ("Running Test: '" ^ testname ^ "' (" ^test_num_str^ ")");
-      ((SOME (PolyML.exception_trace (fn () => (f x)))) handle e => 
-             (Log.log 0 ("Test named '"^testname^"' (" ^test_num_str
-                         ^") failed :"^ (PolyML.makestring e));
+      Log.log 0 ("Running test: " ^ test_desc ^ file_text);
+      ((SOME (PolyML.exception_trace run_test)) handle e => 
+             (Log.log 0 (test_text ^" failed: "^ (PolyML.makestring e));
               tests_failed_ref := (
                 { file = PolyML.Project.get_current_filename(),
                   test = testname,
