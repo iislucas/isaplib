@@ -1,19 +1,13 @@
-signature JSON_DATA =
-sig
-  structure JObj : TABLE where type key = string
-  datatype json = JS of string | JI of int | JF of real | JB of bool | JN
-                | JARR of json list
-                | JOBJ of json JObj.table
-end
-
 signature JSON =
 sig
-  structure Data : JSON_DATA
-  type json = Data.json
-  
   exception parse_exn of string
   exception notobj_exn of unit
   exception notfound_exn of string
+  
+  structure JObj : TABLE where type key = string
+  datatype json = String of string | Int of int | Real of real | Bool of bool | Null
+                | Array of json list
+                | Object of json JObj.table
   
   val empty : json
   val update : string * json -> json -> json
@@ -29,29 +23,25 @@ end
 structure Json : JSON =
 struct
 
-structure Data =
-struct
-  structure JObj = Table(type key = string; val ord = fast_string_ord)
-  datatype json = JS of string | JI of int | JF of real | JB of bool | JN
-                | JARR of json list
-                | JOBJ of json JObj.table
-end
+structure JObj = Table(type key = string; val ord = fast_string_ord)
+datatype json = String of string | Int of int | Real of real | Bool of bool | Null
+              | Array of json list
+              | Object of json JObj.table
 
-open Data
 exception parse_exn of string
 exception notobj_exn of unit
 exception notfound_exn of string
-val empty = JOBJ JObj.empty
+val empty = Object JObj.empty
 
 
 (* table accessor functions *)
 
 
-fun update (k, v) (JOBJ tab) = JOBJ (JObj.update (k,v) tab)
+fun update (k, v) (Object tab) = Object (JObj.update (k,v) tab)
   | update _ _ = raise notobj_exn ()
-fun delete k (JOBJ tab) = JOBJ (JObj.delete k tab)
+fun delete k (Object tab) = Object (JObj.delete k tab)
   | delete _ _ = raise notobj_exn ()
-fun lookup (JOBJ tab) k = (case JObj.lookup tab k of SOME v => SOME v | NONE => NONE)
+fun lookup (Object tab) k = (case JObj.lookup tab k of SOME v => SOME v | NONE => NONE)
   | lookup _ _ = raise notobj_exn ()
 fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 
@@ -185,13 +175,13 @@ struct
                       Real.fromInt (pow 10 (length digits)))
   
   (* a number is interpreted as an integer, unless an exponent or decimal is present *)
-  val p_number = (p_int -- opt p_frac 0.0 -- p_exp >> (JF o mk_float3)) ||
-                  (p_int -- p_frac >> (JF o mk_float2)) ||
-                  (p_int >> JI)
+  val p_number = (p_int -- opt p_frac 0.0 -- p_exp >> (Real o mk_float3)) ||
+                  (p_int -- p_frac >> (Real o mk_float2)) ||
+                  (p_int >> Int)
   
-  val p_true  = (ch "t" |-- ch "r" |-- ch "u" |-- ch "e") >> K (JB true)
-  val p_false = (ch "f" |-- ch "a" |-- ch "l" |-- ch "s" |-- ch "e") >> K (JB false)
-  val p_null  = (ch "n" |-- ch "u" |-- ch "l" |-- ch "l") >> K JN
+  val p_true  = (ch "t" |-- ch "r" |-- ch "u" |-- ch "e") >> K (Bool true)
+  val p_false = (ch "f" |-- ch "a" |-- ch "l" |-- ch "s" |-- ch "e") >> K (Bool false)
+  val p_null  = (ch "n" |-- ch "u" |-- ch "l" |-- ch "l") >> K Null
   
   fun p_value x = let
     val p_pair     = p_string --| ind ":" -- p_value
@@ -201,8 +191,8 @@ struct
     val p_elements = p_value ::: rep (ind "," |-- p_value)
     val p_array    = (ind "[" |-- opt p_elements [] --| ind "]")
   in x |> (
-    p_true || p_false || p_null || p_number || (p_string >> JS) ||
-    (p_object >> JOBJ) || (p_array >> JARR)
+    p_true || p_false || p_null || p_number || (p_string >> String) ||
+    (p_object >> Object) || (p_array >> Array)
   )
   end
   
@@ -233,13 +223,13 @@ end
 fun pretty_q_str x = Pretty.str ("\"" ^ escape x ^ "\"")
 and pretty_kv (k,v) [] = [Pretty.block [pretty_q_str k, Pretty.str " : ", pretty v]]
   | pretty_kv (k,v) pr = Pretty.block [pretty_q_str k, Pretty.str " : ", pretty v, Pretty.str ","] :: pr
-and pretty (JS x) = pretty_q_str x
-  | pretty (JI x) = Pretty.str (convert_num (Int.toString x))
-  | pretty (JF x) = Pretty.str (convert_num (Real.toString x))
-  | pretty (JB x) = Pretty.str (Bool.toString x)
-  | pretty (JN) = Pretty.str "null"
-  | pretty (JARR xs) = Pretty.list "[" "]" (map pretty xs)
-  | pretty (JOBJ obj) = Pretty.block_enclose (Pretty.str "{", Pretty.str "}")
+and pretty (String x) = pretty_q_str x
+  | pretty (Int x) = Pretty.str (convert_num (Int.toString x))
+  | pretty (Real x) = Pretty.str (convert_num (Real.toString x))
+  | pretty (Bool x) = Pretty.str (Bool.toString x)
+  | pretty (Null) = Pretty.str "null"
+  | pretty (Array xs) = Pretty.list "[" "]" (map pretty xs)
+  | pretty (Object obj) = Pretty.block_enclose (Pretty.str "{", Pretty.str "}")
                         (JObj.fold pretty_kv obj [])
 
 val string_of = Pretty.string_of o pretty
