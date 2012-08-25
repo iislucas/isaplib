@@ -214,7 +214,7 @@ fun parse s = case Parser.p_value (raw_explode s @ [Symbol.eof])
                  | (_, xs)     => raise parse_exn ("Expected: eof, got: " ^ implode xs)
 
 
-(*structure Encoder =
+structure Encoder =
 struct
  exception notobj_exn of unit;
     
@@ -234,13 +234,14 @@ struct
     fun convert_minus s = String.implode
             (map (fn (#"~") => #"-" | x => x) (String.explode s))
 
-    fun enc_name (name) = "\"" ^ (Name.string_of_name name) ^ "\":"
-    and enc_value (String value) = "\"" ^ escape value ^ "\""
-      | enc_value (Int value) = convert_minus (Int.toString value)
-      | enc_value (Bool value) = Bool.toString value
-      | enc_value (Real value) = Real.toString value
-      | enc_value (List value) = enc_list value
-      | enc_value (Null) = "null"
+    (*fun pretty json = *)
+
+    (*fun enc_value (JS value) = "\"" ^ escape value ^ "\""
+      | enc_value (JI value) = convert_minus (Int.toString value)
+      | enc_value (JB value) = Bool.toString value
+      | enc_value (JF value) = Real.toString value
+      | enc_value (JI value) = enc_list value
+      | enc_value (JN) = "null"
       | enc_value (obj) = (encode obj)
     and enc_list [] = "[]"
       | enc_list l =
@@ -250,12 +251,12 @@ struct
             "[" ^ String.substring(e, 0, (String.size e)-1) ^ "]"
         end
     and enc_1 (name, value) x = (enc_name name) ^ (enc_value value) ^ "," ^ x
-    and encode (Object tab) =
+    and encode (JOBJ tab) =
         let
             val e = Tab.fold enc_1 tab "";
         in
             "{" ^ String.substring(e, 0, (String.size e)-1) ^ "}"
-        end
-end*)
+        end*)
+end
 
 end
