@@ -11,7 +11,16 @@ sig
   structure Data : JSON_DATA
   type json = Data.json
   val parse : string -> json
-  exception ParseError of string
+  
+  exception parse_exn of string
+  exception notobj_exn of unit
+  exception notfound_exn of string
+  
+  val empty : json
+  val update : string * json -> json -> json
+  val delete : string -> json -> json
+  val lookup : json -> string -> json option
+  val get : json -> string -> json
 end
 
 structure Json : JSON =
@@ -26,7 +35,23 @@ struct
 end
 
 open Data
-exception ParseError of string
+exception parse_exn of string
+exception notobj_exn of unit
+exception notfound_exn of string
+val empty = JOBJ JObj.empty
+
+
+(* table accessor functions *)
+
+
+fun update (k, v) (JOBJ tab) = JOBJ (JObj.update (k,v) tab)
+  | update _ _ = raise notobj_exn ()
+fun delete k (JOBJ tab) = JOBJ (JObj.delete k tab)
+  | delete _ _ = raise notobj_exn ()
+fun lookup (JOBJ tab) k = (case JObj.lookup tab k of SOME v => SOME v | NONE => NONE)
+  | lookup _ _ = raise notobj_exn ()
+fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
+
 
 structure Parser =
 struct
@@ -49,7 +74,7 @@ struct
   val ch_implode = String.implode (* convert a list of chars to a string *)*)
   fun pow _ 0 = 1
     | pow x 1 = x
-    | pow x n = if n < 0 then raise ParseError "negative exponent encountered" else
+    | pow x n = if n < 0 then raise parse_exn "negative exponent encountered" else
           (if (n mod 2 = 0) then pow (x*x) (n div 2)
                             else x * (pow (x*x) (n div 2)))
   
@@ -89,7 +114,7 @@ struct
     else mk_float2 (num,frac) * Real.fromInt (pow 10 exp) 
   
   fun hex_to_asc (((a,b),c),d) = ch_to_st (Char.chr (hex_int [a,b,c,d]))
-    handle Chr => raise ParseError "non-ascii characters not supported in strings (yet!)"
+    handle Chr => raise parse_exn "non-ascii characters not supported in strings (yet!)"
     
   
   val p_printable = ch "\t" || ch "\n" || ch "\r" || ch_range (" ", "~")
@@ -185,7 +210,52 @@ end
 
 fun parse s = case Parser.p_value (raw_explode s @ [Symbol.eof])
                 of (json, [x]) => if x = Symbol.eof then json else
-                                  raise ParseError ("Expected: eof, got: " ^ x)
-                 | (_, xs)     => raise ParseError ("Expected: eof, got: " ^ implode xs)
+                                  raise parse_exn ("Expected: eof, got: " ^ x)
+                 | (_, xs)     => raise parse_exn ("Expected: eof, got: " ^ implode xs)
+
+
+(*structure Encoder =
+struct
+ exception notobj_exn of unit;
+    
+    (** escapes ", \ and \n **)
+    fun escape s =
+      let
+        fun helper #"\"" = [#"\\", #"\""]
+          | helper #"\\" = [#"\\", #"\\"]
+          | helper #"\n" = [#"\\", #"n"]
+          | helper x = [x]
+      in
+        String.implode
+          (fold_rev (curry op@) (map helper (String.explode s)) [])
+      end
+    
+    (*replaces ~ to - *)
+    fun convert_minus s = String.implode
+            (map (fn (#"~") => #"-" | x => x) (String.explode s))
+
+    fun enc_name (name) = "\"" ^ (Name.string_of_name name) ^ "\":"
+    and enc_value (String value) = "\"" ^ escape value ^ "\""
+      | enc_value (Int value) = convert_minus (Int.toString value)
+      | enc_value (Bool value) = Bool.toString value
+      | enc_value (Real value) = Real.toString value
+      | enc_value (List value) = enc_list value
+      | enc_value (Null) = "null"
+      | enc_value (obj) = (encode obj)
+    and enc_list [] = "[]"
+      | enc_list l =
+        let
+            val e = fold_rev (fn a => fn b => (enc_value a) ^ "," ^ b) l ""
+        in
+            "[" ^ String.substring(e, 0, (String.size e)-1) ^ "]"
+        end
+    and enc_1 (name, value) x = (enc_name name) ^ (enc_value value) ^ "," ^ x
+    and encode (Object tab) =
+        let
+            val e = Tab.fold enc_1 tab "";
+        in
+            "{" ^ String.substring(e, 0, (String.size e)-1) ^ "}"
+        end
+end*)
 
 end
