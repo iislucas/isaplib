@@ -10,7 +10,6 @@ signature JSON =
 sig
   structure Data : JSON_DATA
   type json = Data.json
-  val parse : string -> json
   
   exception parse_exn of string
   exception notobj_exn of unit
@@ -21,6 +20,10 @@ sig
   val delete : string -> json -> json
   val lookup : json -> string -> json option
   val get : json -> string -> json
+  
+  val pretty : json -> Pretty.T
+  val string_of : json -> string
+  val of_string : string -> json
 end
 
 structure Json : JSON =
@@ -163,10 +166,6 @@ struct
                    p_esc_carriage_return || p_esc_tab || p_esc_unicode
   
   
-  
-  
-  (* VALUES *)
-  
   (* double-quoted strings *)
   val p_double_quote_char = p_safe || (ch "\\" |-- p_esc_char)
   val p_string = (ch "\"" |-- rep p_double_quote_char --| ch "\"") >> implode
@@ -206,57 +205,44 @@ struct
     (p_object >> JOBJ) || (p_array >> JARR)
   )
   end
+  
+  fun parse s = case p_value (raw_explode s @ [Symbol.eof])
+                  of (json, [x]) => if x = Symbol.eof then json else
+                                    raise parse_exn ("Expected: eof, got: " ^ x)
+                   | (_, xs)     => raise parse_exn ("Expected: eof, got: " ^ implode xs)
 end
 
-fun parse s = case Parser.p_value (raw_explode s @ [Symbol.eof])
-                of (json, [x]) => if x = Symbol.eof then json else
-                                  raise parse_exn ("Expected: eof, got: " ^ x)
-                 | (_, xs)     => raise parse_exn ("Expected: eof, got: " ^ implode xs)
-
-
-structure Encoder =
-struct
- exception notobj_exn of unit;
     
-    (** escapes ", \ and \n **)
-    fun escape s =
-      let
-        fun helper #"\"" = [#"\\", #"\""]
-          | helper #"\\" = [#"\\", #"\\"]
-          | helper #"\n" = [#"\\", #"n"]
-          | helper x = [x]
-      in
-        String.implode
-          (fold_rev (curry op@) (map helper (String.explode s)) [])
-      end
-    
-    (*replaces ~ to - *)
-    fun convert_minus s = String.implode
-            (map (fn (#"~") => #"-" | x => x) (String.explode s))
-
-    (*fun pretty json = *)
-
-    (*fun enc_value (JS value) = "\"" ^ escape value ^ "\""
-      | enc_value (JI value) = convert_minus (Int.toString value)
-      | enc_value (JB value) = Bool.toString value
-      | enc_value (JF value) = Real.toString value
-      | enc_value (JI value) = enc_list value
-      | enc_value (JN) = "null"
-      | enc_value (obj) = (encode obj)
-    and enc_list [] = "[]"
-      | enc_list l =
-        let
-            val e = fold_rev (fn a => fn b => (enc_value a) ^ "," ^ b) l ""
-        in
-            "[" ^ String.substring(e, 0, (String.size e)-1) ^ "]"
-        end
-    and enc_1 (name, value) x = (enc_name name) ^ (enc_value value) ^ "," ^ x
-    and encode (JOBJ tab) =
-        let
-            val e = Tab.fold enc_1 tab "";
-        in
-            "{" ^ String.substring(e, 0, (String.size e)-1) ^ "}"
-        end*)
+(** escapes ", \ and \n **)
+fun escape s = let
+  fun trans #"\"" = "\\\""
+    | trans #"\\" = "\\\\"
+    | trans #"\n" = "\\n"
+    | trans c = String.implode [c]
+in String.translate trans s
 end
+
+(*replaces ~ to - *)
+fun convert_num s = let
+  fun trans #"~" = "-"
+    | trans #"E" = "e"
+    | trans c = String.implode [c]
+in String.translate trans s
+end
+
+fun pretty_q_str x = Pretty.str ("\"" ^ escape x ^ "\"")
+and pretty_kv (k,v) [] = [Pretty.block [pretty_q_str k, Pretty.str " : ", pretty v]]
+  | pretty_kv (k,v) pr = Pretty.block [pretty_q_str k, Pretty.str " : ", pretty v, Pretty.str ","] :: pr
+and pretty (JS x) = pretty_q_str x
+  | pretty (JI x) = Pretty.str (convert_num (Int.toString x))
+  | pretty (JF x) = Pretty.str (convert_num (Real.toString x))
+  | pretty (JB x) = Pretty.str (Bool.toString x)
+  | pretty (JN) = Pretty.str "null"
+  | pretty (JARR xs) = Pretty.list "[" "]" (map pretty xs)
+  | pretty (JOBJ obj) = Pretty.block_enclose (Pretty.str "{", Pretty.str "}")
+                        (JObj.fold pretty_kv obj [])
+
+val string_of = Pretty.string_of o pretty
+val of_string = Parser.parse
 
 end
