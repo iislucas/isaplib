@@ -76,6 +76,7 @@ PolyML.Project.make "General/url.ML";
 PolyML.Project.make "General/file.ML";
 PolyML.Project.make "General/xml.ML";
 PolyML.Project.make "General/yxml.ML";
+PolyML.Project.make "General/json.ML";
 
 (* from Isabelle/src/Pure/Concurrent; this is the main stuff loaded in 
    Pure/ROOT.ML *)
