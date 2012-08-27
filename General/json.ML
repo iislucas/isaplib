@@ -5,9 +5,10 @@ sig
   exception notfound_exn of string
   
   structure JObj : TABLE
+  type jobj
   datatype json = String of string | Int of int | Real of real | Bool of bool | Null
                 | Array of json list
-                | Object of json JObj.table * int
+                | Object of jobj
   
   val empty : json
   
@@ -35,12 +36,14 @@ struct
 (* JObj stores the order in which keys are added, so that it can be
    preserved when outputting a string. This is a presentation detail,
    and should not be used to encode object information. *)
+
 structure JObj = Table(type key = string * int;
                        val ord = prod_ord fast_string_ord (K EQUAL))
 
 datatype json = String of string | Int of int | Real of real | Bool of bool | Null
               | Array of json list
               | Object of json JObj.table * int
+type jobj = json JObj.table * int
 
 exception parse_exn of string
 exception notobj_exn of unit
