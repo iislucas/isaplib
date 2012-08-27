@@ -4,7 +4,6 @@ sig
   exception notobj_exn of unit
   exception notfound_exn of string
   
-  structure JObj : TABLE
   type jobj
   datatype json = String of string | Int of int | Real of real | Bool of bool | Null
                 | Array of json list
