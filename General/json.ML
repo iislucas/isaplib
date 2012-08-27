@@ -4,44 +4,60 @@ sig
   exception notobj_exn of unit
   exception notfound_exn of string
   
-  structure JObj : TABLE where type key = string
+  structure JObj : TABLE
   datatype json = String of string | Int of int | Real of real | Bool of bool | Null
                 | Array of json list
-                | Object of json JObj.table
+                | Object of json JObj.table * int
   
   val empty : json
+  
+  (* table-like accessors. they throw notobj_exn if the top-level JSON type
+     is not "Object" *)
   val update : string * json -> json -> json
   val delete : string -> json -> json
   val lookup : json -> string -> json option
   val get : json -> string -> json
   
+  (* human-readible output formatting *)
   val pretty : json -> Pretty.T
   val string_of : json -> string
+  
+  (* parse JSON string *)
   val of_string : string -> json
+  
+  (* produce JSON with no extraneous whitespace *)
+  val encode : json -> string
 end
 
 structure Json : JSON =
 struct
 
-structure JObj = Table(type key = string; val ord = fast_string_ord)
+(* JObj stores the order in which keys are added, so that it can be
+   preserved when outputting a string. This is a presentation detail,
+   and should not be used to encode object information. *)
+structure JObj = Table(type key = string * int;
+                       val ord = prod_ord fast_string_ord (K EQUAL))
+
 datatype json = String of string | Int of int | Real of real | Bool of bool | Null
               | Array of json list
-              | Object of json JObj.table
+              | Object of json JObj.table * int
 
 exception parse_exn of string
 exception notobj_exn of unit
 exception notfound_exn of string
-val empty = Object JObj.empty
+val empty = Object (JObj.empty,0)
 
 
 (* table accessor functions *)
 
-
-fun update (k, v) (Object tab) = Object (JObj.update (k,v) tab)
+fun update (k, v) (Object (tab,sz)) = 
+      (Object (JObj.update_new ((k,sz), v) tab, sz+1)
+       handle JObj.DUP (_,i) => Object (JObj.update ((k,i), v) tab, sz))
   | update _ _ = raise notobj_exn ()
-fun delete k (Object tab) = Object (JObj.delete k tab)
+fun delete k (Object (tab,sz)) = Object (JObj.delete (k,~1) tab, sz)
   | delete _ _ = raise notobj_exn ()
-fun lookup (Object tab) k = (case JObj.lookup tab k of SOME v => SOME v | NONE => NONE)
+fun lookup (Object (tab,_)) k = (case JObj.lookup tab (k,~1)
+                                   of SOME v => SOME v | NONE => NONE)
   | lookup _ _ = raise notobj_exn ()
 fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 
@@ -187,12 +203,12 @@ struct
     val p_pair     = p_string --| ind ":" -- p_value
     val p_members  = p_pair ::: rep (ind "," |-- p_pair)
     val p_object   = (ind "{" |-- opt p_members [] --| ind "}")
-                      >> (fn pairs => fold JObj.update pairs JObj.empty)
+                      >> (fn pairs => fold update pairs empty)
     val p_elements = p_value ::: rep (ind "," |-- p_value)
     val p_array    = (ind "[" |-- opt p_elements [] --| ind "]")
   in x |> (
     p_true || p_false || p_null || p_number || (p_string >> String) ||
-    (p_object >> Object) || (p_array >> Array)
+    p_object || (p_array >> Array)
   )
   end
   
@@ -220,19 +236,60 @@ fun convert_num s = let
 in String.translate trans s
 end
 
+(*and pretty_kv d (k,v) [] = [Pretty.block [pretty_q_str k, Pretty.str " : ",
+                                          pretty_d (d+1) v]]
+  | pretty_kv d (k,v) pr = (Pretty.block [pretty_q_str k, Pretty.str " : ",
+                                         pretty_d (d+1) v, Pretty.str ","]) :: pr*)
+
+fun ordered_kv (tab,_) =
+      order_list (map (fn ((k,i), v) => (i, (k,v))) (JObj.dest tab))
+
+fun block_comma_list x xs = Pretty.block
+  (x :: Pretty.fbrk ::
+   flat (Library.separate [Pretty.str ",", Pretty.fbrk] (map single xs)));
+
+
 fun pretty_q_str x = Pretty.str ("\"" ^ escape x ^ "\"")
-and pretty_kv (k,v) [] = [Pretty.block [pretty_q_str k, Pretty.str " : ", pretty v]]
-  | pretty_kv (k,v) pr = Pretty.block [pretty_q_str k, Pretty.str " : ", pretty v, Pretty.str ","] :: pr
-and pretty (String x) = pretty_q_str x
-  | pretty (Int x) = Pretty.str (convert_num (Int.toString x))
-  | pretty (Real x) = Pretty.str (convert_num (Real.toString x))
-  | pretty (Bool x) = Pretty.str (Bool.toString x)
-  | pretty (Null) = Pretty.str "null"
-  | pretty (Array xs) = Pretty.list "[" "]" (map pretty xs)
-  | pretty (Object obj) = Pretty.block_enclose (Pretty.str "{", Pretty.str "}")
-                        (JObj.fold pretty_kv obj [])
+and pretty_block_obj d k obj =
+      Pretty.chunks [
+        block_comma_list
+           (Pretty.block (if k = ""
+                         then [Pretty.str "{"]
+                         else [pretty_q_str k, Pretty.str " : {"]))
+           (map (pretty_kv (d+1)) (ordered_kv obj)),
+        Pretty.str "}"]
+and pretty_kv d (k,Object obj) =
+      if d < 2
+      then pretty_block_obj d k obj
+      else Pretty.block [pretty_q_str k, Pretty.str " : ", pretty_d d (Object obj)]
+  | pretty_kv d (k,v) =
+      Pretty.block [pretty_q_str k, Pretty.str " : ", pretty_d d v]
+and pretty_d _ (String x)   = pretty_q_str x
+  | pretty_d _ (Int x)      = Pretty.str (convert_num (Int.toString x))
+  | pretty_d _ (Real x)     = Pretty.str (convert_num (Real.toString x))
+  | pretty_d _ (Bool x)     = Pretty.str (Bool.toString x)
+  | pretty_d _ (Null)       = Pretty.str "null"
+  | pretty_d d (Array xs)   = Pretty.list "[" "]" (map (pretty_d (d+1)) xs)
+  | pretty_d d (Object obj) =
+      if d = 0
+      then pretty_block_obj 0 "" obj
+      else Pretty.list "{" "}" (map (pretty_kv (d+1)) (ordered_kv obj))
+
+val pretty = pretty_d 0
 
 val string_of = Pretty.string_of o pretty
 val of_string = Parser.parse
+
+
+fun enc_kv (k, v) = (encode (String k)) ^ ":" ^ (encode v)
+and encode (String x) = "\"" ^ escape x ^ "\""
+  | encode (Int x) = convert_num (Int.toString x)
+  | encode (Bool x) = Bool.toString x
+  | encode (Real x) = convert_num (Real.toString x)
+  | encode (Array xs) = "[" ^ implode (Library.separate "," (map encode xs)) ^ "]"
+  | encode (Null) = "null"
+  | encode (Object obj) =
+      "{" ^ implode (Library.separate "," (map enc_kv (ordered_kv obj))) ^ "}"
+    
 
 end
