@@ -19,8 +19,6 @@ sig
    * The string is a short message describing the error
    *)
   exception parse_exn of string
-  (** A table-like accessor was used on something that was not a JSON object *)
-  exception notobj_exn of unit
   (**
    * The object did not have the requested property
    *
@@ -40,37 +38,31 @@ sig
                 | Object of jobj
   
   (** An empty JSON Object *)
-  val empty : json
+  val empty_obj : jobj
 
   (**
    * Get the properties of a JSON object
    *
    * Arg 1: the JSON object
    * Result: the names of the properties on the object
-   *
-   * Raises notobj_exn if arg 1 is not an Object
    *)
-  val properties : json -> string list
+  val properties : jobj -> string list
   (**
    * Set a property on a JSON object
    *
    * Arg 1: pair of property name and the new value
    * Arg 2: the JSON object to update
    * Result: the updated JSON object
-   *
-   * Raises notobj_exn if arg 2 is not an Object
    *)
-  val update : string * json -> json -> json
+  val update : string * json -> jobj -> jobj
   (**
    * Remove a property from a JSON object
    *
    * Arg 1: the property name
    * Arg 2: the JSON object to update
    * Result: the updated JSON object
-   *
-   * Raises notobj_exn if arg 2 is not an Object
    *)
-  val delete : string -> json -> json
+  val delete : string -> jobj -> jobj
   (**
    * Lookup a property on a JSON object
    *
@@ -78,10 +70,8 @@ sig
    * Arg 2: the property name
    * Result: SOME of the property value if the object has
    *         that property, NONE otherwise
-   *
-   * Raises notobj_exn if arg 1 is not an Object
    *)
-  val lookup : json -> string -> json option
+  val lookup : jobj -> string -> json option
   (**
    * Get a property on a JSON object
    *
@@ -89,10 +79,9 @@ sig
    * Arg 2: the property name
    * Result: the property value
    *
-   * Raises notobj_exn if arg 1 is not an Object
    * Raises notfound_exn if arg 2 is not a property on arg 1
    *)
-  val get : json -> string -> json
+  val get : jobj -> string -> json
   
   (** Produce a Pretty version of the JSON *)
   val pretty : json -> Pretty.T
@@ -122,24 +111,19 @@ datatype json = String of string | Int of int | Real of real | Bool of bool | Nu
 type jobj = json JObj.table * int
 
 exception parse_exn of string
-exception notobj_exn of unit
 exception notfound_exn of string
-val empty = Object (JObj.empty,0)
+val empty_obj = (JObj.empty,0)
 
 
 (* table accessor functions *)
 
-fun properties (Object (tab,_)) = map fst (JObj.keys tab)
-  | properties _ = raise notobj_exn ()
-fun update (k, v) (Object (tab,sz)) = 
-      (Object (JObj.update_new ((k,sz), v) tab, sz+1)
-       handle JObj.DUP (_,i) => Object (JObj.update ((k,i), v) tab, sz))
-  | update _ _ = raise notobj_exn ()
-fun delete k (Object (tab,sz)) = Object (JObj.delete (k,~1) tab, sz)
-  | delete _ _ = raise notobj_exn ()
-fun lookup (Object (tab,_)) k = (case JObj.lookup tab (k,~1)
+fun properties (tab,_) = map fst (JObj.keys tab)
+fun update (k, v) (tab,sz) = 
+      ((JObj.update_new ((k,sz), v) tab, sz+1)
+       handle JObj.DUP (_,i) => (JObj.update ((k,i), v) tab, sz))
+fun delete k (tab,sz) = (JObj.delete (k,~1) tab, sz)
+fun lookup (tab,_) k = (case JObj.lookup tab (k,~1)
                                    of SOME v => SOME v | NONE => NONE)
-  | lookup _ _ = raise notobj_exn ()
 fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 
 
@@ -284,7 +268,7 @@ struct
     val p_pair     = p_string --| ind ":" -- p_value
     val p_members  = p_pair ::: rep (ind "," |-- p_pair)
     val p_object   = (ind "{" |-- opt p_members [] --| ind "}")
-                      >> (fn pairs => fold update pairs empty)
+                      >> (fn pairs => Object (fold update pairs empty_obj))
     val p_elements = p_value ::: rep (ind "," |-- p_value)
     val p_array    = (ind "[" |-- opt p_elements [] --| ind "]")
   in x |> (
