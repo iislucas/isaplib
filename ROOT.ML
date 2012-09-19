@@ -78,6 +78,8 @@ PolyML.Project.make "General/xml.ML";
 PolyML.Project.make "General/yxml.ML";
 PolyML.Project.make "General/json.ML";
 
+Testing.make_test "General/test/json-test.ML";
+
 (* from Isabelle/src/Pure/Concurrent; this is the main stuff loaded in 
    Pure/ROOT.ML *)
 PolyML.Project.make "Concurrent/ROOT.ML";
