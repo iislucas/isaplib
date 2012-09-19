@@ -1,31 +1,99 @@
+(**
+ * Json: a structure for parsing and writing JSON (JavaScript Object Notation)
+ *
+ * The functions in this structure do basic JSON parsing, as well as providing
+ * accessors and updaters for JSON objects.
+ *
+ * Shortcomings:
+ * - Non-ASCII characters are currently not supported
+ * - If a string is not valid JSON, little information is given about where
+ *   the problem was
+ *
+ * See http://www.json.org/
+ *)
 signature JSON =
 sig
+  (**
+   * Indicates that invalid JSON was encountered
+   *
+   * The string is a short message describing the error
+   *)
   exception parse_exn of string
+  (** A table-like accessor was used on something that was not a JSON object *)
   exception notobj_exn of unit
+  (**
+   * The object did not have the requested property
+   *
+   * The string is the property name
+   *)
   exception notfound_exn of string
   
+  (** Stores a JSON object *)
   type jobj
-  datatype json = String of string | Int of int | Real of real | Bool of bool | Null
+  (** Represents a JSON fragment *)
+  datatype json = String of string
+                | Int of int
+                | Real of real
+                | Bool of bool
+                | Null               (*< The constant "null" *)
                 | Array of json list
                 | Object of jobj
   
+  (** An empty JSON Object *)
   val empty : json
   
-  (* table-like accessors. they throw notobj_exn if the top-level JSON type
-     is not "Object" *)
+  (**
+   * Set a property on a JSON object
+   *
+   * Arg 1: pair of property name and the new value
+   * Arg 2: the JSON object to update
+   * Result: the updated JSON object
+   *
+   * Raises notobj_exn if arg 2 is not an Object
+   *)
   val update : string * json -> json -> json
+  (**
+   * Remove a property from a JSON object
+   *
+   * Arg 1: the property name
+   * Arg 2: the JSON object to update
+   * Result: the updated JSON object
+   *
+   * Raises notobj_exn if arg 2 is not an Object
+   *)
   val delete : string -> json -> json
+  (**
+   * Lookup a property on a JSON object
+   *
+   * Arg 1: the JSON object to look up the property on
+   * Arg 2: the property name
+   * Result: SOME of the property value if the object has
+   *         that property, NONE otherwise
+   *
+   * Raises notobj_exn if arg 1 is not an Object
+   *)
   val lookup : json -> string -> json option
+  (**
+   * Get a property on a JSON object
+   *
+   * Arg 1: the JSON object to get the property on
+   * Arg 2: the property name
+   * Result: the property value
+   *
+   * Raises notobj_exn if arg 1 is not an Object
+   * Raises notfound_exn if arg 2 is not a property on arg 1
+   *)
   val get : json -> string -> json
   
-  (* human-readible output formatting *)
+  (** Produce a Pretty version of the JSON *)
   val pretty : json -> Pretty.T
+  (** Produce JSON formatted to be human-readable *)
   val string_of : json -> string
   
-  (* parse JSON string *)
+  (** Parse a JSON string *)
   val of_string : string -> json
   
-  (* produce JSON with no extraneous whitespace *)
+  (** Produce JSON with no extraneous whitespace *)
   val encode : json -> string
 end
 
