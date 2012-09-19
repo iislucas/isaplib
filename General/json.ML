@@ -181,11 +181,11 @@ struct
   fun dec_int digits = fold (fn c => fn i => cdec_to_int c + (10 * i)) digits 0
   fun hex_int digits = fold (fn c => fn i => chex_to_int c + (16 * i)) digits 0
   
-  fun mk_float2 (num,frac) = Real.fromInt num + frac
-  fun mk_float3 ((num,frac),exp) = 
+  fun mk_float3 ((sgn,num),frac) = (Real.fromInt sgn) * (Real.fromInt num + frac)
+  fun mk_float4 (((sgn,num),frac),exp) = 
     if exp < 0
-    then mk_float2 (num,frac) / Real.fromInt (pow 10 (~exp))
-    else mk_float2 (num,frac) * Real.fromInt (pow 10 exp) 
+    then mk_float3 ((sgn,num),frac) / Real.fromInt (pow 10 (~exp))
+    else mk_float3 ((sgn,num),frac) * Real.fromInt (pow 10 exp) 
   
   fun hex_to_asc (((a,b),c),d) = ch_to_st (Char.chr (hex_int [a,b,c,d]))
     handle Chr => raise parse_exn "non-ascii characters not supported in strings (yet!)"
@@ -244,10 +244,11 @@ struct
   (* numbers *)
   val p_exp_symb = (ch "e" || ch "E") |--
                     (opt (ch "+" >> K 1 || ch "-" >> K ~1) 1)
-  val p_int = opt (ch "-" >> K ~1) 1 -- (
+  val p_sign = opt (ch "-" >> K ~1) 1
+  val p_int = (
                  (p_dec_nonzero -- rep1 p_dec_digit) >> op:: ||
                  p_dec_digit >> single
-               ) >> (fn (sgn,digits) => sgn * dec_int digits)
+               ) >> dec_int
   val p_exp = p_exp_symb -- rep1 p_dec_digit
                >> (fn (sgn,digits) => sgn * dec_int digits)
   val p_frac = ch "." |-- rep1 p_dec_digit
@@ -256,9 +257,9 @@ struct
                       Real.fromInt (pow 10 (length digits)))
   
   (* a number is interpreted as an integer, unless an exponent or decimal is present *)
-  val p_number = (p_int -- opt p_frac 0.0 -- p_exp >> (Real o mk_float3)) ||
-                  (p_int -- p_frac >> (Real o mk_float2)) ||
-                  (p_int >> Int)
+  val p_number = (p_sign -- p_int -- opt p_frac 0.0 -- p_exp >> (Real o mk_float4)) ||
+                  (p_sign -- p_int -- p_frac >> (Real o mk_float3)) ||
+                  (p_sign -- p_int >> (Int o (fn (sign,i) => sign * i)))
   
   val p_true  = (ch "t" |-- ch "r" |-- ch "u" |-- ch "e") >> K (Bool true)
   val p_false = (ch "f" |-- ch "a" |-- ch "l" |-- ch "s" |-- ch "e") >> K (Bool false)
