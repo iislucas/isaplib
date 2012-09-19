@@ -41,7 +41,16 @@ sig
   
   (** An empty JSON Object *)
   val empty : json
-  
+
+  (**
+   * Get the properties of a JSON object
+   *
+   * Arg 1: the JSON object
+   * Result: the names of the properties on the object
+   *
+   * Raises notobj_exn if arg 1 is not an Object
+   *)
+  val properties : json -> string list
   (**
    * Set a property on a JSON object
    *
@@ -120,6 +129,8 @@ val empty = Object (JObj.empty,0)
 
 (* table accessor functions *)
 
+fun properties (Object (tab,_)) = map fst (JObj.keys tab)
+  | properties _ = raise notobj_exn ()
 fun update (k, v) (Object (tab,sz)) = 
       (Object (JObj.update_new ((k,sz), v) tab, sz+1)
        handle JObj.DUP (_,i) => Object (JObj.update ((k,i), v) tab, sz))
