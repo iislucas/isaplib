@@ -5,6 +5,7 @@
  * accessors and updaters for JSON objects.
  *
  * Shortcomings:
+ * - Only JSON encoded in UTF-8 is supported (not UTF-16 or UTF-32)
  * - Non-ASCII characters are currently not supported
  * - If a string is not valid JSON, little information is given about where
  *   the problem was
@@ -29,7 +30,7 @@ sig
   (** Stores a JSON object *)
   type jobj
   (** Represents a JSON fragment *)
-  datatype json = String of string
+  datatype json = String of string   (*< Must ONLY contain ASCII chars (0 to 127) *)
                 | Int of int
                 | Real of real
                 | Bool of bool
@@ -83,15 +84,30 @@ sig
    *)
   val get : jobj -> string -> json
   
-  (** Produce a Pretty version of the JSON *)
+  (**
+   * Produce a Pretty version of the JSON
+   *
+   * WARNING: this will produce invalid JSON if there are any
+   * strings containing non-ASCII characters.
+   *)
   val pretty : json -> Pretty.T
-  (** Produce JSON formatted to be human-readable *)
+  (**
+   * Produce JSON formatted to be human-readable
+   *
+   * WARNING: this will produce invalid JSON if there are any
+   * strings containing non-ASCII characters.
+   *)
   val string_of : json -> string
   
   (** Parse a JSON string *)
   val of_string : string -> json
   
-  (** Produce JSON with no extraneous whitespace *)
+  (**
+   * Produce JSON with no extraneous whitespace
+   *
+   * WARNING: this will produce invalid JSON if there are any
+   * strings containing non-ASCII characters.
+   *)
   val encode : json -> string
 end
 
@@ -185,8 +201,13 @@ struct
     then mk_float3 ((sgn,num),frac) / Real.fromInt (pow 10 (~exp))
     else mk_float3 ((sgn,num),frac) * Real.fromInt (pow 10 exp) 
   
-  fun hex_to_asc (((a,b),c),d) = String.str (Char.chr (hex_int [a,b,c,d]))
-    handle Chr => raise parse_exn "non-ascii characters not supported in strings (yet!)"
+  fun hex_to_asc (((a,b),c),d) = let
+    val ord = hex_int [a,b,c,d]
+  in
+    if ord < 128
+    then String.str (Char.chr ord)
+    else raise parse_exn "non-ascii characters not supported in strings (yet!)"
+  end
     
   
   val p_printable = ch "\t" || ch "\n" || ch "\r" || ch_range (" ", "~")
