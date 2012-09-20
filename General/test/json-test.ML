@@ -220,5 +220,13 @@ val _ = Testing.test "JSON parsing: complex object" (fn _ =>
     val _ = assert_null_val (Json.get sum_obj "totalValue")
   in () end) ();
 
+val _ = Testing.test "JSON parsing: array with invalid escaped string"
+  (fn _ => let
+    val json_str = "[\"\\x\"]"
+   in
+    (Json.of_string json_str; raise ERROR "Invalid JSON accepted")
+    handle Json.parse_exn _ => ()
+   end) ()
+
 val _ = Testing.assert_no_failed_tests ();
 end;

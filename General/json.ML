@@ -297,10 +297,11 @@ struct
   )
   end
   
-  fun parse s = case p_value (raw_explode s @ [Symbol.eof])
-                  of (json, [x]) => if x = Symbol.eof then json else
-                                    raise parse_exn ("Expected: eof, got: " ^ x)
-                   | (_, xs)     => raise parse_exn ("Expected: eof, got: " ^ implode xs)
+  fun parse' s = case p_value (raw_explode s @ [Symbol.eof])
+                   of (json, [x]) => if x = Symbol.eof then json else
+                                     raise parse_exn ("Expected: eof, got: " ^ x)
+                    | (_, xs)     => raise parse_exn ("Expected: eof, got: " ^ implode xs)
+  fun parse s = (Scan.catch parse' s) handle Fail m => raise parse_exn m
 end
 
     
