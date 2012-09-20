@@ -80,8 +80,35 @@ val _ = Testing.test "JSON parsing: empty array with whitespace" (fn _ =>
 val _ = Testing.test "JSON parsing: array with empty string"
   test_array_singleton ("[\"\"]",assert_string_val "");
 
-val _ = Testing.test "JSON parsing: array with short string"
+val _ = Testing.test "JSON parsing: array with simple string"
   test_array_singleton ("[\"foo\"]",assert_string_val "foo");
+
+val _ = Testing.test "JSON parsing: array with escaped string (\")"
+  test_array_singleton ("[\"\\\"\"]",assert_string_val "\"");
+
+val _ = Testing.test "JSON parsing: array with escaped string (\\)"
+  test_array_singleton ("[\"\\\\\"]",assert_string_val "\\");
+
+val _ = Testing.test "JSON parsing: array with escaped string (/)"
+  test_array_singleton ("[\"\\/\"]",assert_string_val "/");
+
+val _ = Testing.test "JSON parsing: array with escaped string (backspace)"
+  test_array_singleton ("[\"\\b\"]",assert_string_val "\b");
+
+val _ = Testing.test "JSON parsing: array with escaped string (formfeed)"
+  test_array_singleton ("[\"\\f\"]",assert_string_val "\f");
+
+val _ = Testing.test "JSON parsing: array with escaped string (lf)"
+  test_array_singleton ("[\"\\n\"]",assert_string_val "\n");
+
+val _ = Testing.test "JSON parsing: array with escaped string (cr)"
+  test_array_singleton ("[\"\\r\"]",assert_string_val "\r");
+
+val _ = Testing.test "JSON parsing: array with escaped string (tab)"
+  test_array_singleton ("[\"\\t\"]",assert_string_val "\t");
+
+val _ = Testing.test "JSON parsing: array with unicode escaped string"
+  test_array_singleton ("[\"\\u005B\"]",assert_string_val "[");
 
 val _ = Testing.test "JSON parsing: array with +ve int (no exp)"
   test_array_singleton ("[27364]",assert_int_val 27364);
@@ -166,6 +193,15 @@ val _ = Testing.test "JSON parsing: array with -ve real and exp (e-)"
 
 val _ = Testing.test "JSON parsing: array with -ve real and exp (E-)"
   test_array_singleton ("[-3.2E-2]",assert_real_val ~0.032);
+
+val _ = Testing.test "JSON parsing: array with true"
+  test_array_singleton ("[true]",assert_bool_val true);
+
+val _ = Testing.test "JSON parsing: array with false"
+  test_array_singleton ("[false]",assert_bool_val false);
+
+val _ = Testing.test "JSON parsing: array with null"
+  test_array_singleton ("[null]",assert_null_val);
 
 val _ = Testing.test "JSON parsing: complex object" (fn _ =>
   let
