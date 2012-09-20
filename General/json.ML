@@ -228,7 +228,7 @@ struct
   val p_esc_form_feed = ch "f" >> K "\f"
   val p_esc_line_feed = ch "n" >> K "\n"
   val p_esc_carriage_return = ch "r" >> K "\r"
-  val p_esc_tab = ch "t" >> K "t"
+  val p_esc_tab = ch "t" >> K "\t"
   val p_esc_unicode = (p_hex_digit -- p_hex_digit -- p_hex_digit -- p_hex_digit)
                       >> hex_to_asc
   
