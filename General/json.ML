@@ -89,6 +89,9 @@ sig
    *
    * WARNING: this will produce invalid JSON if there are any
    * strings containing non-ASCII characters.
+   *
+   * WARNING: if the argument is not an Array or Object, the
+   * output will not be valid JSON (it will be a fragment of JSON)
    *)
   val pretty : json -> Pretty.T
   (**
@@ -96,10 +99,20 @@ sig
    *
    * WARNING: this will produce invalid JSON if there are any
    * strings containing non-ASCII characters.
+   *
+   * WARNING: if the argument is not an Array or Object, the
+   * output will not be valid JSON (it will be a fragment of JSON)
    *)
   val string_of : json -> string
   
-  (** Parse a JSON string *)
+  (**
+   * Parse a JSON string
+   *
+   * NB: this will accept a fragment of JSON.  If the input is
+   * valid JSON, the result will be an Array or an Object, but
+   * of_string will happily parse just a string, number or
+   * constant.
+   *)
   val of_string : string -> json
   
   (**
@@ -107,6 +120,9 @@ sig
    *
    * WARNING: this will produce invalid JSON if there are any
    * strings containing non-ASCII characters.
+   *
+   * WARNING: if the argument is not an Array or Object, the
+   * output will not be valid JSON (it will be a fragment of JSON)
    *)
   val encode : json -> string
 end
