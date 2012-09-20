@@ -153,8 +153,6 @@ struct
                             else x * (pow (x*x) (n div 2)))
   
   
-  (* Char.toString automatically inserts escape sequences, so we use implode *)
-  val ch_to_st = String.implode o single
   fun st_to_ch st = case String.explode st of [c] => SOME c
                        | _ => NONE
   
@@ -187,7 +185,7 @@ struct
     then mk_float3 ((sgn,num),frac) / Real.fromInt (pow 10 (~exp))
     else mk_float3 ((sgn,num),frac) * Real.fromInt (pow 10 exp) 
   
-  fun hex_to_asc (((a,b),c),d) = ch_to_st (Char.chr (hex_int [a,b,c,d]))
+  fun hex_to_asc (((a,b),c),d) = String.str (Char.chr (hex_int [a,b,c,d]))
     handle Chr => raise parse_exn "non-ascii characters not supported in strings (yet!)"
     
   
