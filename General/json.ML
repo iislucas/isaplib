@@ -49,6 +49,15 @@ sig
    *)
   val properties : jobj -> string list
   (**
+   * Fold over an object's properties
+   *
+   * Arg 1: the function to fold with
+   * Arg 2: the JSON object
+   * Arg 3: the initial accumulator state
+   * Result: the result of the folding
+   *)
+  val fold : (string*json -> 'a -> 'a) -> jobj -> 'a -> 'a
+  (**
    * Set a property on a JSON object
    *
    * Arg 1: pair of property name and the new value
@@ -150,6 +159,7 @@ val empty_obj = (JObj.empty,0)
 (* table accessor functions *)
 
 fun properties (tab,_) = map fst (JObj.keys tab)
+(* fold is at bottom of struct *)
 fun update (k, v) (tab,sz) = 
       ((JObj.update_new ((k,sz), v) tab, sz+1)
        handle JObj.DUP (_,i) => (JObj.update ((k,i), v) tab, sz))
@@ -393,5 +403,10 @@ and encode (String x) = "\"" ^ escape x ^ "\""
   | encode (Object obj) =
       "{" ^ implode (Library.separate "," (map enc_kv (ordered_kv obj))) ^ "}"
     
+
+(* we put this here to avoid overwriting the list fold for the rest of the
+ * struct
+ *)
+fun fold f = (JObj.fold (fn ((k,_),v) => f (k,v))) o fst
 
 end
