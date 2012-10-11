@@ -46,7 +46,7 @@ uses
 "../../search/msearch.ML"
 "../../search/lsearch.ML"
 
-"../../general/json.ML"
+"../../General/json.ML"
 
 (* Other basic top level things *)
 "../../basics/collection.ML"
