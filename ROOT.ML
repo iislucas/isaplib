@@ -78,11 +78,22 @@ PolyML.Project.make "General/xml.ML";
 PolyML.Project.make "General/yxml.ML";
 PolyML.Project.make "General/json.ML";
 
+
+(*MJB*)
+PolyML.Project.make "General/stopwatch.ML";
+
 Testing.make_test "General/test/json-test.ML";
 
 (* from Isabelle/src/Pure/Concurrent; this is the main stuff loaded in 
    Pure/ROOT.ML *)
 PolyML.Project.make "Concurrent/ROOT.ML";
+
+(*MJB: simplification of the future calls.
+It needs to be made here to use Synchronized and Future at the same time*)
+PolyML.Project.make "Concurrent/simple_future.ML";
+PolyML.Project.make "Concurrent/par_seq.ML";
+PolyML.Project.make "Concurrent/compactor.ML";
+PolyML.Project.make "Concurrent/par_tree.ML";
 
 (* Other IsapLib Special stuff: names and graphs *)
 PolyML.Project.use_root "names/ROOT.ML";
