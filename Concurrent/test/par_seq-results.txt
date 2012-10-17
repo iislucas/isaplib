@@ -1,0 +1,1 @@
+Fixed_hardness: 5 Length: 20000 Parallel: 13948211 Sequential: 25758427

@@ -1,0 +1,10 @@
+Time_aimed_at: 20000 List_length: 1000 Parallel: 712674 Sequential: 2612834
+Time_aimed_at: 60000 List_length: 1000 Parallel: 694288 Sequential: 2676602
+Time_aimed_at: 100000 List_length: 1000 Parallel: 700475 Sequential: 2581124
+Time_aimed_at: 140000 List_length: 1000 Parallel: 690763 Sequential: 2609256
+Time_aimed_at: 180000 List_length: 1000 Parallel: 690327 Sequential: 2705685
+Time_aimed_at: 200000 List_length: 1000 Parallel: 703323 Sequential: 2542052
+Time_aimed_at: 600000 List_length: 1000 Parallel: 703567 Sequential: 2649303
+Time_aimed_at: 1000000 List_length: 1000 Parallel: 698128 Sequential: 2563335
+Time_aimed_at: 1400000 List_length: 1000 Parallel: 694214 Sequential: 2624256
+Time_aimed_at: 1800000 List_length: 1000 Parallel: 697611 Sequential: 2591452
