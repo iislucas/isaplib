@@ -40,6 +40,12 @@ sig
   
   (** An empty JSON Object *)
   val empty_obj : jobj
+  
+  (** Make a JSON object, given key/json value pairs *)
+  val mk_json_record : (string * json) list -> json
+  
+  (** Make a JSON object, given key/string value pairs *)
+  val mk_record : (string * string) list -> json
 
   (**
    * Get the properties of a JSON object
@@ -56,7 +62,7 @@ sig
    * Arg 3: the initial accumulator state
    * Result: the result of the folding
    *)
-  val fold : (string*json -> 'a -> 'a) -> jobj -> 'a -> 'a
+  val fold : (string * json -> 'a -> 'a) -> jobj -> 'a -> 'a
   (**
    * Set a property on a JSON object
    *
@@ -153,8 +159,6 @@ type jobj = json JObj.table * int
 
 exception parse_exn of string
 exception notfound_exn of string
-val empty_obj = (JObj.empty,0)
-
 
 (* table accessor functions *)
 
@@ -168,6 +172,10 @@ fun lookup (tab,_) k = (case JObj.lookup tab (k,~1)
                                    of SOME v => SOME v | NONE => NONE)
 fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 
+val empty_obj = (JObj.empty,0)
+
+fun mk_record xs = Object (fold_rev (fn (k,v) => update (k, String v)) xs empty_obj)
+fun mk_json_record xs = Object (fold_rev (fn (k,v) => update (k, v)) xs empty_obj)
 
 structure Parser =
 struct
