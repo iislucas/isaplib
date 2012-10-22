@@ -20,6 +20,7 @@ sig
   val of_string: string -> (string, string list) source
   val of_string_limited: int -> string -> (string, substring) source
   val tty: TextIO.instream -> (string, unit) source
+  val raw_stream: (string -> bool) -> TextIO.instream -> (string, unit) source
   val source': 'a -> 'b Scan.stopper -> ('a * 'b list -> 'c list * ('a * 'b list)) ->
     (bool * (string -> 'a * 'b list -> 'c list * ('a * 'b list))) option ->
     ('b, 'e) source -> ('c, 'a * ('b, 'e) source) source
@@ -138,7 +139,15 @@ fun tty in_stream = make_source [] () default_prompt (fn prompt => fn () =>
       | NONE => (input, ()))
   end);
 
-
+fun raw_stream flush_on in_stream = make_source [] () ""
+  (fn prompt => fn () =>
+  let val input = slurp_input in_stream in
+    if exists flush_on input then (input, ())
+    else
+      (case TextIO.input1 in_stream of
+        SOME ch => (input @ [String.implode [ch]], ())
+      | NONE => (input, ()))
+  end);
 
 (** cascade sources **)
 

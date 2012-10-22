@@ -42,7 +42,7 @@ sig
   val empty_obj : jobj
   
   (** Make a JSON object, given key/json value pairs *)
-  val mk_json_record : (string * json) list -> json
+  val mk_object : (string * json) list -> json
   
   (** Make a JSON object, given key/string value pairs *)
   val mk_record : (string * string) list -> json
@@ -140,9 +140,16 @@ sig
    * output will not be valid JSON (it will be a fragment of JSON)
    *)
   val encode : json -> string
+  
+  
+  (**
+   * Accept an instream and return a Source.source, which will pull the next JSON
+   * object/array from the stream
+   *)
+  val json_source : TextIO.instream -> (json, (string, unit) Source.source) Source.source
 end
 
-structure Json : JSON =
+structure Json =
 struct
 
 (* JObj stores the order in which keys are added, so that it can be
@@ -175,7 +182,7 @@ fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 val empty_obj = (JObj.empty,0)
 
 fun mk_record xs = Object (fold_rev (fn (k,v) => update (k, String v)) xs empty_obj)
-fun mk_json_record xs = Object (fold_rev (fn (k,v) => update (k, v)) xs empty_obj)
+fun mk_object xs = Object (fold_rev (fn (k,v) => update (k, v)) xs empty_obj)
 
 structure Parser =
 struct
@@ -269,9 +276,11 @@ struct
   val p_hex_digit = p_dec_digit || ch_range ("A", "F") || ch_range ("a", "f")
   
   fun s_wrap scanner = (rep p_white) |-- scanner --| (rep p_white)
+  fun s_before scanner = (rep p_white) |-- scanner
   
   (* indicator character, wrapped in whitespace *)
   val ind = s_wrap o ch
+  val term_ind = s_before o ch
   
   (* escape characters *)
   val p_esc_double_quote = ch "\""
@@ -329,6 +338,17 @@ struct
     p_true || p_false || p_null || p_number || (p_string >> String) ||
     p_object || (p_array >> Array)
   )
+  end
+  
+  (* only accept object or array. do not accept trailing whitespace *)
+  fun p_top_level x = let
+    val p_pair     = p_string --| ind ":" -- p_value
+    val p_members  = p_pair ::: rep (ind "," |-- p_pair)
+    val p_object   = (ind "{" |-- opt p_members [] --| term_ind "}")
+                      >> (fn pairs => Object (fold update pairs empty_obj))
+    val p_elements = p_value ::: rep (ind "," |-- p_value)
+    val p_array    = (ind "[" |-- opt p_elements [] --| term_ind "]")
+  in x |> (p_object || (p_array >> Array))
   end
   
   fun parse' s = case p_value (raw_explode s @ [Symbol.eof])
@@ -400,6 +420,17 @@ val pretty = pretty_d 0
 val string_of = Pretty.string_of o pretty
 val of_string = Parser.parse
 
+(*fun json_source instream =
+  Source.source Symbol.stopper
+    (Parser.p_top_level >> single) NONE
+      (Source.tty' (fn c => c = "]" orelse c = "}") instream)
+  |> Source.set_prompt ""*)
+
+fun json_source instream =
+  Source.source Symbol.stopper
+    (Parser.p_top_level >> single) NONE
+      (Source.raw_stream (fn c => c = "}" orelse c = "]") instream)
+  |> Source.set_prompt ""
 
 fun enc_kv (k, v) = (encode (String k)) ^ ":" ^ (encode v)
 and encode (String x) = "\"" ^ escape x ^ "\""
