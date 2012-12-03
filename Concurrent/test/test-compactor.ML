@@ -139,6 +139,20 @@ local
     in
       ()
     end) ()
+    
+  (*Test setting the scaling in a compactor *)
+  val _ = Testing.test "Compactor: scaling test" (fn () =>
+    let
+      val comp = Compactor.new_dynamic (Time.fromSeconds 10);
+      val comp = Compactor.set_scaling comp (10,100);
+      val _ = if ((Compactor.get_scaling comp)=(10,100)) then () else
+              raise ERROR "Compactor: scaling set failure 1";
+      val comp = Compactor.set_scaling comp (5,2);
+      val _ = if ((Compactor.get_scaling comp)=(5,2)) then () else
+              raise ERROR "Compactor: scaling set failure 2";
+    in
+      ()
+    end) ()
   
   (*This function generates all combinations of a priming a dynamic compactor.
   This does not change the fold direction or the target time*)
