@@ -521,13 +521,9 @@ in
           in
             fn () =>
             let
-              val _ = PolyML.print("");
-              val _ = PolyML.print("Parallelising over list of length: " ^ (Int.toString(List.length long_list)))
+              (*val _ = PolyML.print("Parallelising over list of length: " ^ (Int.toString(List.length long_list)))*)
               val comp_groups = Par_Seq.of_sequential_seq (fd()) (
-                  Compactor.compact_map_seq dyn func (Seq.of_list long_list));
-              val _ = PolyML.print("**************************");
-              val _ = PolyML.print("Returned compactor groups!");
-              val _ = PolyML.print("**************************");
+                  Compactor.compact_map_seq dyn func (Seq.of_list long_list))
             in
             (*Apply the function*)
             Par_Seq.list_of (
@@ -571,16 +567,16 @@ in
                 (*Generate the list*)
                 val ls = List.map (fn _ => ()) (1---len);
                 (*Time each function*)
-                val _ = if (not (who_runs=sequential_only)) then PolyML.print("Running parallel")
-                        else PolyML.print("Skipping parallel");
+                (*val _ = if (not (who_runs=sequential_only)) then PolyML.print("Running parallel")
+                        else PolyML.print("Skipping parallel");*)
                 val t2 = 
                   if (not (sequential_only=who_runs)) then (time (if (Compactor.is_dynamic comp) then
                   parallel_dynamic_process func t (Compactor.get_estimated_number comp)
                   (Compactor.check_prime comp) ls
                   else
                   parallel_static_process func (Compactor.get_size comp) ls)) else 0;
-                val _ = if (not (who_runs=parallel_only)) then PolyML.print("Running sequential")
-                        else PolyML.print("Skipping sequential");
+                (*val _ = if (not (who_runs=parallel_only)) then PolyML.print("Running sequential")
+                        else PolyML.print("Skipping sequential");*)
                 val t1 = if (not (parallel_only=who_runs)) then (time (sequential_process func ls))
                   else 0;
                 (*The file for writing*)
@@ -692,6 +688,9 @@ in
           Compactor.set_time
           (Compactor.prime dynamic_dummy limit go_static) (Time.fromMicroseconds t))
           (random_list low high len)
+          
+        (*TODO: REMOVE*)
+        fun check() = length_time_test 100000 1000 parallel_only
       end;
     end;
   end;

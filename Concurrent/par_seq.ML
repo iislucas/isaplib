@@ -306,7 +306,7 @@ struct
       case res of
         NONE => NONE
       | SOME (v,sq2) => if (t>time_boundary) then (*Decide whether or not to parallelise*)
-        (PolyML.print("Decided to parallelise in Par_Seq");
+        ((*PolyML.print("Decided to parallelise in Par_Seq");*)
         SOME (v,pull_ahead fd sq2 look_ahead buffer)) else res
     end
   
@@ -461,12 +461,7 @@ struct
   (*Maps a function which produces a sequence
   for every element in the original sequence. It automatically
   appends all of the results*)
-  fun maps fd f sq = Seq (fn () =>
-    case (pull_elem sq) of
-        NONE => NONE (*Finished*)
-      | SOME (Waiting g,sq2) => pull_elem (append (f (g fd)) (maps fd f sq2))
-      | SOME (Started g,sq2) => pull_elem (append (f (Future.join g)) (maps fd f sq2))
-      | SOME (Done v,sq2) => pull_elem (append (f v) (maps fd f sq2)))
+  fun maps fd f sq = flat fd (map f sq)
   
   (*Maps a filter function over the sequence. If the filter returns
   none, the element is dropped. If the filter returns SOME b then

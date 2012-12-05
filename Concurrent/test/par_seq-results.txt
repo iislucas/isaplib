@@ -1,1 +1,0 @@
-Fixed_hardness: 10000 Length: 100000 Parallel: 13444544

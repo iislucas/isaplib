@@ -561,6 +561,7 @@ struct
 	which makes the code look very ugly...*)
 	fun adjust rec_t n my_ref time_stamp target_t =
 	  let
+	     (*val _ = PolyML.print("Dynamically adjusting...");*)
 	     val (total,_,low_avg,high_avg,stamp) = !my_ref; (*The current estimate*)
 	     val time = (Time.toMicroseconds rec_t) : LargeInt.int
 	     (*My average*)
@@ -594,9 +595,9 @@ struct
 	fun suggested t (total,no_fs,_,_,_) (scaleup,scaledown) =
 	  let
 	    
-	    val _ = PolyML.print("Suggesting... Total was: " ^ (LargeInt.toString(total)) ^
+	    (*val _ = PolyML.print("Suggesting... Total was: " ^ (LargeInt.toString(total)) ^
 	            " using " ^ (LargeInt.toString(no_fs)) ^ " functions. Was aiming for " ^
-	            (LargeInt.toString(t)));
+	            (LargeInt.toString(t)));*)
 	    val ans = if (total>t) then
 	      (*The current total is above the target!*)
 	      if ((total div (scaledown : LargeInt.int))>=t) then
@@ -632,6 +633,7 @@ struct
         the reference to the shared estimate
   *)
   fun choose_dynamic time_stamp dir t producer next_input f_id my_ref scaling =
+    ((*PolyML.print("Compacting with dynamic case");*)
     Seq.make (fn() =>(*First, grab however many functions I want*)
     let val sg = (suggested t (!my_ref) scaling) (*Get the suggested number*)
         val (fs,new_prod) = grab sg producer next_input [] in
@@ -658,7 +660,7 @@ struct
         NONE => Seq.empty (*No more little functions left*)
       | SOME next_input => choose_dynamic (time_stamp+1) dir t producer next_input f_id my_ref scaling
     )
-    end)
+    end))
     
   
   (*Prime the dynamic compactor first. This uses almost the same algorithm for computing
@@ -681,7 +683,7 @@ struct
   *)
   fun prime_dynamic _ time_stamp dir t producer next_input f_id (est as (_,no_fs,_,_,_)) 0 go_static scaling =
 
-      (PolyML.print("Hit limit while priming");
+      ((*PolyML.print("Hit limit while priming");*)
       (*Need to stop priming*)
       if (go_static) then (*Become a static compactor*)
         choose_static dir no_fs producer next_input f_id
@@ -690,11 +692,11 @@ struct
     (*Normal case...*)
     | prime_dynamic stable time_stamp dir t producer next_input f_id (est as (total,no_fs,low_avg,high_avg,_)) limit go_static scaling =
       Seq.make (fn() =>
-      (PolyML.print("Priming dynamic");
+      ((*PolyML.print("Priming dynamic");*)
       let 
-        val _ = PolyML.print("Suggesting... Total was: " ^ (LargeInt.toString(total)) ^
+        (*val _ = PolyML.print("Suggesting... Total was: " ^ (LargeInt.toString(total)) ^
 	            " using " ^ (LargeInt.toString(no_fs)) ^ " functions. Was aiming for " ^
-	            (LargeInt.toString(t)));
+	            (LargeInt.toString(t)));*)
         val sg = suggested t est scaling; (*Compute the suggested number of functions...*)
         val (fs,new_prod) = grab sg producer next_input []
       in
@@ -706,9 +708,9 @@ struct
           val sw = Stopwatch.start (Stopwatch.new);
           val ans = combine dir fs f_id;
           val time = Time.toMicroseconds (fst (Stopwatch.stop sw));
-          val _ = TextIO.print("Adjusting. My time was: " ^ LargeInt.toString(time) ^ " for " ^
+          (*val _ = TextIO.print("Adjusting. My time was: " ^ LargeInt.toString(time) ^ " for " ^
            LargeInt.toString(sg) ^ " functions. Previous time was " ^ LargeInt.toString(total) ^
-           " with " ^ LargeInt.toString(no_fs) ^ " functions.");
+           " with " ^ LargeInt.toString(no_fs) ^ " functions.");*)
           (*Work out what the adjustment should be...*)
           (*My average time*)
           val my_avg = (time div sg) : LargeInt.int;
@@ -751,10 +753,10 @@ struct
               if ((get_no_fs res_est)=no_fs) then
                 if stable then (*The result has stabilised! Use this...*)
                   if (go_static) then (*Turn into a static compactor!*)
-                    (PolyML.print("Priming complete");
+                    ((*PolyML.print("Priming complete");*)
                     choose_static dir no_fs producer next_input f_id)
                   else (*Stay dynamic*)
-                    (PolyML.print("Priming complete");
+                    ((*PolyML.print("Priming complete");*)
                     choose_dynamic (time_stamp+1) dir t producer next_input f_id (Unsynchronized.ref est) scaling)
                 else (*Mark it as stable for the next attempt*)
                   prime_dynamic true (time_stamp+1) dir t producer next_input f_id res_est (limit-1) go_static scaling

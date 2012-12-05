@@ -1,19 +1,19 @@
-Time_aimed_at: 100000 List_length: 500 Hardness: 1000 Parallel: 274677 Sequential: 194760
-Time_aimed_at: 100000 List_length: 1000 Hardness: 1000 Parallel: 267972 Sequential: 133229
-Time_aimed_at: 100000 List_length: 1500 Hardness: 1000 Parallel: 202645 Sequential: 200375
-Time_aimed_at: 100000 List_length: 2000 Hardness: 1000 Parallel: 270310 Sequential: 266796
-Time_aimed_at: 100000 List_length: 2500 Hardness: 1000 Parallel: 337189 Sequential: 333654
-Time_aimed_at: 100000 List_length: 3000 Hardness: 1000 Parallel: 405154 Sequential: 399923
-Time_aimed_at: 100000 List_length: 3500 Hardness: 1000 Parallel: 473111 Sequential: 467193
-Time_aimed_at: 100000 List_length: 4000 Hardness: 1000 Parallel: 539814 Sequential: 533548
-Time_aimed_at: 100000 List_length: 4500 Hardness: 1000 Parallel: 607772 Sequential: 600384
-Time_aimed_at: 100000 List_length: 5000 Hardness: 1000 Parallel: 674408 Sequential: 667185
-Time_aimed_at: 100000 List_length: 10000 Hardness: 1000 Parallel: 1346595 Sequential: 1333972
-Time_aimed_at: 100000 List_length: 15000 Hardness: 1000 Parallel: 2019712 Sequential: 2001314
-Time_aimed_at: 100000 List_length: 20000 Hardness: 1000 Parallel: 2691671 Sequential: 2668664
-Time_aimed_at: 100000 List_length: 25000 Hardness: 1000 Parallel: 3365194 Sequential: 3335477
-Time_aimed_at: 100000 List_length: 30000 Hardness: 1000 Parallel: 4037718 Sequential: 4003160
-Time_aimed_at: 100000 List_length: 35000 Hardness: 1000 Parallel: 4710891 Sequential: 4670055
-Time_aimed_at: 100000 List_length: 40000 Hardness: 1000 Parallel: 5384689 Sequential: 5338335
-Time_aimed_at: 100000 List_length: 45000 Hardness: 1000 Parallel: 6055729 Sequential: 6003690
-Time_aimed_at: 100000 List_length: 50000 Hardness: 1000 Parallel: 6725749 Sequential: 6670970
+Time_aimed_at: 100000 List_length: 500 Hardness: 1000 Parallel: 123946
+Time_aimed_at: 100000 List_length: 1000 Hardness: 1000 Parallel: 207909
+Time_aimed_at: 100000 List_length: 1500 Hardness: 1000 Parallel: 255888
+Time_aimed_at: 100000 List_length: 2000 Hardness: 1000 Parallel: 383832
+Time_aimed_at: 100000 List_length: 2500 Hardness: 1000 Parallel: 443806
+Time_aimed_at: 100000 List_length: 3000 Hardness: 1000 Parallel: 503779
+Time_aimed_at: 100000 List_length: 3500 Hardness: 1000 Parallel: 619729
+Time_aimed_at: 100000 List_length: 4000 Hardness: 1000 Parallel: 719685
+Time_aimed_at: 100000 List_length: 4500 Hardness: 1000 Parallel: 639720
+Time_aimed_at: 100000 List_length: 5000 Hardness: 1000 Parallel: 675704
+Time_aimed_at: 100000 List_length: 10000 Hardness: 1000 Parallel: 1215468
+Time_aimed_at: 100000 List_length: 15000 Hardness: 1000 Parallel: 1503342
+Time_aimed_at: 100000 List_length: 20000 Hardness: 1000 Parallel: 1923159
+Time_aimed_at: 100000 List_length: 25000 Hardness: 1000 Parallel: 2342974
+Time_aimed_at: 100000 List_length: 30000 Hardness: 1000 Parallel: 2682826
+Time_aimed_at: 100000 List_length: 35000 Hardness: 1000 Parallel: 3114637
+Time_aimed_at: 100000 List_length: 40000 Hardness: 1000 Parallel: 3554444
+Time_aimed_at: 100000 List_length: 45000 Hardness: 1000 Parallel: 3866308
+Time_aimed_at: 100000 List_length: 50000 Hardness: 1000 Parallel: 4210157
