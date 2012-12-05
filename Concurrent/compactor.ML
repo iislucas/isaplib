@@ -680,6 +680,7 @@ struct
         whether or not the compactor should become static after priming is complete
   *)
   fun prime_dynamic _ time_stamp dir t producer next_input f_id (est as (_,no_fs,_,_,_)) 0 go_static scaling =
+
       (PolyML.print("Hit limit while priming");
       (*Need to stop priming*)
       if (go_static) then (*Become a static compactor*)
