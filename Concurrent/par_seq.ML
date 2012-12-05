@@ -287,8 +287,8 @@ struct
   (*If pulling takes longer than this to compute, the next
   series of values will be pulled in parallel.
   This reduces the severity of the worst case.*)
-  
-  val time_boundary = 500;
+  (*Time in microseconds*)
+  val time_boundary = 1;
   
   
   (*Get the next element from the sequence. Returns NONE
@@ -306,7 +306,8 @@ struct
       case res of
         NONE => NONE
       | SOME (v,sq2) => if (t>time_boundary) then (*Decide whether or not to parallelise*)
-        SOME (v,pull_ahead fd sq2 look_ahead buffer) else res
+        (PolyML.print("Decided to parallelise in Par_Seq");
+        SOME (v,pull_ahead fd sq2 look_ahead buffer)) else res
     end
   
   (*Attach an element to the front of the sequence*)

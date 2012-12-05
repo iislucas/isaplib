@@ -11,6 +11,7 @@ local
   fun fd() = MJB_Simple_Future.new_future_data NONE;
   (*For simpler reference*)
   structure Par_Tree = MJB_Par_Tree;
+  structure Compactor = MJB_Compactor;
     
   (*This datatype allows me to construct trees manually. A function will then take trees
   of this type, and construct a function which produces the given tree*)
@@ -153,17 +154,6 @@ local
       ()
     end) ()
   
-  (*Test the time*)
-  val _ = Testing.test "Par_Tree: testing time setting" (fn () =>
-    let
-      val par_tree = Par_Tree.new (fd());
-      val par_tree = Par_Tree.set_time par_tree (SOME (Time.fromMicroseconds 3506));
-      val _ = if ((Par_Tree.get_time par_tree)=(Time.fromMicroseconds 3506)) then () else
-              raise ERROR "Par_Tree: failed time setting";
-    in
-      ()
-    end) ()
-  
   (*Test the group number*)
   val _ = Testing.test "Par_Tree: testing group number setting" (fn () =>
     let
@@ -174,25 +164,39 @@ local
     in
       ()
     end) ()
-  
-  (*Test the estimate*)
-  val _ = Testing.test "Par_Tree: testing the estimate" (fn () =>
+    
+  (*Test the setting of the compactor*)
+  val _ = Testing.test "Par_Tree: testing group number setting" (fn () =>
     let
       val par_tree = Par_Tree.new (fd());
-      val par_tree = Par_Tree.set_estimate par_tree (SOME 100);
-      val _ = if (100=(Par_Tree.get_estimate par_tree)) then () else
-              raise ERROR "Par_Tree: failed estimate setting";
+      val par_tree = Par_Tree.set_no_groups par_tree (SOME 50);
+      val _ = if ((Par_Tree.get_no_groups par_tree)=50) then () else
+              raise ERROR "Par_Tree: failed group number setting";
     in
       ()
     end) ()
     
   (*Test the node limit*)
-  val _ = Testing.test "Par_Tree: testing the node limit" (fn () =>
+  val _ = Testing.test "Par_Tree: testing the compactor" (fn () =>
     let
       val par_tree = Par_Tree.new (fd());
-      val par_tree = Par_Tree.set_node_limit par_tree (SOME 100);
-      val _ = if ((SOME 100)=(Par_Tree.get_node_limit par_tree)) then () else
-              raise ERROR "Par_Tree: failed node limit setting";
+      val comp = Compactor.new_dynamic (Time.fromMicroseconds 2000);
+      val comp = Compactor.set_scaling comp (3,19);
+      val par_tree = Par_Tree.set_compactor par_tree comp;
+      val _ = if ((Compactor.get_scaling (Par_Tree.get_compactor par_tree))=(3,19)) then () else
+              raise ERROR "Par_Tree: failed compactor setting";
+    in
+      ()
+    end) ()
+    
+  (*Test the estimator setting*)
+  val _ = Testing.test "Par_Tree: testing the estimator" (fn () =>
+    let
+      val par_tree = Par_Tree.new (fd());
+      fun estimator _ = 37;
+      val par_tree = Par_Tree.set_estimator par_tree (SOME estimator);
+      val _ = if (((the (Par_Tree.get_estimator par_tree)) (Seq.empty,0,Seq.empty))=37) then () else
+              raise ERROR "Par_Tree: failed estimator setting";
     in
       ()
     end) ()
@@ -462,6 +466,7 @@ in
   structure MJB_Par_Tree_Speed_Test =
   struct
     structure Par_Tree = MJB_Par_Tree;
+    structure Compactor = MJB_Compactor;
     structure Stopwatch = MJB_Stopwatch;
     structure Future = MJB_Simple_Future;
     
@@ -532,6 +537,10 @@ in
     
     structure Tests =
     struct
+      (*These parameters control which algorithm is allowed to run*)
+      val both = 0;
+      val parallel_only = 1;
+      val sequential_only = 2;
       (*This is an equivalent sequential algorithm to process the tree.
       This will traverse the tree left first, in order, to find leaves one
       at a time.*)
@@ -550,52 +559,49 @@ in
       branches = the number of branches every node should have
       depth = how deep the tree should be (a depth of zero will create a leaf) 
       *)
-      fun generic_test ordermatters est time no_groups hardness branches depth =
+      fun generic_test ordermatters comp no_groups hardness branches depth who_runs =
         let
           val par_tree = Par_Tree.new (fd());
           val par_tree = Par_Tree.set_order_matters par_tree ordermatters;
-          val par_tree = Par_Tree.set_estimate par_tree est;
           val par_tree = Par_Tree.set_no_groups par_tree no_groups;
-          val par_tree = Par_Tree.set_time par_tree time;
+          val par_tree = Par_Tree.set_compactor par_tree comp;
           fun func x = (gen_func hardness ();Help.tree_producer branches x);
           val root = (Par_Tree.Node depth);
           val parallel = fn () => Seq.list_of (Par_Tree.compute_tree par_tree root func);
           val sequential = wrap_sequential (fn () => Seq.list_of (sequential_traverse func root));
           (*Time the two functions*)
-          val t_par = Help.time parallel;
-          val t_seq = Help.time sequential;
+          val t_par = if (not (sequential_only=who_runs)) then (Help.time parallel) else 0;
+          val t_seq = if (not (parallel_only=who_runs)) then (Help.time sequential) else 0;
           (*Print the results*)
           val file = File_Aux.append();
         in
           ((*Now print the results...*)
           File.writeStr file
-          ("Estimate: " ^ (Int.toString(Par_Tree.get_estimate par_tree)) ^
-           " Time: " ^ (LargeInt.toString(Time.toMicroseconds(Par_Tree.get_time par_tree))) ^
-           " Group No: " ^ (Int.toString(Par_Tree.get_no_groups par_tree)) ^
+          (" Group No: " ^ (Int.toString(Par_Tree.get_no_groups par_tree)) ^
            " Hardness: " ^ (Int.toString(hardness)) ^
            " Branches: " ^ (Int.toString(branches)) ^
            " Depth: " ^ (Int.toString(depth)) ^
-           " Sequential: " ^ (LargeInt.toString(t_seq)) ^
-           " Parallel: " ^ (LargeInt.toString(t_par)) ^ "\n")
+           (if (not (parallel_only=who_runs)) then (" Sequential: " ^ (LargeInt.toString(t_seq))) else "") ^
+           (if (not (sequential_only=who_runs)) then (" Parallel: " ^ (LargeInt.toString(t_par))) else "") ^ "\n")
               ;())
         end;
         
       (*Run a series of tests on the tree using the given depth, number of branches
       and varying the hardness of each run. Hardness values are extracted
       from the given list*)
-      fun hardness_test ordermatters branches depth hardnesses =
+      fun hardness_test ordermatters branches depth hardnesses who_runs =
         (
         File_Aux.renew();
-        List.map (fn h => generic_test ordermatters NONE NONE NONE h branches depth) hardnesses;
+        List.map (fn h => generic_test ordermatters (Par_Tree.get_compactor (Par_Tree.new (fd()))) NONE h branches depth who_runs) hardnesses;
         File_Aux.close()
         )
       
       (*Similar to the hardness test except that this time the depth
       varies, allowing for more varying numbers of leaves*)
-      fun depth_test ordermatters branches depths hardness =
+      fun depth_test ordermatters branches depths hardness who_runs =
         (
         File_Aux.renew();
-        List.map (fn d => generic_test ordermatters NONE NONE NONE hardness branches d) depths;
+        List.map (fn d => generic_test ordermatters (Par_Tree.get_compactor (Par_Tree.new (fd()))) NONE hardness branches d who_runs) depths;
         File_Aux.close()
         )
     end;

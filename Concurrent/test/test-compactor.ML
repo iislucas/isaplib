@@ -139,6 +139,20 @@ local
     in
       ()
     end) ()
+    
+  (*Test setting the scaling in a compactor *)
+  val _ = Testing.test "Compactor: scaling test" (fn () =>
+    let
+      val comp = Compactor.new_dynamic (Time.fromSeconds 10);
+      val comp = Compactor.set_scaling comp (10,100);
+      val _ = if ((Compactor.get_scaling comp)=(10,100)) then () else
+              raise ERROR "Compactor: scaling set failure 1";
+      val comp = Compactor.set_scaling comp (5,2);
+      val _ = if ((Compactor.get_scaling comp)=(5,2)) then () else
+              raise ERROR "Compactor: scaling set failure 2";
+    in
+      ()
+    end) ()
   
   (*This function generates all combinations of a priming a dynamic compactor.
   This does not change the fold direction or the target time*)
@@ -478,6 +492,11 @@ in
     structure Tests =
     struct
       local open Help; infix ---; in
+        (*Parameters to state which of the parallel and sequential algorithms should run*)
+        val both = 0;
+        val parallel_only=1;
+        val sequential_only=2;
+        
         (*This is the parallel algorithm for the compactor!
         
         Args: the function to be mapped across the sequence ('a -> 'b)
@@ -489,68 +508,48 @@ in
               ) <optional>
               the list of elements which the function should be applied to
         *)
-        val parallel_dynamic_process
-        (*:
-             ('a -> 'b) (*The function to be mapped across*)
-          -> LargeInt.int (*The time to aim for in microseconds*)
-          -> int option (*The estimated number of functions*)
-          -> (int option * bool) option (*Set whether or not it should prime first*)
-          -> 'a List.list (*The list of elements the function should be applied to*)
-          -> (unit -> 'b List.list) *)(*A function ready to return all of the results at once for timing*)
-          =
+        fun parallel_dynamic_process func time est do_prime long_list =
           let
-            fun parallel_dynamic_process' func time est do_prime long_list =
-              let
-                (*Set the time*)
-                val dyn = Compactor.new_dynamic (Time.fromMicroseconds(time));
-                (*Set the estimate*)
-                val dyn = Compactor.set_estimated_number dyn est;
-                (*Decide how it should be primed, if at all*)
-                val dyn = case (do_prime) of
-                    NONE => Compactor.do_not_prime dyn
-                  | SOME (limit,go_static) => Compactor.prime dyn limit go_static;
-              in
-                fn () =>
-                (*Apply the function*)
-                Par_Seq.list_of (
-                  Par_Seq.maps (fn fd => fn f => Par_Seq.of_sequential_seq fd (f())) (
-                    Par_Seq.of_sequential_seq (fd()) (
-                      Compactor.compact_map_seq dyn func (Seq.of_list long_list))))
-              end
+            (*Set the time*)
+            val dyn = Compactor.new_dynamic (Time.fromMicroseconds(time));
+            (*Set the estimate*)
+            val dyn = Compactor.set_estimated_number dyn est;
+            (*Decide how it should be primed, if at all*)
+            val dyn = case (do_prime) of
+                NONE => Compactor.do_not_prime dyn
+              | SOME (limit,go_static) => Compactor.prime dyn limit go_static;
           in
-            parallel_dynamic_process'
+            fn () =>
+            let
+              val _ = PolyML.print("");
+              val _ = PolyML.print("Parallelising over list of length: " ^ (Int.toString(List.length long_list)))
+              val comp_groups = Par_Seq.of_sequential_seq (fd()) (
+                  Compactor.compact_map_seq dyn func (Seq.of_list long_list));
+              val _ = PolyML.print("**************************");
+              val _ = PolyML.print("Returned compactor groups!");
+              val _ = PolyML.print("**************************");
+            in
+            (*Apply the function*)
+            Par_Seq.list_of (
+              Par_Seq.maps (fn fd => fn f => Par_Seq.of_sequential_seq fd (f())) comp_groups) end
           end
           
         (*Similar to parallel dynamic process, but this works for static compactors*)
-        val parallel_static_process (*:
-             ('a -> 'b) (*The function to be mapped across*)
-          -> int (*The size of each produced group*)
-          -> 'a List.list (*The list of elements the function should be applied to*)
-          -> (unit -> 'b List.list)*) (*A function ready to return all of the results at once for timing*)
-          =
+        fun parallel_static_process func size long_list =
           let
-            fun parallel_static_process' func size long_list =
-              let
-                (*Set the time*)
-                val dyn = Compactor.new_static size;
-              in
-                fn () =>
-                (*Apply the function*)
-                Par_Seq.list_of (
-                  Par_Seq.maps (fn fd => fn f => Par_Seq.of_sequential_seq fd (f())) (
-                    Par_Seq.of_sequential_seq (fd()) (
-                      Compactor.compact_map_seq dyn func (Seq.of_list long_list))))
-              end
+            (*Set the time*)
+            val dyn = Compactor.new_static size;
           in
-            parallel_static_process'
+            fn () =>
+            (*Apply the function*)
+            Par_Seq.list_of (
+              Par_Seq.maps (fn fd => fn f => Par_Seq.of_sequential_seq fd (f())) (
+                Par_Seq.of_sequential_seq (fd()) (
+                  Compactor.compact_map_seq dyn func (Seq.of_list long_list))))
           end
         
         (*The sequential version*)
-        val sequential_process :
-             ('a -> 'b) (*The function to be applied across the list*)
-          -> 'a List.list (*The list of elements itself*)
-          -> (unit -> 'b List.list) (*A function ready to return the results*)
-          = fn func => fn long_list => (fn () => Seq.list_of (Seq.map func (Seq.of_list long_list)))
+        fun sequential_process func long_list = fn () => Seq.list_of (Seq.map func (Seq.of_list long_list))
 
         (*Testing different times with the given compactor
         A list is supplied specifying:
@@ -563,24 +562,27 @@ in
         
         It will run the compactor against the sequential algorithm
         *)
-        val test_all :
-            Compactor.compactor
-          -> (LargeInt.int * int * (unit -> unit)) List.list (*List of: times to aim for and lengths of the list*)
-          -> unit (*Writes the results to a file*)
-          = fn comp => fn ls =>
+        fun test_all comp ls who_runs = 
           let
             fun test_all' [] = ()
-              | test_all' ((t,len,func)::ts) =
+              | test_all' ((t,len,hardness)::ts) =
               let
+                val func = gen_func hardness;
                 (*Generate the list*)
                 val ls = List.map (fn _ => ()) (1---len);
                 (*Time each function*)
-                val t2 = time (if (Compactor.is_dynamic comp) then
+                val _ = if (not (who_runs=sequential_only)) then PolyML.print("Running parallel")
+                        else PolyML.print("Skipping parallel");
+                val t2 = 
+                  if (not (sequential_only=who_runs)) then (time (if (Compactor.is_dynamic comp) then
                   parallel_dynamic_process func t (Compactor.get_estimated_number comp)
                   (Compactor.check_prime comp) ls
                   else
-                  parallel_static_process func (Compactor.get_size comp) ls);
-                val t1 = time (wrap_sequential (sequential_process func ls));
+                  parallel_static_process func (Compactor.get_size comp) ls)) else 0;
+                val _ = if (not (who_runs=parallel_only)) then PolyML.print("Running sequential")
+                        else PolyML.print("Skipping sequential");
+                val t1 = if (not (parallel_only=who_runs)) then (time (sequential_process func ls))
+                  else 0;
                 (*The file for writing*)
                 val file = File_Aux.append();
               in
@@ -591,8 +593,10 @@ in
                 *)
                 (
                 File.writeStr file ("Time_aimed_at: " ^ LargeInt.toString(t) ^
-                  " List_length: " ^ Int.toString(len) ^ " Parallel: " ^ LargeInt.toString(t2) ^
-                  " Sequential: " ^ LargeInt.toString(t1) ^ "\n");
+                  " List_length: " ^ Int.toString(len) ^
+                  " Hardness: " ^ Int.toString(hardness) ^
+                  (if (not (sequential_only=who_runs)) then (" Parallel: " ^ LargeInt.toString(t2)) else "") ^
+                  (if (not (parallel_only=who_runs)) then (" Sequential: " ^ LargeInt.toString(t1)) else "") ^ "\n");
                 test_all' ts)
               end
           in
@@ -605,20 +609,31 @@ in
         val dynamic_dummy = Compactor.new_dynamic (Time.fromMicroseconds(100))
         val static_dummy = Compactor.new_static 1
         
+        (*A good list for checking how the compactor performs trying to run on lists of varyng hardness
+        The time aimed at should be constant, as should the length of the list*)
+        fun hardness_list len time = let
+            val hardnesses = (gen_list 100 1 (fn x => x + 1))@(gen_list 100 110 (fn x => x + 10));
+            val n = List.length hardnesses;
+            val times = gen_list n time (fn x => x);
+            val lengths = gen_list n len (fn x => x);
+          in
+            compress (zip times (zip lengths hardnesses))
+          end
+        
         (*A good list for checking how attempts to reach different times fair...*)
         fun times_list len hardness = compress2 (attach (attach (
         (List.map (fn x => x * 10000) (gen_list 5 2 (fn x => x + 4)))@
-        (List.map (fn x => x * 100000) (gen_list 5 2 (fn x => x + 4)))) len) (gen_func hardness))
+        (List.map (fn x => x * 100000) (gen_list 5 2 (fn x => x + 4)))) len) hardness)
         
         (*A list of lengths with the given hardness and time to aim for*)
         fun lengths_list time hardness = let
             val lengths = ((List.map (fn x => x * 100) (gen_list 10 5 (fn x=> x + 5)))@
           (List.map (fn x => x * 1000) (gen_list 9 10 (fn x=> x + 5))));
             val n = List.length lengths;
-            val functions = gen_list n (gen_func hardness) (fn x => x);
+            val hardnesses = gen_list n hardness (fn x => x);
             val times = gen_list n time (fn x => x)
           in
-            compress (zip times (zip lengths functions))
+            compress (zip times (zip lengths hardnesses))
           end
         
         (*A list of randomly hard functions, between the two specified integers*)
@@ -647,26 +662,29 @@ in
           end
   
         (*Test a single run with the compactor as fully dynamic:*)
-        fun test_target time len hardness = test_all dynamic_dummy [(time,len,gen_func hardness)]
+        fun test_target time len hardness who_runs = test_all dynamic_dummy [(time,len,hardness)] who_runs
         
         (*Test a target set to prime for some limit first*)
-        fun test_target_prime time len hardness limit go_static = test_all
+        fun test_target_prime time len hardness limit go_static who_runs = test_all
           (Compactor.prime dynamic_dummy limit go_static)
-          [(time,len,gen_func hardness)]
+          [(time,len,hardness)] who_runs
         
         (*Test the target times*)
-        fun target_time_test len hardness = test_all dynamic_dummy (times_list len hardness)
+        fun target_time_test len hardness who_runs = test_all dynamic_dummy (times_list len hardness) who_runs
         
         (*Test the length of the list*)
-        fun length_time_test time hardness = test_all dynamic_dummy (lengths_list time hardness)
+        fun length_time_test time hardness who_runs = test_all dynamic_dummy (lengths_list time hardness) who_runs
+        
+        (*Test the hardness of the functions to be compacted*)
+        fun hardness_time_test len time who_runs = test_all dynamic_dummy (hardness_list len time) who_runs
         
         (*Test the target times with priming enabled*)
-        fun target_time_test_prime len hardness limit go_static = test_all
-          (Compactor.prime dynamic_dummy limit go_static) (times_list len hardness)
+        fun target_time_test_prime len hardness limit go_static who_runs = test_all
+          (Compactor.prime dynamic_dummy limit go_static) (times_list len hardness) who_runs
         
         (*Test the target lengths with priming enabled*)
-        fun length_test_prime time hardness limit go_static = test_all
-          (Compactor.prime dynamic_dummy limit go_static) (lengths_list time hardness)
+        fun length_test_prime time hardness limit go_static who_runs = test_all
+          (Compactor.prime dynamic_dummy limit go_static) (lengths_list time hardness) who_runs
           
         (*Test the random lists with priming enabled*)
         fun random_test_prime low high len t limit go_static =

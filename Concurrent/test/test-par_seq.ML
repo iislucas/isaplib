@@ -737,7 +737,7 @@ in
         
       (*This function is time consuming. How long it takes can be adjusted
       by the base and factor*)
-      val base = 5000000 div 160
+      val base = 5000 div 160
       val factor = 1
       fun expensive () =
         let
@@ -759,14 +759,22 @@ in
       code, as it may give biased results in that case. Note that if the supposedly
       parallel algorithm runs more sequentially than it should, it will probably
       appear faster due to its ability to make use of the cores more effectively*)
+      
       fun wrap_sequential sq =
         fn() =>(
         let
-          val f1 = Future.future infinite;
-          val f2 = Future.future infinite;
-          val f3 = Future.future infinite
+          val num_cores = Thread.numProcessors();
+          fun gen_futures 0 = []
+            | gen_futures n = let
+                val f = Future.future infinite
+              in
+                f::(gen_futures (n-1))
+              end;
+          val to_cancel = gen_futures (num_cores-1);
+          fun cancel_all [] = ()
+            | cancel_all (f::fs) = (Future.cancel f;cancel_all fs)
         in
-          (sq();Future.cancel f1;Future.cancel f2;Future.cancel f3)
+          (sq();cancel_all to_cancel;())
         end)
       
       (*Repeat a function expecting the unit "n" times*)
@@ -833,6 +841,14 @@ in
       local open Help; in
         (*For specifying hardness*)
         datatype hard = Fixed of int | Random of (int * int)
+        
+        (*Integer indicating both should be run together*)
+        val both = 0;
+        (*Integer indicating only the parallel algorithm should run*)
+        val parallel_only = 1;
+        (*Indicates only the sequential algorithm should run*)
+        val sequential_only = 2;
+        
         (*Test the parallel lazy sequence on lists with varying hardness and lengths
         potentially. The format is (length,hardness) and the pairs are supplied
         as list
@@ -848,9 +864,12 @@ in
         The filter always returns false. The test is more to ensure that the implementation
         of filtering is efficient. By returning false, a single pull
         forces the entire sequence to be evaluated immediately.
+        
+        who_runs indicates whether the sequential or parallel algorithms will run
         *)
-        fun test_against_generic tests include_filter =
+        fun test_against_generic tests include_filter who_runs =
           let
+            val _ = PolyML.print("Found " ^ (Int.toString(Thread.numProcessors())) ^ " processors.");
             fun run_test len hrd = 
               let
                 val file = File_Aux.append();
@@ -862,25 +881,32 @@ in
                      Fixed n => gen_func n
                    | Random (low,high) => gen_random_func (low,high);
                 (*Time the two runs...*)
-                val t_seq = time (wrap_sequential (
+                (*val _ = if (not (who_runs=parallel_only)) then PolyML.print("Running sequential")
+                        else PolyML.print("Skipping sequential");*)
+                val t_seq = if (not (who_runs=parallel_only)) then time ((*wrap_sequential ( *)
                   if (include_filter) then (fn () =>
                   Seq.list_of (Seq.map func
                   (Seq.filter (fn _ => (func();false)) (Seq.map func sq))))
                   else (fn () =>
-                  Seq.list_of (Seq.map func sq))));
-                val t_par = time (
+                  Seq.list_of (Seq.map func sq))(* ) *))
+                  else 0;
+                (*val _ = if (not (who_runs=sequential_only)) then PolyML.print("Running parallel")
+                        else PolyML.print("Skipping parallel");*)
+                val t_par = if (not (who_runs=sequential_only)) then time (
                   if (include_filter) then (fn () =>
                   Par_Seq.list_of (Par_Seq.map (wrap_fd func)
                   (Par_Seq.filter (wrap_fd (fn _ => (func();false))) (Par_Seq.map (wrap_fd func) par_sq))))
-                  else (fn () => Par_Seq.list_of (Par_Seq.map (wrap_fd func) par_sq)));
+                  else (fn () => Par_Seq.list_of (Par_Seq.map (wrap_fd func) par_sq)))
+                  else 0;
               in
                 ( (*Now print the results...*)
                 File.writeStr file
                 ((case hrd of
                     Fixed n => "Fixed_hardness: " ^ Int.toString(n)
                   | Random (low,high) => "Random_hardness_rng: (" ^
-                      Int.toString(low) ^ "," ^ Int.toString(high) ^ ")") ^ " Length: " ^ Int.toString(len) ^ " Parallel: " ^ LargeInt.toString(t_par) ^
-                 " Sequential: " ^ LargeInt.toString(t_seq) ^ "\n");())
+                      Int.toString(low) ^ "," ^ Int.toString(high) ^ ")") ^ " Length: " ^ Int.toString(len) ^ 
+                 (if (who_runs=sequential_only) then "" else (" Parallel: " ^ LargeInt.toString(t_par))) ^
+                 (if (who_runs=parallel_only) then "" else (" Sequential: " ^ LargeInt.toString(t_seq))) ^ "\n");())
               end;
             (*Run all of the tests*)
             fun run_all [] = ()
@@ -896,20 +922,20 @@ in
         (*Test the speedup of the parallel lazy sequence against lists of varying length
         but fixed hardness.
         Again, you can choose whether or not to include the filter*)
-        fun test_against_lengths lengths hardness include_filter =
-          test_against_generic (attach lengths (Fixed hardness)) include_filter
+        fun test_against_lengths lengths hardness include_filter who_runs =
+          test_against_generic (attach lengths (Fixed hardness)) include_filter who_runs
        
         (*Test the speedup of the parallel lazy sequence against lists of varying
         fixed hardness, but fixed length.
         You can again choose whether or not to include a filter*)
-        fun test_against_hardness hardnesses length include_filter =
-          test_against_generic (attach2 (List.map (fn n => Fixed n) hardnesses) length) include_filter
+        fun test_against_hardness hardnesses length include_filter who_runs =
+          test_against_generic (attach2 (List.map (fn n => Fixed n) hardnesses) length) include_filter who_runs
         
         (*Test the speedup of the parallel lazy sequence against lists
         of the length specified, with hardnesses varying between the integer
         range given for each element in the list*)
-        fun test_against_random_hardness lengths (low,high) include_filter =
-          test_against_generic (attach lengths (Random (low,high))) include_filter
+        fun test_against_random_hardness lengths (low,high) include_filter who_runs =
+          test_against_generic (attach lengths (Random (low,high))) include_filter who_runs
       end;
     end;
   end;

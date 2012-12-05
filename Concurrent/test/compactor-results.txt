@@ -1,10 +1,19 @@
-Time_aimed_at: 20000 List_length: 1000 Parallel: 712674 Sequential: 2612834
-Time_aimed_at: 60000 List_length: 1000 Parallel: 694288 Sequential: 2676602
-Time_aimed_at: 100000 List_length: 1000 Parallel: 700475 Sequential: 2581124
-Time_aimed_at: 140000 List_length: 1000 Parallel: 690763 Sequential: 2609256
-Time_aimed_at: 180000 List_length: 1000 Parallel: 690327 Sequential: 2705685
-Time_aimed_at: 200000 List_length: 1000 Parallel: 703323 Sequential: 2542052
-Time_aimed_at: 600000 List_length: 1000 Parallel: 703567 Sequential: 2649303
-Time_aimed_at: 1000000 List_length: 1000 Parallel: 698128 Sequential: 2563335
-Time_aimed_at: 1400000 List_length: 1000 Parallel: 694214 Sequential: 2624256
-Time_aimed_at: 1800000 List_length: 1000 Parallel: 697611 Sequential: 2591452
+Time_aimed_at: 100000 List_length: 500 Hardness: 1000 Parallel: 274677 Sequential: 194760
+Time_aimed_at: 100000 List_length: 1000 Hardness: 1000 Parallel: 267972 Sequential: 133229
+Time_aimed_at: 100000 List_length: 1500 Hardness: 1000 Parallel: 202645 Sequential: 200375
+Time_aimed_at: 100000 List_length: 2000 Hardness: 1000 Parallel: 270310 Sequential: 266796
+Time_aimed_at: 100000 List_length: 2500 Hardness: 1000 Parallel: 337189 Sequential: 333654
+Time_aimed_at: 100000 List_length: 3000 Hardness: 1000 Parallel: 405154 Sequential: 399923
+Time_aimed_at: 100000 List_length: 3500 Hardness: 1000 Parallel: 473111 Sequential: 467193
+Time_aimed_at: 100000 List_length: 4000 Hardness: 1000 Parallel: 539814 Sequential: 533548
+Time_aimed_at: 100000 List_length: 4500 Hardness: 1000 Parallel: 607772 Sequential: 600384
+Time_aimed_at: 100000 List_length: 5000 Hardness: 1000 Parallel: 674408 Sequential: 667185
+Time_aimed_at: 100000 List_length: 10000 Hardness: 1000 Parallel: 1346595 Sequential: 1333972
+Time_aimed_at: 100000 List_length: 15000 Hardness: 1000 Parallel: 2019712 Sequential: 2001314
+Time_aimed_at: 100000 List_length: 20000 Hardness: 1000 Parallel: 2691671 Sequential: 2668664
+Time_aimed_at: 100000 List_length: 25000 Hardness: 1000 Parallel: 3365194 Sequential: 3335477
+Time_aimed_at: 100000 List_length: 30000 Hardness: 1000 Parallel: 4037718 Sequential: 4003160
+Time_aimed_at: 100000 List_length: 35000 Hardness: 1000 Parallel: 4710891 Sequential: 4670055
+Time_aimed_at: 100000 List_length: 40000 Hardness: 1000 Parallel: 5384689 Sequential: 5338335
+Time_aimed_at: 100000 List_length: 45000 Hardness: 1000 Parallel: 6055729 Sequential: 6003690
+Time_aimed_at: 100000 List_length: 50000 Hardness: 1000 Parallel: 6725749 Sequential: 6670970

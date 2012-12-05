@@ -17,59 +17,53 @@ sig
   datatype ('a,'b) elem = Node of 'b | Leaf of 'a
   
   (*The type of a parallel tree!*)
-  type par_tree;
+  type ('a,'b) par_tree;
   
   (*Create a new parallelising tree. You must supply the future data that it
   should use.*)
   val new : MJB_Simple_Future.future_data (*Future data for the tree to use*)
-    -> par_tree
+    -> ('a,'b) par_tree
     
   (*Get the future data in use by this parallel tree*)
-  val get_future_data : par_tree
+  val get_future_data : ('a,'b) par_tree
     -> MJB_Simple_Future.future_data
-    
-  (*Set the time that a process should take to run before being assigned
-  to a core. The default (ATTOW - at the time of writing) is 4000
-  microseconds. A large value will keep the groups assigned to cores
-  large, so that they can run for longer on independent problems,
-  improving the efficiency. If the value is too large, then the tree
-  may not be big enough to enable such groups to be created.*)
-  val set_time : par_tree
-    -> Time.time option (* The time to use. If NONE is supplied, it will use a default*)
-    -> par_tree
-    
-  (*Return the time to be used by the compactor. It will return the default
-  time it is using if none was set.*)
-  val get_time : par_tree
-    -> Time.time
-    
-  (*Set an estimate for the current number of functions that will need to
-  be combined to reach the required time specified above*)
-  val set_estimate : par_tree
-    -> int option (*The estimate. If NONE is supplied, a default is used*)
-    -> par_tree
-    
-  (*Return the estimated number of groups, or a default
-  if no estimate has been set*)
-  val get_estimate : par_tree
-    -> int
   
   (*Set the number of groups of functions that should be created
   during parallelisation. Only use this if you know how it works!
-  Essentially, groups taking the time specified above (set_time) to process
+  Essentially, groups taking the time specified within the compactor
   will be assigned to futures. The length is how many of these groups
   should be created before assigning the tasks to cores. Typically,
   10*the number of cores is a good way to overload the future's library.*)
-  val set_no_groups : par_tree
-    -> int option (*How many groupsshould be created for parallelisation.
+  val set_no_groups : ('a,'b) par_tree
+    -> int option (*How many groups should be created for parallelisation.
                     If NONE is supplied, it will use a default*)
-    -> par_tree
-    
+    -> ('a,'b) par_tree
+  
   (*Return the number of groups to be created before parallelisation.
   If nothing was set, it will return the default that it is going to use.*)
-  val get_no_groups : par_tree
+  val get_no_groups : ('a,'b) par_tree
     -> int
     
+  (*Set the compactor used within the tree. There is a default compactor,
+  but it is a good idea to set this. The compactor is used
+  to form groups (mentioned above) of nodes in the tree to process in parallel.
+  Be aware that since this is entirely functional, you should set the parameters
+  of the compactor BEFORE you set it to the tree.
+  
+  IMPORTANT: the estimate for the number of functions to be combined into a group
+  to reach the desired time will be updated by the tree according to the compactor's
+  approximations as it procedes. Hence, your estimate will only be used once essentially*)
+  val set_compactor : ('a,'b) par_tree
+      -> MJB_Compactor.compactor (*The compactor to use when parallelising groups*)
+      -> ('a,'b) par_tree
+  (*Was not sure how to make this generic within a signature... Ideally, I'd make the
+  whole object a functor, but I feel the signature before the structure is really helpful.*)
+  
+  (*Return the compactor used in this tree. If you ask for this without setting
+  the compactor, you will see the default.*)
+  val get_compactor : ('a,'b) par_tree
+      -> MJB_Compactor.compactor
+  
   (*Set whether the order in which leaves are returned is important. Setting
   this to false means that if a leaf is discovered in the tree
   early (i.e: not the "first" one - leftmost) then the algorithm
@@ -78,27 +72,68 @@ sig
   
   Note that nodes are still computed in order, since it is generally
   considered that leaves are more likely to appear deep in a tree.*)
-  val set_order_matters : par_tree
+  val set_order_matters : ('a,'b) par_tree
     -> bool     (*True if the order of the leaves is important, or false otherwise*)
-    -> par_tree
+    -> ('a,'b) par_tree
     
   (*Return whether or not the order the leaves are returned in is considered
   important*)
-  val get_order_matters : par_tree
+  val get_order_matters : ('a,'b) par_tree
     -> bool
     
   (*Set the maximum number of nodes the algorithm is allowed to gather in the tree
   before parallelisation. Passing NONE will ensure there is no limit at all. A limit
   below 1 is not allowed. Typcially, a setting should be in the thousands. This can help
   to prevent the algorithm running out of memory.*)
-  val set_node_limit : par_tree
+  val set_node_limit : ('a,'b) par_tree
     -> int option (* NONE indicates that there should be no limit. Otherwise, the maximum
                      number of nodes that may be gathered at one time. *)
-    -> par_tree
+    -> ('a,'b) par_tree
     
   (*Return the current node limit in use by the tree.*)
-  val get_node_limit : par_tree
+  val get_node_limit : ('a,'b) par_tree
     -> int option
+    
+  (*
+  This function allows you to set an estimator for the tree.
+  The default estimator is NONE.
+  Any estimates given will be supplied to the compactor on each pass. When this is NONE,
+  the last estimate of the compactor on the previous pass is supplied instead.
+  
+  An estimator will estimate the number of nodes that need to be gathered into a group to run on a single core
+  for parallel computation.
+  The estimator is given:
+  (the previous sequence of nodes grouped for parallelisation,
+  the estimate that the compactor believes is now appropriate,
+  the sequence of children of the previous sequence of nodes after they were processed)
+  
+  This is a little hard to explain.
+  1. The compactor will change its estimate of how many functions
+     need to be grouped together based on the time it is aiming for a group to take automatically. Hence,
+     the estimate supplied is the last estimate returned by the compactor.
+     
+  2. The old nodes are the nodes that were fed to this compactor.
+  
+  3. The children correspond to the next nodes that will be fed to
+     the compactor (so usually the children of the previously processed nodes).
+  
+  An estimator should be fast, and is only worth setting if you have good knowledge about (chunks of) nodes which
+  are particularly hard to compute. Note that if there are some randomly very hard nodes to compute,
+  it may be worth trying to spread the work load within such nodes outside of the tree rather than try to
+  convince the compactor to consume only one of those into a group.
+  
+  An intuitive use might be if, as the nodes become deeper, you know the workload increases sharply,
+  meaning the compactor will regularly put too many hard nodes into groups. This itself is only really
+  a problem if the compactor starts consuming the whole tree in very few groups,
+  but this can realistically happen. (You can augment your own nodes to include this depth parameter).
+  *)
+  val set_estimator : ('a,'b) par_tree
+    -> (('b Seq.seq * int * 'b Seq.seq) -> int) option
+    -> ('a,'b) par_tree
+    
+  (*Return the estimator in use by this tree*)
+  val get_estimator : ('a,'b) par_tree
+    -> (('b Seq.seq * int * 'b Seq.seq) -> int) option
   
   (*This function is the main work of the structure. It will evaluate the tree in a lazy way while parallelising
   as much as possible.
@@ -111,30 +146,10 @@ sig
   Note3: the node function permits nodes to have no children, so you can
          avoid worrying about this case.
   *)
-  val compute_tree : par_tree
-    -> ('a,'b) elem                       (*This is the root of the tree*)
+  val compute_tree : ('a,'b) par_tree
+    -> ('a,'b) elem                         (*This is the root of the tree*)
     -> ('b -> ((('a,'b) elem) List.list)) (*The function which, when applied to nodes, will produce the children*)
-    -> ('a Seq.seq)                       (*A resulting lazy sequence of leaves*)
-    
-  (*This function is very similar to compute tree, except that it enables you to control
-  how deep the nodes can be before they are parallelised. This can also be helpful
-  in preventing too much memory from being used, but is particularly useful
-  if you know a great deal about the structure of the algorithm
-  being passed in. You supply a minimum and maximum depth at which parallelisation
-  can occur.
-  
-  Note: a separate compute funciton is used, because adding to the complexity
-  inside the parallel tree was not desirable. Hence, what really happens is that
-  the function used to compute the elements is slightly modified to pretend to finish
-  at certain depths. More specific information on when and how parallelisation
-  should occur should be incorporated into the node function itself.
-  *)
-  val compute_tree_with_depths : par_tree
-    -> ('a,'b) elem                       (*This is the root of the tree*)
-    -> ('b -> ((('a,'b) elem) List.list)) (*The function which, when applied to nodes, will produce the children*)
-    -> (int option * int option)          (*The (min,max) values for the depth where parallelisation can occur*)
-    -> ('a Seq.seq)                       (*A resulting lazy sequence of leaves*)
-  
+    -> ('a Seq.seq)                         (*A resulting lazy sequence of leaves*)
   
   
 end;
@@ -350,50 +365,37 @@ struct
   val recommended_time = Time.fromMicroseconds 20000; (*Number of microseconds for groups to aim for*)
   val num_cores = Thread.numProcessors();
   val recommended_length = num_cores * 40;
-  val prime_length = 10;
-  val recommended_est = 1;
+  val recommended_prime_length = 10; (*How long the compactor should be allowed to run for*)
+  val recommended_est = 1; (*For the initial size of groups*)
   val node_limit = 16000; (*This is a limit on the number of nodes that may be gathered*)
   val order_matters = true; (*Safe as a default*)
+  (*The default compactor to use itself*)
+  val recommended_compactor = Compactor.prime (
+        Compactor.set_estimated_number (Compactor.new_dynamic recommended_time)
+        (*Let the compactor go static, because it will be used again*)
+        (SOME recommended_est)) (SOME recommended_prime_length) true;
   
   (*The type of a parallel tree!
-  It remembers the time to aim for, the number of groups which should
+  It remembers:
+  The compactor to use
+  The time to aim for, the number of groups which should
   be created, the future data to use, and an estimate for the number
   of functions.
   The boolean value specifies if the order that leaves are returned
   in is relevant
-  The final integer option is the node limit, if it exists.*)
-  type par_tree = Time.time * int * MJB_Simple_Future.future_data * int * bool * (int option)
+  The next integer option is the node limit, if it exists.
+  The final entry is an estimator, which is supposed to enhance the initial esimated group
+  size by the compactor in case some knowledge of how hard nodes become is known (rarely not NONE
+  I would guess)*)
+  type ('a,'b) par_tree = Compactor.compactor * int * MJB_Simple_Future.future_data * bool * (int option)
+                 * (('b Seq.seq * int * 'b Seq.seq) -> int) option
   
   (*Create a new parallelising tree. You must supply the future data that it
   should use.*)
-  fun new fd = (recommended_time,recommended_length,fd,recommended_est,order_matters,SOME node_limit)
+  fun new fd = (recommended_compactor,recommended_length,fd,order_matters,SOME node_limit,NONE)
   
   (*Get the future data in use by this parallel tree*)
   fun get_future_data (_,_,fd,_,_,_) = fd
-  
-  (*Set an estimate for the current number of functions that will need to
-  be combined to reach the required time specified above*)
-  fun set_estimate (t,l,fd,_,ord,nlimit) est = case est of
-      NONE => (t,l,fd,recommended_est,ord,nlimit)
-    | SOME e => (t,l,fd,e,ord,nlimit)
-    
-  (*Return the estimated number of groups, or a default
-  if no estimate has been set*)
-  fun get_estimate (_,_,_,est,_,_) = est
-  
-  (*Set the time that a process should take to run before being assigned
-  to a core. The default (ATTOW - at the time of writing) is 4000
-  microseconds. A large value will keep the groups assigned to cores
-  large, so that they can run for longer on independent problems,
-  improving the efficiency. If the value is too large, then the tree
-  may not be big enough to enable such groups to be created.*)
-  fun set_time (_,length,fd,est,ord,nlimit) time = case time of
-      NONE => (recommended_time,length,fd,est,ord,nlimit)
-    | SOME t => (t,length,fd,est,ord,nlimit)
-    
-  (*Return the time to be used by the compactor. It will return the default
-  time it is using if none was set.*)
-  fun get_time (t,_,_,_,_,_) = t
   
   (*Set the number of groups of functions that should be created
   during parallelisation. Only use this if you know how it works!
@@ -401,10 +403,10 @@ struct
   will be assigned to futures. The length is how many of these groups
   should be created before assigning the tasks to cores. Typically,
   10*the number of cores is a good way to overload the future's library.*)
-  fun set_no_groups (t,_,fd,est,ord,nlimit) l =
+  fun set_no_groups (c,_,fd,ord,nlimit,estimator) l =
     case l of
-        NONE => (t,recommended_length,fd,est,ord,nlimit)
-      | SOME length => (t,length,fd,est,ord,nlimit)
+        NONE => (c,recommended_length,fd,ord,nlimit,estimator)
+      | SOME length => (c,length,fd,ord,nlimit,estimator)
     
   (*Return the number of groups to be created before parallelisation.
   If nothing was set, it will return the default that it is going to use.*)
@@ -418,20 +420,39 @@ struct
   
   Note that nodes are still computed in order, since it is generally
   considered that leaves are more likely to appear deep in a tree.*)
-  fun set_order_matters (t,l,fd,est,_,nlimit) ord = (t,l,fd,est,ord,nlimit)
+  fun set_order_matters (c,l,fd,_,nlimit,estimator) ord = (c,l,fd,ord,nlimit,estimator)
   
   (*Return whether or not the order the leaves are returned in is considered
   important*)
-  fun get_order_matters (_,_,_,_,ord,_) = ord
+  fun get_order_matters (_,_,_,ord,_,_) = ord
   
   (*Set the maximum number of nodes the algorithm is allowed to gather in the tree
   before parallelisation. Passing NONE will ensure there is no limit at all. A limit
   below 1 is not allowed. Typcially, a setting should be in the thousands. This can help
   to prevent the algorithm running out of memory.*)
-  fun set_node_limit (t,l,fd,est,ord,_) nlimit = (t,l,fd,est,ord,nlimit)
+  fun set_node_limit (c,l,fd,ord,_,estimator) nlimit = (c,l,fd,ord,nlimit,estimator)
     
   (*Return the current node limit in use by the tree.*)
-  fun get_node_limit (_,_,_,_,_,nlimit) =  nlimit
+  fun get_node_limit (_,_,_,_,nlimit,_) =  nlimit
+  
+  (*Set the compactor used within the tree. There is a default compactor,
+  but it is a good idea to set this. The compactor is used
+  to form groups (mentioned above) of nodes in the tree to process in parallel.
+  Be aware that since this is entirely functional, you should set the parameters
+  of the compactor BEFORE you set it to the tree.*)
+  fun set_compactor (_,l,fd,ord,nlimit,estimator) c = (c,l,fd,ord,nlimit,estimator)
+  (*Was not sure how to make this generic within a signature... Ideally, I'd make the
+  whole object a functor, but I feel the signature before the structure is really helpful.*)
+  
+  (*Return the compactor used in this tree. If you ask for this without setting
+  the compactor, you will see the default.*)
+  fun get_compactor (c,_,_,_,_,_) = c
+  
+  (*Set the estimator for the compactor to use*)
+  fun set_estimator (c,l,fd,ord,nlimit,_) estimator = (c,l,fd,ord,nlimit,estimator)
+    
+  (*Return the estimator in use by this tree*)
+  fun get_estimator (_,_,_,_,_,estimator) = estimator
   
   (*A complicated part of the algorithm is forming a sequence of unevaluated nodes, joined with sequences
   of results. The sequence will consist of a dummy head and a dummy last element.*)
@@ -560,7 +581,7 @@ struct
   f is the function which, when applied to a node, will produce the children of
   that node.
   *)
-  fun leaf_sequence fd tree_sq est tgt time f nlimit = Seq.make (fn () => (
+  fun leaf_sequence tree_sq par_tree old_nodes est f = Seq.make (fn () => (
     (*PolyML.print("Starting to find leaves");*)
     (*tree_sq must have a dummy head and tail*)
     case (Seq.pull tree_sq) of
@@ -569,15 +590,26 @@ struct
       | SOME (Not_Done _,_) => raise ERROR "par_tree: pulled node by accident"
       | SOME (Dummy_Head leaves,tr_sq) => case (leaves) of
           (leaf::rest_of_leaves) => ((*PolyML.print("Found a leaf");*)
-          SOME (leaf,leaf_sequence fd (Seq.cons (Dummy_Head rest_of_leaves) tr_sq) est tgt time f nlimit))
+          SOME (leaf,leaf_sequence (Seq.cons (Dummy_Head rest_of_leaves) tr_sq) par_tree old_nodes est f))
         | [] => (*The hard case...*)
           case (Seq.pull tr_sq) of SOME (Dummy_Tail,_) => (*Finished*) (
           (*PolyML.print("No more nodes to compute");*)NONE) | _ =>
           ((*PolyML.print("Did not find a leaf");*)
           (*First, lets pull the current estimate*)
           let
-            val to_gather = (((est : LargeInt.int)*(tgt : LargeInt.int)) : LargeInt.int);
-            val to_gather = case nlimit of
+            (*Convert the tree sequence into a sequence containing just the nodes*)
+            fun to_nodes sq = Seq.make (fn () => case (Seq.pull sq) of
+                SOME (Dummy_Tail,_) => NONE
+              | SOME (Dummy_Head _,_) => raise ERROR "par_tree: pulled head while returning nodes"
+              | SOME (Not_Done (v,_),sq2) => SOME (v,to_nodes sq2)
+              | NONE => raise ERROR "par_tree: reached end of sequence without seeing tail");
+            (*Get the estimate for the number of nodes we should gather*)
+            val est = case (get_estimator par_tree) of
+                NONE => est
+              | SOME f => f (old_nodes,est,to_nodes tree_sq);
+            (*The number of nodes we will gather*)
+            val to_gather = (((est : LargeInt.int)*((get_no_groups par_tree) : LargeInt.int)) : LargeInt.int);
+            val to_gather = case (get_node_limit par_tree) of
               NONE => to_gather
             | SOME n => if (to_gather>n) then n else to_gather; (*Limit*)
             fun gather (0 : LargeInt.int) _ = ((*PolyML.print("Gathered nodes, found enough: " ^ (Int.toString(to_gather)));*)Seq.empty)
@@ -589,10 +621,8 @@ struct
             (*Now compute the sequence of children...*)
             val nodes = gather to_gather tr_sq; (*Avoid feeding the head*)
             (*The compactor to use...*)
-            val comp = Compactor.new_dynamic time;
-            (*Let the compactor go static, because it will be used again*)
-            val comp = Compactor.prime comp (SOME prime_length) true;
-            val comp = Compactor.set_estimated_number comp (SOME est);
+            val comp = Compactor.set_estimated_number (get_compactor par_tree) (SOME est);
+            val fd = get_future_data par_tree;
             (*Now parallelise over this sequence...
             Each group produces a sequence of sequences of children
             Hence, the resulting sequence is a sequence of sequences of sequences!*)
@@ -616,7 +646,7 @@ struct
             val new_tree_sq = Seq.cons (Dummy_Head (Difference_List.list_of extra_leaves)) new_tree_sq
           in
             (*Recur now on the rest*)
-            Seq.pull (leaf_sequence fd new_tree_sq new_est tgt time f nlimit)
+            Seq.pull (leaf_sequence new_tree_sq par_tree nodes new_est f)
           end)))
   
   (*********************************************************************************)
@@ -631,15 +661,19 @@ struct
   type ('a,'b) node_list = ('a List.list * 'b List.list)
   
   (*Run the function!*)
-  fun leaf_sequence_without_order fd n_list est tgt time f nlimit = Seq.make (fn() =>
+  fun leaf_sequence_without_order n_list par_tree old_nodes est f = Seq.make (fn() =>
     case (n_list) of
       ([],[]) => NONE (*Must be done*)
-    | (leaf::leaves,nodes) => SOME (leaf, leaf_sequence_without_order fd (leaves,nodes) est tgt time f nlimit)
+    | (leaf::leaves,nodes) => SOME (leaf, leaf_sequence_without_order (leaves,nodes) par_tree old_nodes est f)
     | ([],nodes) => (*The hard case...*)
       let
+        (*Figure out the estimate for the nodes...*)
+        val est = case (get_estimator par_tree) of
+            NONE => est
+          | SOME f => f (old_nodes,est,Seq.of_list nodes); 
         (*How many nodes to combine together...*)
-        val to_gather = (((est : LargeInt.int)*(tgt : LargeInt.int)) : LargeInt.int);
-        val to_gather = case nlimit of
+        val to_gather = (((est : LargeInt.int)*((get_no_groups par_tree) : LargeInt.int)) : LargeInt.int);
+        val to_gather = case (get_node_limit par_tree) of
             NONE => to_gather
           | SOME n => if (to_gather>n) then n else to_gather; (*Limit*)
         (*Now divide the list into its two halves...nodes to be
@@ -651,11 +685,10 @@ struct
             end;
         (*Now the two halves*)
         val (nodes_to_compute,kept_nodes) = divide to_gather nodes;
-        (*The compactor to use...*)
-        val comp = Compactor.new_dynamic time;
-        (*Let the compactor go static, because it will be used again*)
-        val comp = Compactor.prime comp (SOME prime_length) true;
-        val comp = Compactor.set_estimated_number comp (SOME est);
+        (*The compactor to use... Uses the previous estimate to guess this one*)
+        val comp = Compactor.set_estimated_number (get_compactor par_tree) (SOME est);
+        val fd = get_future_data par_tree;
+        val nodes_to_compute_seq = Seq.of_list nodes_to_compute;
         (*Now parallelise over this sequence...
         Each group produces a sequence of sequences of children
         Hence, the resulting sequence is a sequence of sequences of sequences!*)
@@ -664,7 +697,7 @@ struct
           Par_Seq.map (fn _ => fn (f,n) => (f(),n)) (
           Par_Seq.of_sequential_seq fd (
           Compactor.compact_with_seq comp (
-          Seq.map (fn x => fn sq => Seq.cons (f x) sq) (Seq.of_list nodes_to_compute)) Seq.empty)));
+          Seq.map (fn x => fn sq => Seq.cons (f x) sq) nodes_to_compute_seq) Seq.empty)));
         (*Check the final estimate and flatten the results*)
         fun get_est sq = case (Seq.pull sq) of
             NONE => ([],~1) (*Guaranteed to be at least one element*)
@@ -689,9 +722,9 @@ struct
       in
         case new_leaves of
           [] => (*Still no leaves found...*)
-            Seq.pull (leaf_sequence_without_order fd ([],new_nodes) new_est tgt time f nlimit)
+            Seq.pull (leaf_sequence_without_order ([],new_nodes) par_tree nodes_to_compute_seq new_est f)
         | (l::ls) => (*Leaves!! Return the first one...*)
-            SOME (l,leaf_sequence_without_order fd (ls,new_nodes) new_est tgt time f nlimit)
+            SOME (l,leaf_sequence_without_order (ls,new_nodes) par_tree nodes_to_compute_seq new_est f)
       end)
       
   
@@ -703,36 +736,28 @@ struct
         holds the function to be applied too, so this is a very generic type signature
       
   Note2: while the children returned form a lazy sequence, this will be at least mostly evaluated*)
-  fun compute_tree (time,length,fd,est,ord,nlimit) root f = case root of
-        Leaf v => Seq.single v (*Special case*)
-      | Node v => (*Decide which algorithm to use based on whether or
-                  not the order matters*)
-                  if (ord) then (
-                    leaf_sequence fd (Seq.cons (Dummy_Head [])
-                    (Seq.cons (Not_Done (v,Difference_List.empty)) 
-                    (Seq.single Dummy_Tail))) est length time f nlimit
-                  ) else (
-                    leaf_sequence_without_order fd ([],[v]) est length time f nlimit
-                  )
-                  
-  
-  (*This function is very similar to compute tree, except that it enables you to control
-  how deep the nodes can be before they are parallelised. This can also be helpful
-  in preventing too much memory from being used, but is particularly useful
-  if you know a great deal about the structure of the algorithm
-  being passed in. You supply a minimum and maximum depth at which parallelisation
-  can occur.
-  
-  If the depth is set as a maximum, the algorithm is simple. It will parallelise
-  across all nodes and they will pretend to finish if they are
-  at the specified depth, or mark the depth of their children otherwise.
-  
-  If the depth is set as a minimum, the problem is harder. The function will compute
-  all children sequentially up to the specified depth. Then it will combine the resulting
-  nodes and leaves into the relevant format, and finally parallelise across all of these.
-  *)
-  fun compute_tree_with_depths par_tree root f (min,max) = Seq.empty
-    
+  fun compute_tree par_tree root f =
+      let
+        val c = get_compactor par_tree;
+        val est = if (Compactor.is_static c) then
+            Compactor.get_size c
+          else
+            case (Compactor.get_estimated_number c) of
+                NONE => recommended_est (*the default here may differ from the compactor's*)
+              | (SOME e) => e
+      in
+        case root of
+          Leaf v => Seq.single v (*Special case*)
+        | Node v => (*Decide which algorithm to use based on whether or
+                    not the order matters*)
+                    if (get_order_matters par_tree) then (
+                      leaf_sequence (Seq.cons (Dummy_Head [])
+                      (Seq.cons (Not_Done (v,Difference_List.empty)) 
+                      (Seq.single Dummy_Tail))) par_tree Seq.empty est f
+                    ) else ( (*Use this specialised version to work more quickly when the order is irrelevant*)
+                      leaf_sequence_without_order ([],[v]) par_tree Seq.empty est f
+                    )
+      end
   
   
   end
