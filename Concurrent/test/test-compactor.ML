@@ -688,9 +688,7 @@ in
           Compactor.set_time
           (Compactor.prime dynamic_dummy limit go_static) (Time.fromMicroseconds t))
           (random_list low high len)
-          
-        (*TODO: REMOVE*)
-        fun check() = length_time_test 100000 1000 parallel_only
+        
       end;
     end;
   end;

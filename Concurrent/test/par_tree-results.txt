@@ -1,20 +1,20 @@
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 1 Branches: 2 Depth: 14 Sequential: 10575512 Parallel: 3544888
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 2 Branches: 2 Depth: 14 Sequential: 20289566 Parallel: 6012680
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 3 Branches: 2 Depth: 14 Sequential: 30853216 Parallel: 9220166
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 4 Branches: 2 Depth: 14 Sequential: 40462191 Parallel: 11801908
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 5 Branches: 2 Depth: 14 Sequential: 51245230 Parallel: 14901170
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 6 Branches: 2 Depth: 14 Sequential: 60907296 Parallel: 17198989
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 7 Branches: 2 Depth: 14 Sequential: 71052725 Parallel: 20392874
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 8 Branches: 2 Depth: 14 Sequential: 80243945 Parallel: 23582517
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 9 Branches: 2 Depth: 14 Sequential: 91499559 Parallel: 26313649
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 10 Branches: 2 Depth: 14 Sequential: 101320147 Parallel: 29370208
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 11 Branches: 2 Depth: 14 Sequential: 111860452 Parallel: 32276940
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 12 Branches: 2 Depth: 14 Sequential: 121345428 Parallel: 34786688
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 13 Branches: 2 Depth: 14 Sequential: 132540288 Parallel: 38320466
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 14 Branches: 2 Depth: 14 Sequential: 143797993 Parallel: 40530487
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 15 Branches: 2 Depth: 14 Sequential: 152196409 Parallel: 43588271
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 16 Branches: 2 Depth: 14 Sequential: 161167563 Parallel: 46746245
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 17 Branches: 2 Depth: 14 Sequential: 173712213 Parallel: 49522296
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 18 Branches: 2 Depth: 14 Sequential: 182836760 Parallel: 52014466
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 19 Branches: 2 Depth: 14 Sequential: 194077748 Parallel: 55184810
-Estimate: 1 Time: 20000 Group No: 160 Hardness: 20 Branches: 2 Depth: 14 Sequential: 204299962 Parallel: 57665426
+ Group No: 960 Hardness: 1000 Branches: 2 Depth: 14 Sequential: 4983575 Parallel: 1191737
+ Group No: 960 Hardness: 2000 Branches: 2 Depth: 14 Sequential: 9518434 Parallel: 1921650
+ Group No: 960 Hardness: 3000 Branches: 2 Depth: 14 Sequential: 14047052 Parallel: 3674296
+ Group No: 960 Hardness: 4000 Branches: 2 Depth: 14 Sequential: 18583468 Parallel: 2803617
+ Group No: 960 Hardness: 5000 Branches: 2 Depth: 14 Sequential: 23435242 Parallel: 3965496
+ Group No: 960 Hardness: 6000 Branches: 2 Depth: 14 Sequential: 28326614 Parallel: 3588224
+ Group No: 960 Hardness: 7000 Branches: 2 Depth: 14 Sequential: 32418361 Parallel: 4801591
+ Group No: 960 Hardness: 8000 Branches: 2 Depth: 14 Sequential: 36871838 Parallel: 5166438
+ Group No: 960 Hardness: 9000 Branches: 2 Depth: 14 Sequential: 41384665 Parallel: 6171085
+ Group No: 960 Hardness: 10000 Branches: 2 Depth: 14 Sequential: 45390823 Parallel: 5645959
+ Group No: 960 Hardness: 11000 Branches: 2 Depth: 14 Sequential: 50358800 Parallel: 6669587
+ Group No: 960 Hardness: 12000 Branches: 2 Depth: 14 Sequential: 54437717 Parallel: 6109321
+ Group No: 960 Hardness: 13000 Branches: 2 Depth: 14 Sequential: 59277158 Parallel: 6635573
+ Group No: 960 Hardness: 14000 Branches: 2 Depth: 14 Sequential: 63646398 Parallel: 9931593
+ Group No: 960 Hardness: 15000 Branches: 2 Depth: 14 Sequential: 67949056 Parallel: 7912102
+ Group No: 960 Hardness: 16000 Branches: 2 Depth: 14 Sequential: 72774267 Parallel: 9784687
+ Group No: 960 Hardness: 17000 Branches: 2 Depth: 14 Sequential: 77239884 Parallel: 8291617
+ Group No: 960 Hardness: 18000 Branches: 2 Depth: 14 Sequential: 81708468 Parallel: 9074120
+ Group No: 960 Hardness: 19000 Branches: 2 Depth: 14 Sequential: 86094599 Parallel: 11825453
+ Group No: 960 Hardness: 20000 Branches: 2 Depth: 14 Sequential: 90690211 Parallel: 10853362

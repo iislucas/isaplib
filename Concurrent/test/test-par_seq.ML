@@ -925,6 +925,9 @@ in
         fun test_against_lengths lengths hardness include_filter who_runs =
           test_against_generic (attach lengths (Fixed hardness)) include_filter who_runs
        
+        (*Temporary really - used with the compactor for comparing*)
+        val hardness_list = (gen_list 100 1 (fn x => x + 1))@(gen_list 100 110 (fn x => x + 10))
+        
         (*Test the speedup of the parallel lazy sequence against lists of varying
         fixed hardness, but fixed length.
         You can again choose whether or not to include a filter*)

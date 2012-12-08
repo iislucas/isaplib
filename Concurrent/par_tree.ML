@@ -362,10 +362,10 @@ struct
   The length of the resulting sequence will constantly be increased until the compactor
   is producing enough groups. Hopefully this will be efficient enough.
   *)
-  val recommended_time = Time.fromMicroseconds 20000; (*Number of microseconds for groups to aim for*)
+  val recommended_time = Time.fromMicroseconds 2000; (*Number of microseconds for groups to aim for*)
   val num_cores = Thread.numProcessors();
   val recommended_length = num_cores * 40;
-  val recommended_prime_length = 10; (*How long the compactor should be allowed to run for*)
+  val recommended_prime_length = 15; (*How long the compactor should be allowed to run for*)
   val recommended_est = 1; (*For the initial size of groups*)
   val node_limit = 16000; (*This is a limit on the number of nodes that may be gathered*)
   val order_matters = true; (*Safe as a default*)

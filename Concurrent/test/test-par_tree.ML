@@ -568,7 +568,7 @@ in
           fun func x = (gen_func hardness ();Help.tree_producer branches x);
           val root = (Par_Tree.Node depth);
           val parallel = fn () => Seq.list_of (Par_Tree.compute_tree par_tree root func);
-          val sequential = wrap_sequential (fn () => Seq.list_of (sequential_traverse func root));
+          val sequential = fn () => Seq.list_of (sequential_traverse func root);
           (*Time the two functions*)
           val t_par = if (not (sequential_only=who_runs)) then (Help.time parallel) else 0;
           val t_seq = if (not (parallel_only=who_runs)) then (Help.time sequential) else 0;
