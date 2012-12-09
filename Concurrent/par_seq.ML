@@ -288,7 +288,7 @@ struct
   series of values will be pulled in parallel.
   This reduces the severity of the worst case.*)
   (*Time in microseconds*)
-  val time_boundary = 1;
+  val time_boundary = 400;
   
   
   (*Get the next element from the sequence. Returns NONE
@@ -300,8 +300,10 @@ struct
   fun pull fd sq =
     let
       val sw = Stopwatch.start (Stopwatch.new);
+      (*val _ = PolyML.print("Timing first pull");*)
       val res = pull_one fd sq;
       val t = Time.toMicroseconds (fst (Stopwatch.stop sw));
+      (*val _ = PolyML.print("Complete: took " ^ Int.toString(t) ^ " microseconds.");*)
     in
       case res of
         NONE => NONE
@@ -358,9 +360,10 @@ struct
   (*Convert the sequence to a list of values.
   WARNING: This forces evaluation of the entire sequence!!*)
   fun list_of fd xq =
-    (case pull fd xq of
+    (let (* val _ = PolyML.print("Pulling from list_of") *) in
+    case pull fd xq of
       NONE => []
-    | SOME (x, xq') => x :: list_of fd xq');
+    | SOME (x, xq') => x :: list_of fd xq' end);
   
   (*Convert a list back into a sequence.*)
   fun of_list xs = fold_rev cons xs empty;
@@ -447,6 +450,7 @@ struct
   which for now is considered a good thing.
   *)
   fun flat fd sqq = Seq (fn () =>
+    let (*val _ = PolyML.print("Pulling from flat") *) in 
     case (pull fd sqq) of (*I'll need the next sequence in the sequence of sequences.
     This is likely to be cheap, so it just pulls one element*)
         NONE => NONE (*Must have finished flattening*)
@@ -456,7 +460,7 @@ struct
                   NONE => NONE
                 | SOME (v,sq2) => SOME (Done v,sq2)*)
                 pull_elem (append xq (flat fd xqq))
-        )
+        end)
   
   (*Maps a function which produces a sequence
   for every element in the original sequence. It automatically
@@ -503,9 +507,10 @@ struct
   (*Turn a parallel lazy sequence into a sequential lazy
   sequence. This is still lazy*)
   fun sequential_seq_of fd sq = Seq.make (fn() =>
+      let (*val _ = PolyML.print("Pulling from sequential_seq_of") *) in
       case (pull fd sq) of
           NONE => NONE
-        | SOME (e,sq2) => SOME (e,sequential_seq_of fd sq2))
+        | SOME (e,sq2) => SOME (e,sequential_seq_of fd sq2) end)
   
   (*Turn a sequential lazy sequence into a parallel lazy sequence.
   Elements that were originally in the lazy sequence will continue
