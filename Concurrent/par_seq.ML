@@ -288,7 +288,7 @@ struct
   series of values will be pulled in parallel.
   This reduces the severity of the worst case.*)
   (*Time in microseconds*)
-  val time_boundary = 1;
+  val time_boundary = 400;
   
   
   (*Get the next element from the sequence. Returns NONE
