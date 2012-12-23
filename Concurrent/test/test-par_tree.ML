@@ -416,6 +416,40 @@ local
     in
       ()
     end) ()
+    
+  (*Test the recursive node function at various depths to
+  ensure that it is computing children correctly...*)
+  val _ = Testing.test "Par_Tree: testing recursive node function" (fn () =>
+    let
+      val root = 1;
+      (*The original node function*)
+      fun node_func 1 = [Par_Tree.Node 2,Par_Tree.Node 3, Par_Tree.Leaf 1]
+        | node_func 2 = [Par_Tree.Node 4,Par_Tree.Node 4]
+        | node_func 3 = [Par_Tree.Leaf 2]
+        | node_func _ = [Par_Tree.Leaf 3];
+      (*For printing lists of leaves and nodes...*)
+      fun toString' [] = "]"
+        | toString' [Par_Tree.Leaf x] = "Leaf " ^ (Int.toString(x)) ^ "]"
+        | toString' [Par_Tree.Node x] = "Node " ^ (Int.toString(x)) ^ "]"
+        | toString' ((Par_Tree.Leaf x)::ls) = "Leaf " ^ (Int.toString(x)) ^ "," ^ (toString' ls)
+        | toString' ((Par_Tree.Node x)::ls) = "Node " ^ (Int.toString(x)) ^ "," ^ (toString' ls)
+      fun toString ls = "[" ^ (toString' ls)
+      (*Now test the various coarseness levels*)
+      (*Coarseness of 1*)
+      fun f n = (Par_Tree.recur_node_function node_func 1) n;
+      val _ = if ((f root)=[Par_Tree.Node 2,Par_Tree.Node 3, Par_Tree.Leaf 1]) then () else
+              raise ERROR ("Par_Tree: node recursion failed 1 with " ^ (toString (f root)));
+      (*Coarseness of 2*)
+      fun f n = (Par_Tree.recur_node_function node_func 2) n;
+      val _ = if ((f root)=[Par_Tree.Node 4,Par_Tree.Node 4,Par_Tree.Leaf 2,Par_Tree.Leaf 1]) then () else
+              raise ERROR ("Par_Tree: node recursion failed 2 with " ^ (toString (f root)));
+      (*Coarseness of 3*)
+      fun f n = (Par_Tree.recur_node_function node_func 3) n;
+      val _ = if ((f root)=[Par_Tree.Leaf 3,Par_Tree.Leaf 3,Par_Tree.Leaf 2,Par_Tree.Leaf 1]) then () else
+              raise ERROR ("Par_Tree: node recursion failed 3 with " ^ (toString (f root)));
+    in
+      ()
+    end) ()
   
   (*Test nodes which produce no children*)
   val _ = Testing.test "Par_Tree: testing empty nodes" (fn () =>

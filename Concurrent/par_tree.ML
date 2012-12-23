@@ -148,9 +148,19 @@ sig
   *)
   val compute_tree : ('a,'b) par_tree
     -> ('a,'b) elem                         (*This is the root of the tree*)
-    -> ('b -> ((('a,'b) elem) List.list)) (*The function which, when applied to nodes, will produce the children*)
+    -> ('b -> ((('a,'b) elem) List.list))   (*The function which, when applied to nodes, will produce the children*)
     -> ('a Seq.seq)                         (*A resulting lazy sequence of leaves*)
-  
+    
+  (*Given a function to apply to nodes, convert this function to apply itself
+  to nodes recursively a fixed number of times. That is, recur_node_function f 2 would
+  cause f to be applied to a node, and then recursively it would be applied to all of the
+  children nodes. (For f 3, f would be applied to their children again)
+  The resulting list is the complete list of children from all the children
+  of the first node.*)
+  val recur_node_function :
+       ('b -> ((('a,'b) elem) List.list))   (*The original node function*)
+     -> int                                 (*The number of times to recur (must be >=1)*)
+     -> ('b -> ((('a,'b) elem) List.list))  (*A new node function which applies itself recursively the specified number of times*)
   
 end;
 
@@ -639,7 +649,9 @@ struct
               | SOME ((v,n),sq2) => let
                 val (res_sq,res_est) = get_est sq2
               in (Seq.append v res_sq,if (res_est>=0) then res_est else n) end;
+            val _ = PolyML.print("Running parallel - order matters");
             val (children,new_est) = get_est result;
+            val _ = PolyML.print("Synchronising - order matters");
             (*val _ = PolyML.print("Retrieved estimate");*)
             (*Now combine all of the results...*)
             val (new_tree_sq,extra_leaves) = add_to_tree_seq tr_sq children;
@@ -706,7 +718,9 @@ struct
           in ((Seq.list_of v)@res_sq,if (res_est>=0) then res_est else n) end;
         (*The children are the resulting mix of leaves and nodes, currently
         in the order they were produced*)
+        val _ = PolyML.print("Running parallel - no order");
         val (children,new_est) = get_est result;
+        val _ = PolyML.print("Synchronising... - no order");
         (*Next, split this up into nodes and leaves...*)
         fun find_leaves [] = ([],[])
           | find_leaves (c::cs) = let val (leaves,nodes) = find_leaves cs in
@@ -759,6 +773,29 @@ struct
                     )
       end
   
+  (*Given a function to apply to nodes, convert this function to apply itself
+  to nodes recursively a fixed number of times. That is, recur_node_function f 2 would
+  cause f to be applied to a node, and then recursively it would be applied to all of the
+  children nodes. (For f 3, f would be applied to their children again)
+  The resulting list is the complete list of children from all the children
+  of the first node.*)
+  fun recur_node_function f depth = if (depth<=0) then raise ERROR ";par_tree: cannot recur a node function less than one time" else
+    if (depth=1) then f else
+    let
+      (*Apply the node function recursively to the nodes, their children, their children's children etc...*)
+      fun apply_to_node_recur 0 node = Difference_List.of_list (f node) (*Stop the recursion*)
+        | apply_to_node_recur n node = 
+         let
+           val res = f node;
+           fun map_apply [] = Difference_List.empty
+             | map_apply ((Leaf l)::ns) = Difference_List.cons (Leaf l) (map_apply ns)
+             | map_apply ((Node nd)::ns) = Difference_List.append (apply_to_node_recur (n-1) nd) (map_apply ns)
+          in
+            map_apply res
+          end
+    in
+      (fn node => Difference_List.list_of (apply_to_node_recur (depth-1) node))
+    end
   
   end
 end;
