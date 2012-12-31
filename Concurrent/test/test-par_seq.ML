@@ -11,6 +11,42 @@ local
   the results are always the same as with the regular sequential lazy sequence, which is assumed
   to have the correct desired behaviour*)
   
+  (*Identify the default parameters*)
+  val param = (Par_Seq.get_look_ahead (Par_Seq.empty (fd())),(Par_Seq.get_buffer (Par_Seq.empty (fd()))));
+  
+  (*Test the setting of future data*)
+  val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
+    let
+      val fd = MJB_Simple_Future.new_future_data (SOME "Hello world")
+      val par_seq = Par_Seq.empty fd;
+      val _ = if ((MJB_Simple_Future.get_message (Par_Seq.get_future_data par_seq))=(SOME "Hello world")) then () else
+              raise ERROR "Par_Seq: failed future data setting";
+    in
+      ()
+    end) ()
+    
+  (*Test the setting of the look ahead*)
+  val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
+    let
+      val par_seq = Par_Seq.empty (fd());
+      val par_seq = Par_Seq.set_look_ahead par_seq (SOME 127);
+      val _ = if ((Par_Seq.get_look_ahead par_seq)=(SOME 127)) then () else
+              raise ERROR "Par_Seq: failed look ahead setting";
+    in
+      ()
+    end) ()
+    
+  (*Test the setting of the buffer*)
+  val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
+    let
+      val par_seq = Par_Seq.empty (fd());
+      val par_seq = Par_Seq.set_buffer par_seq 39;
+      val _ = if ((Par_Seq.get_buffer par_seq)=39) then () else
+              raise ERROR "Par_Seq: failed buffer setting";
+    in
+      ()
+    end) ()
+  
   (*Test list conversion*)
   val _ = Testing.test "Par_Seq: Converting empty list" (fn ls =>
      if (Par_Seq.list_of (Par_Seq.of_list (fd()) ls)=
@@ -436,8 +472,8 @@ local
           | s_func_1 _ = Seq.of_list [];
         fun s_func_2 "a" = Seq.of_list [false,true,true]
           | s_func_2 _ = Seq.of_list [false,true,true];
-        val p_empty = Par_Seq.list_of (Par_Seq.THEN (p_func_1,p_func_2) (fd()) 2);
-        val p_pop = Par_Seq.list_of (Par_Seq.THEN (p_func_1,p_func_2) (fd()) 1);
+        val p_empty = Par_Seq.list_of (Par_Seq.THEN (p_func_1,p_func_2) (fd()) 2 param);
+        val p_pop = Par_Seq.list_of (Par_Seq.THEN (p_func_1,p_func_2) (fd()) 1 param);
         val s_empty = Seq.list_of (Seq.THEN (s_func_1,s_func_2) 2);
         val s_pop = Seq.list_of (Seq.THEN (s_func_1,s_func_2) 1)
       in
@@ -456,8 +492,8 @@ local
         fun s_func_1 1 = Seq.of_list ["a","b","c"]
           | s_func_1 _ = Seq.empty;
         fun s_func_2 _ = Seq.of_list ["d"];
-        val p_first = Par_Seq.list_of (Par_Seq.ORELSE (p_func_1,p_func_2) (fd()) 1);
-        val p_second = Par_Seq.list_of (Par_Seq.ORELSE (p_func_1,p_func_2) (fd()) 2);
+        val p_first = Par_Seq.list_of (Par_Seq.ORELSE (p_func_1,p_func_2) (fd()) 1 param);
+        val p_second = Par_Seq.list_of (Par_Seq.ORELSE (p_func_1,p_func_2) (fd()) 2 param);
         val s_first = Seq.list_of (Seq.ORELSE (s_func_1,s_func_2) 1);
         val s_second = Seq.list_of (Seq.ORELSE (s_func_1,s_func_2) 2)
       in
@@ -474,7 +510,7 @@ local
         fun p_func_2 _ _ = Par_Seq.of_list (fd()) ["d"];
         fun s_func_1 _ = Seq.of_list ["a","b","c"];
         fun s_func_2 _ = Seq.of_list ["d"];
-        val p_res = Par_Seq.list_of (Par_Seq.APPEND (p_func_1,p_func_2) (fd()) 1);
+        val p_res = Par_Seq.list_of (Par_Seq.APPEND (p_func_1,p_func_2) (fd()) 1 param);
         val s_res = Seq.list_of (Seq.APPEND (s_func_1,s_func_2) 1)
       in
         if (p_res=s_res) then ()
@@ -488,9 +524,9 @@ local
         fun p_func_2 _ _ = Par_Seq.of_list (fd()) [4,5];
         fun s_func_1 _ = Seq.of_list [1,2,3];
         fun s_func_2 _ = Seq.of_list [4,5];
-        val p_empty = Par_Seq.list_of (Par_Seq.EVERY (fd()) [] 1);
+        val p_empty = Par_Seq.list_of (Par_Seq.EVERY (fd()) [] 1 param);
         val s_empty = Seq.list_of (Seq.EVERY [] 1)
-        val p_pop = Par_Seq.list_of (Par_Seq.EVERY (fd()) [p_func_1,p_func_2] 1);
+        val p_pop = Par_Seq.list_of (Par_Seq.EVERY (fd()) [p_func_1,p_func_2] 1 param);
         val s_pop = Seq.list_of (Seq.EVERY [s_func_1,s_func_2] 1)
       in
         if (p_empty=s_empty) then
@@ -506,9 +542,9 @@ local
         fun p_func_2 _ _ = Par_Seq.of_list (fd()) [4,5];
         fun s_func_1 _ = Seq.of_list [];
         fun s_func_2 _ = Seq.of_list [4,5];
-        val p_empty = Par_Seq.list_of (Par_Seq.FIRST (fd()) [] 1);
+        val p_empty = Par_Seq.list_of (Par_Seq.FIRST (fd()) [] 1 param);
         val s_empty = Seq.list_of (Seq.FIRST [] 1)
-        val p_pop = Par_Seq.list_of (Par_Seq.FIRST (fd()) [p_func_1,p_func_2] 1);
+        val p_pop = Par_Seq.list_of (Par_Seq.FIRST (fd()) [p_func_1,p_func_2] 1 param);
         val s_pop = Seq.list_of (Seq.FIRST [s_func_1,s_func_2] 1)
       in
         if (p_empty=s_empty) then
@@ -524,9 +560,9 @@ local
         fun p_func_2 _ _ = Par_Seq.of_list (fd()) [4,5];
         fun s_func_1 _ = Seq.of_list [];
         fun s_func_2 _ = Seq.of_list [4,5];
-        val p_empty = Par_Seq.list_of (Par_Seq.TRY (fd()) p_func_1 1);
+        val p_empty = Par_Seq.list_of (Par_Seq.TRY (fd()) p_func_1 1 param);
         val s_empty = Seq.list_of (Seq.TRY s_func_1 1)
-        val p_pop = Par_Seq.list_of (Par_Seq.TRY (fd()) p_func_2 1);
+        val p_pop = Par_Seq.list_of (Par_Seq.TRY (fd()) p_func_2 1 param);
         val s_pop = Seq.list_of (Seq.TRY s_func_2 1)
       in
         if (p_empty=s_empty) then
@@ -540,8 +576,8 @@ local
       let
         fun p_func _ x _ = Par_Seq.of_list (fd()) [x,1];
         fun s_func x _ = Seq.of_list [x,1];
-        val p_empty = Par_Seq.list_of (Par_Seq.INTERVAL (fd()) p_func 2 1 0);
-        val p_pop = Par_Seq.list_of (Par_Seq.INTERVAL (fd()) p_func 1 3 0);
+        val p_empty = Par_Seq.list_of (Par_Seq.INTERVAL (fd()) p_func 2 1 0 param);
+        val p_pop = Par_Seq.list_of (Par_Seq.INTERVAL (fd()) p_func 1 3 0 param);
         val s_empty = Seq.list_of (Seq.INTERVAL s_func 2 1 0);
         val s_pop = Seq.list_of (Seq.INTERVAL s_func 1 3 0)
       in
@@ -558,8 +594,8 @@ local
         fun p_func_2 _ _ = Par_Seq.of_list (fd()) ["a","b"];
         fun s_func_1 _ = Seq.of_list [];
         fun s_func_2 _ = Seq.of_list ["a","b"];
-        val p_empty = Par_Seq.list_of (Par_Seq.DETERM (fd()) p_func_1 1);
-        val p_pop = Par_Seq.list_of (Par_Seq.DETERM (fd()) p_func_2 1);
+        val p_empty = Par_Seq.list_of (Par_Seq.DETERM (fd()) p_func_1 1 param);
+        val p_pop = Par_Seq.list_of (Par_Seq.DETERM (fd()) p_func_2 1 param);
         val s_empty = Seq.list_of (Seq.DETERM s_func_1 1);
         val s_pop = Seq.list_of (Seq.DETERM s_func_2 1)
       in
@@ -587,8 +623,8 @@ local
           | s_func_2 4 = Seq.of_list [5]
           | s_func_2 _ = Seq.of_list [];
         val take_no = 5;
-        val p_empty = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT (fd()) p_func_1 1));
-        val p_pop = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT (fd()) p_func_2 1));
+        val p_empty = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT (fd()) p_func_1 1 param));
+        val p_pop = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT (fd()) p_func_2 1 param));
         val s_empty = Seq.list_of (Seq.take take_no (Seq.REPEAT s_func_1 1));
         val s_pop = Seq.list_of (Seq.take take_no (Seq.REPEAT s_func_2 1))
       in
@@ -616,8 +652,8 @@ local
           | s_func_2 4 = Seq.of_list [5]
           | s_func_2 _ = Seq.of_list [];
         val take_no = 5;
-        val p_empty = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT1 (fd()) p_func_1 1));
-        val p_pop = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT1 (fd()) p_func_2 1));
+        val p_empty = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT1 (fd()) p_func_1 1 param));
+        val p_pop = Par_Seq.list_of (Par_Seq.take take_no (Par_Seq.REPEAT1 (fd()) p_func_2 1 param));
         val s_empty = Seq.list_of (Seq.take take_no (Seq.REPEAT1 s_func_1 1));
         val s_pop = Seq.list_of (Seq.take take_no (Seq.REPEAT1 s_func_2 1))
       in
@@ -939,6 +975,135 @@ in
         range given for each element in the list*)
         fun test_against_random_hardness lengths (low,high) include_filter who_runs =
           test_against_generic (attach lengths (Random (low,high))) include_filter who_runs
+          
+        (*REMOVE*)
+        (*These tests aren't for the parallel lazy sequence. They test the overload
+        capabilities of the future's library to see what good values are...
+        
+        gen_func n = create a function of hardness n
+        fd() = create new future data
+        Future.future : (unit -> 'a) -> 'a future
+        Future.join 'a future -> 'a
+        *)
+        local
+        structure Future = MJB_Simple_Future
+        (*Split a list into two halves*)
+        fun split' _ ls [] = (ls,[])
+          | split' 0 ls rs = (ls,rs)
+          | split' n ls (r::rs) = let
+            val (ls',rs') = split' (n-1) ls rs
+            in (r::ls',rs') end (*Preserve the order*)
+        fun split n xs = split' n [] xs
+        in
+        
+        (*Compute a function of the given hardness a specific number of times,
+        creating the futures at the desired overload level...*)
+        fun compute_all block_size total functions =
+          let
+            (*Call the futures simultaneously.
+            Returns a list of futures to join on...*)
+            fun generate_futures 0 _ = []
+              | generate_futures n (f::fs) =
+                let
+                  val ft = Future.future f;
+                in
+                  ft::(generate_futures (n-1) fs)
+                end
+              | generate_futures _ _ = raise ERROR "Overload test error"
+            (*Join on all of the futures in a list in order...*)
+            fun join_all [] = ()
+              | join_all (ft::fts) = (Future.join ft;join_all fts)
+            (*Repeatedly construct groups of functions until you run out...*)
+            fun compute_blocks 0 _ = ()
+              | compute_blocks n fs = if (n<block_size) then
+                join_all (generate_futures n fs) else
+                let val (fs',fs) = split block_size fs in
+                (join_all (generate_futures block_size fs');compute_blocks (n-block_size) fs) end
+          in
+            compute_blocks total functions
+          end
+        end;
+        
+        (*Perform the overload test itself!*)
+        fun overload_test total hardness block_sizes =
+          let
+            (*Generate the functions to be used first...*)
+            fun make_functions 0 = []
+              | make_functions n = (gen_random_func (1,hardness))::(make_functions (n-1))
+            val functions = make_functions total;
+            (*This function is designed to run multiple cases of the test above...*)
+            fun overload_test_aux _ [] = ()
+              | overload_test_aux total (b_size::b_sizes) =
+                let
+                  val file = File_Aux.append();
+                  val t = time (fn () => compute_all b_size total functions)
+                in
+                  (File.writeStr file ("Block size: " ^ (Int.toString(b_size)) ^ " Time: " ^
+                   LargeInt.toString(t) ^ "\n");overload_test_aux total b_sizes)
+                end;
+          in (
+            File_Aux.renew();
+            overload_test_aux total block_sizes;
+            File_Aux.close()
+          ) end
+          
+        (*A possible call...*)
+        fun run_overload_test() = overload_test 20000 4000 (
+          [1,2,3,4,5,6,7,8,9,10]@
+          [20,30,40,50,60,70,80,90,100]@
+          [200,300,400,500,600,700,800,900,1000]@
+          [2000,3000,4000,5000,6000,7000,8000,9000,10000]@
+          [11000,12000,13000,14000,15000,16000,17000,18000,19000,20000])
+          
+        (*REMOVE*)
+        (*This test compares the performance of the Future's library on
+        functions of various hardness*)
+        fun run_futures_test hardness count =
+          let
+            (*Call the futures simultaneously.
+            Returns a list of futures to join on...*)
+            fun generate_futures 0 = []
+              | generate_futures n =
+                let
+                  val ft = Future.future (gen_func hardness);
+                in
+                  ft::(generate_futures (n-1))
+                end
+            (*Join on all of the futures in a list in order...*)
+            fun join_all [] = ()
+              | join_all (ft::fts) = (Future.join ft;join_all fts);
+            (*Compute the result in parallel*)
+            fun run_parallel() = join_all (generate_futures count);
+            fun generate_sequential 0 = ()
+              | generate_sequential n = (gen_func hardness ();generate_sequential (n-1))
+            (*Compute all of the functions sequentially...*)
+            fun run_sequential() = generate_sequential count;
+            (*Run the sequential and parallel runs...*)
+            val file = File_Aux.append();
+            val t_par = time run_parallel;
+            val t_seq = time run_sequential;
+            (*Now write the results...*)
+            val _ = File.writeStr file ("Hardness: " ^ (Int.toString(hardness)) ^ " Count: " ^
+                   Int.toString(count) ^ " Parallel: " ^ LargeInt.toString(t_par) ^
+                   " Sequential: " ^ LargeInt.toString(t_seq) ^ "\n");
+          in
+            ()
+          end
+        
+        (*Now run the futures test for a list of values...*)
+        fun run_futures hardnesses count =
+          let
+            fun run_futures_aux [] = ()
+              | run_futures_aux (h::hs) = (run_futures_test h count;run_futures_aux hs)
+          in
+            File_Aux.renew();
+            run_futures_aux hardnesses;
+            File_Aux.close()
+          end
+          
+        (*A suggested list*)
+        fun futures_test() = run_futures [10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800,900,1000
+        ,2000,3000,4000,5000,6000,7000,8000,9000,10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] 10000
       end;
     end;
   end;

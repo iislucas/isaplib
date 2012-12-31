@@ -649,9 +649,9 @@ struct
               | SOME ((v,n),sq2) => let
                 val (res_sq,res_est) = get_est sq2
               in (Seq.append v res_sq,if (res_est>=0) then res_est else n) end;
-            val _ = PolyML.print("Running parallel - order matters");
+            (*val _ = PolyML.print("Running parallel - order matters");*)
             val (children,new_est) = get_est result;
-            val _ = PolyML.print("Synchronising - order matters");
+            (*val _ = PolyML.print("Synchronising - order matters");*)
             (*val _ = PolyML.print("Retrieved estimate");*)
             (*Now combine all of the results...*)
             val (new_tree_sq,extra_leaves) = add_to_tree_seq tr_sq children;
@@ -718,9 +718,9 @@ struct
           in ((Seq.list_of v)@res_sq,if (res_est>=0) then res_est else n) end;
         (*The children are the resulting mix of leaves and nodes, currently
         in the order they were produced*)
-        val _ = PolyML.print("Running parallel - no order");
+        (*val _ = PolyML.print("Running parallel - no order");*)
         val (children,new_est) = get_est result;
-        val _ = PolyML.print("Synchronising... - no order");
+        (*val _ = PolyML.print("Synchronising... - no order");*)
         (*Next, split this up into nodes and leaves...*)
         fun find_leaves [] = ([],[])
           | find_leaves (c::cs) = let val (leaves,nodes) = find_leaves cs in

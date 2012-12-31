@@ -17,6 +17,10 @@ sig
   exception Empty_Parallel_Sequence of string
   (*The type of a parallel sequence*)
   type 'a seq
+  (*This is the type of parameters to pass into the parallel lazy sequence,
+  which governs how elements are pulled*)
+  type param = (int option * int)
+  
   (*Add a function for future evaluation to the sequence.
   The format is different to the form of make in the original sequential sequence
   because the functions you pass in are modified. Hence, passing in a function
@@ -34,7 +38,7 @@ sig
   Pulling from the same sequence twice (to return exactly the same element)
   can be especially painful since further values in the sequence may be
   re-evaluated too, so avoid this!!*)
-  val pull : MJB_Simple_Future.future_data -> 'a seq -> ('a * 'a seq) option
+  val pull : MJB_Simple_Future.future_data -> 'a seq -> param -> ('a * 'a seq) option
   (*Attach an element to the front of the sequence*)
   val cons : 'a -> 'a seq -> 'a seq
   (*Create a sequence with a single element*)
@@ -47,7 +51,7 @@ sig
   Raises empty sequence exception if there is no head
   Calling this on a sequence more than once may force evaluation of the head
   multiple times (dependent on whether or not it has begun evaluation).*)
-  val hd : MJB_Simple_Future.future_data -> 'a seq -> 'a
+  val hd : MJB_Simple_Future.future_data -> 'a seq  -> param -> 'a
   (*Return the tail of the sequence
   Raises empty sequence exception if there is no tail
   As with hd, calling this multiple times may incur a penalty.
@@ -56,12 +60,12 @@ sig
   the element dropped will not be evaluated unnecessarily.*)
   val tl : 'a seq -> 'a seq
   (*Return a list of the first n elements (evaluated) paired with the rest*)
-  val chop : MJB_Simple_Future.future_data -> int -> 'a seq -> (('a list) * ('a seq))
+  val chop : MJB_Simple_Future.future_data -> int -> 'a seq -> param -> (('a list) * ('a seq))
   (*Take the first n elements of the sequence. (Forget the rest)*)
   val take : int -> 'a seq -> 'a seq
   (*Convert the sequence to a list of values.
   WARNING: This forces evaluation of the entire sequence!!*)
-  val list_of : MJB_Simple_Future.future_data -> 'a seq -> 'a list
+  val list_of : MJB_Simple_Future.future_data -> 'a seq -> param -> 'a list
   (*Convert a list back into a sequence.*)
   val of_list : 'a list -> 'a seq
   (*Join two sequences together (first appears in front)*)
@@ -77,23 +81,23 @@ sig
   (*Filter the values in a sequence. This is still lazy to a point, which
   is surprising if you think about how elements are processed in parallel.
   (See implementation details)*)
-  val filter : MJB_Simple_Future.future_data -> ('a -> bool) -> 'a seq -> 'a seq
+  val filter : MJB_Simple_Future.future_data -> ('a -> bool) -> 'a seq -> param -> 'a seq
   (*Flatten (concatenate) a sequence of sequences. This too maintains
   laziness across the sequence of sequences and in each individually sequence*)
-  val flat : MJB_Simple_Future.future_data -> 'a seq seq -> 'a seq
+  val flat : MJB_Simple_Future.future_data -> 'a seq seq -> param -> 'a seq
   (*Maps a function which produces a sequence
   for every element in the original sequence. It automatically
   appends all of the results*)
-  val maps : MJB_Simple_Future.future_data -> ('a -> 'b seq) -> 'a seq -> 'b seq
+  val maps : MJB_Simple_Future.future_data -> ('a -> 'b seq) -> 'a seq -> param -> 'b seq
   (*Maps a filter function over the sequence. If the filter returns
   none, the element is dropped. If the filter returns SOME b then
   b is attached to the sequence.*)
-  val map_filter : MJB_Simple_Future.future_data -> ('a -> 'b option) -> 'a seq -> 'b seq
+  val map_filter : MJB_Simple_Future.future_data -> ('a -> 'b option) -> 'a seq -> param -> 'b seq
   (*Apply a function over the sequence. The second element
   is paired with this function for every single value*)
   val lift : ('a -> 'b -> 'c) -> 'a seq -> 'b -> 'c seq
   (*Similar to lift but appends the results of the function*)
-  val lifts : MJB_Simple_Future.future_data -> ('a -> 'b -> 'c seq) -> 'a seq -> 'b -> 'c seq
+  val lifts : MJB_Simple_Future.future_data -> ('a -> 'b -> 'c seq) -> 'a seq -> 'b -> param -> 'c seq
   (*Creates a singleton sequence element with the given value
   and future data*)
   val succeed : 'a -> 'a seq
@@ -103,7 +107,7 @@ sig
   This is really for typing. The elements will still be processed
   in parallel if they were originally added to a parallel sequence.
   Elements added later are processed sequentially.*)
-  val sequential_seq_of : MJB_Simple_Future.future_data -> 'a seq -> 'a Seq.seq
+  val sequential_seq_of : MJB_Simple_Future.future_data -> 'a seq -> param -> 'a Seq.seq
   (*Turn a parallel lazy sequence into a sequential lazy sequence
   with immediate effect. That means that, other than futures already started,
   further pulls to the sequence will not cause parallel evaluation generally.
@@ -123,19 +127,19 @@ sig
   val singleton: ('a list -> 'b list seq) -> 'a -> 'b seq
   (*Print a sequence, up to the n elements as supplied*)
   val print: MJB_Simple_Future.future_data ->
-    (int -> 'a -> unit) -> int -> 'a seq -> unit
+    (int -> 'a -> unit) -> int -> 'a seq -> param -> unit
   (*Accumulating a function over a sequence; this is lazy.
   Apply the function to an element of the first
   sequence and the sequence produced by "this" to produce a new
   sequence.*)
   val it_right: MJB_Simple_Future.future_data ->
-    ('a * 'b seq -> 'b seq) -> 'a seq * 'b seq -> 'b seq
+    ('a * 'b seq -> 'b seq) -> 'a seq * 'b seq -> param -> 'b seq
   (*Apply a function f to an element x to produce a sequence.
   Then apply g to every element in this sequence to produce
   a new sequence for each individual result, and then
   append the results*)
   val THEN: ('a -> 'b seq) * ('b -> 'c seq) ->
-    MJB_Simple_Future.future_data -> 'a -> 'c seq
+    MJB_Simple_Future.future_data -> 'a -> param -> 'c seq
   (*Apply a function f to an element x to produce a sequence
   If the sequence is initially empty, then return g x instead*)
   val ORELSE: ('a -> 'b seq) * ('a -> 'b seq) -> 
@@ -149,7 +153,7 @@ sig
   that function to each element in the sequence generated so far,
   and append the resulting sequences*)
   val EVERY: MJB_Simple_Future.future_data ->
-    ('a -> 'a seq) list -> 'a -> 'a seq
+    ('a -> 'a seq) list -> 'a -> param -> 'a seq
   (*Wait for the first function to return a non-empty sequence
   and return that sequence*)
   val FIRST: ('a -> 'b seq) list -> 'a -> 'b seq
@@ -162,11 +166,11 @@ sig
   f is then applied to every element in the produced sequence.
   This recurs.*)
   val REPEAT: MJB_Simple_Future.future_data ->
-    ('a -> 'a seq) -> 'a -> 'a seq
+    ('a -> 'a seq) -> 'a -> param -> 'a seq
   (*Apply the given function to the sequence first.
   Then repeat it across the resulting sequence.*)
   val REPEAT1: MJB_Simple_Future.future_data ->
-    ('a -> 'a seq) -> 'a -> 'a seq
+    ('a -> 'a seq) -> 'a -> param -> 'a seq
   (*If the first integer is less than the second, this returns
   a singleton sequence with the element supplied. Otherwise,
   the function f is applied to the second integer and the element.
@@ -174,12 +178,12 @@ sig
   by reapplying Interval, reducing the second integer by 1, to
   every element produced in the first sequence.*)
   val INTERVAL: MJB_Simple_Future.future_data ->
-    (int -> 'a -> 'a seq) -> int -> int -> 'a -> 'a seq
+    (int -> 'a -> 'a seq) -> int -> int -> 'a -> param -> 'a seq
   (*If the function returns the empty sequence, this will
   return the empty sequence. Otherwise it will return the frst
   element only of the resulting sequence*)
   val DETERM: MJB_Simple_Future.future_data ->
-    ('a -> 'b seq) -> 'a -> 'b seq
+    ('a -> 'b seq) -> 'a -> param -> 'b seq
 end;
 
 (*
@@ -222,6 +226,12 @@ struct
   at the time element when the element is pulled)
   Futures capture their elements automatically!*)
   datatype 'a seq = Seq of unit -> (('a elem * 'a seq) option);
+  
+  (*Recommended defaults for the parameter settings
+  Lookahead is optional. If NONE, all elements will be pulled at the same time!
+  The second int is the buffer, and generally it should be less than lookahead*)
+  type param = (int option * int);
+  
   (*Add a function for future evaluation to the sequence.
   The format is different to the form of make in the original sequential sequence
   because the functions you pass in are modified. Hence, passing in a function
@@ -233,13 +243,6 @@ struct
   fun make f sq = Seq (fn () => SOME (Waiting f,sq));
   (*Create the empty sequence.*)
   val empty = Seq (fn () => NONE);
-  (*The number of cores available with this machine*)
-  val num_cores = Thread.numProcessors();
-  (*This is the number of elements further down the sequence that will attempt
-  to be evaluated after a pull*)
-  val look_ahead = num_cores * 10;
-  (*How far I am willing to look ahead to find the first unsta*)
-  val buffer = num_cores;
   
   (*Pull just the element, without evaluating, and return the rest of
   the sequence. Thisis considered "cheap" since the value in the element
@@ -252,22 +255,24 @@ struct
   fun form elem sq = Seq (fn () => SOME (elem,sq))
   
   (*This will look ahead a number of elements in the sequence
-  and start them off in futures.*)
-  fun pull_ahead _ sq 0 _ = ((*TextIO.print("Terminated\n");*)sq) (*Looked at enough already*)
-    | pull_ahead fd sq n buff = ((*TextIO.print("Looking " ^ Int.toString(n) ^ " ahead\n");*)case (pull_elem sq) of
+  and start them off in futures.
+  Note: last parameter "diff" is to decide whether or not the whole sequence should be pulled
+  at the same time.*)
+  fun pull_ahead _ sq 0 _ _ = ((*TextIO.print("Terminated\n");*)sq) (*Looked at enough already*)
+    | pull_ahead fd sq n buff diff = ((*TextIO.print("Looking " ^ Int.toString(n) ^ " ahead\n");*)case (pull_elem sq) of
         NONE => ((*TextIO.print("Was empty!\n");*)empty) (*The sequence is empty anyway, so return it*)
       | SOME (Waiting f,sq2) => (*This needs to begin evaluation!*)
           form (Started ((*TextIO.print("Parallel!\n");*)
           Future.future_group_data fd f)) ((*TextIO.print("To the next\n");*)
-          pull_ahead fd sq2 (n-1) buff)
+          pull_ahead fd sq2 (n-diff) buff diff)
       | SOME (Started f,sq2) => ((*TextIO.print("Not parallel\n");*)
-      if (buff=0) then sq else (Seq (fn() => (SOME (Started f,pull_ahead fd sq2 n (buff-1))))))
+      if (buff=0) then sq else (Seq (fn() => (SOME (Started f,pull_ahead fd sq2 n (buff-1) diff)))))
       (*Already started. Only look ahead again when
       the first chunk is evaluated. This creates bursts of processing, which for a program
       (which is constantly running) is the preferable way to make the most of the available
       cores. Also, this prevents long failed look aheads.*)
       | SOME (Done f,sq2) => ((*TextIO.print("Done already\n");*)
-      if (buff=0) then sq else (Seq (fn() => (SOME (Done f,pull_ahead fd sq2 n (buff-1)))))));
+      if (buff=0) then sq else (Seq (fn() => (SOME (Done f,pull_ahead fd sq2 n (buff-1) diff))))));
   
   (*Pull a single element from the sequence.
   This will evaluate the element pulled.*)
@@ -297,7 +302,7 @@ struct
   Pulling from the same sequence twice (to return exactly the same element)
   can be especially painful since further values in the sequence may be
   re-evaluated too, so avoid this!!*)
-  fun pull fd sq =
+  fun pull fd sq (look_ahead,buffer) =
     let
       val sw = Stopwatch.start (Stopwatch.new);
       (*val _ = PolyML.print("Timing first pull");*)
@@ -309,7 +314,11 @@ struct
         NONE => NONE
       | SOME (v,sq2) => if (t>time_boundary) then (*Decide whether or not to parallelise*)
         ((*PolyML.print("Decided to parallelise in Par_Seq");*)
-        SOME (v,pull_ahead fd sq2 look_ahead buffer)) else res
+        case look_ahead of
+            NONE => SOME (v,pull_ahead fd sq2 1 buffer 0) (*0 means it will pull forever*)
+          | (SOME la) => SOME (v,pull_ahead fd sq2 la buffer 1)) (*1 ensures it will only pull la times at most*)
+        else
+          res (*We can ignore if the request to pull all elements was made, since it would not be beneficial to try anyway*)
     end
   
   (*Attach an element to the front of the sequence*)
@@ -322,7 +331,7 @@ struct
   Raises empty sequence exception if there is no head
   Calling this on a sequence more than once may force evaluation of the head
   multiple times (dependent on whether or not it has begun evaluation).*)
-  fun hd fd sq = case (pull fd sq) of
+  fun hd fd sq param = case (pull fd sq param) of
       NONE => raise Empty_Parallel_Sequence "Cannot return the head of the empty sequence."
     | SOME (v,_) => v
   
@@ -342,12 +351,12 @@ struct
     | NONE => empty);
   
   (*Return a list of the first n elements (evaluated) paired with the rest*)
-  fun chop fd n xq =
+  fun chop fd n xq param =
     if n <= (0 : int) then ([], xq)
     else
-      (case pull fd xq of
+      (case pull fd xq param of
         NONE => ([], xq)
-      | SOME (x, xq') => apfst (Basics.cons x) (chop fd (n - 1) xq'));
+      | SOME (x, xq') => apfst (Basics.cons x) (chop fd (n - 1) xq' param));
   
   (*Take the first n elements of the sequence. (Forget the rest)*)
   fun take n (Seq sq) =
@@ -359,11 +368,11 @@ struct
   
   (*Convert the sequence to a list of values.
   WARNING: This forces evaluation of the entire sequence!!*)
-  fun list_of fd xq =
+  fun list_of fd xq param =
     (let (* val _ = PolyML.print("Pulling from list_of") *) in
-    case pull fd xq of
+    case pull fd xq param of
       NONE => []
-    | SOME (x, xq') => x :: list_of fd xq' end);
+    | SOME (x, xq') => x :: list_of fd xq' param end);
   
   (*Convert a list back into a sequence.*)
   fun of_list xs = fold_rev cons xs empty;
@@ -403,10 +412,10 @@ struct
   
   (*An auxiliary function for filter. Note that this is forced to evaluate
   the filter condition!*)
-  fun filter' fd pred xq =
+  fun filter' fd pred xq param =
     let
       fun copy sq = Seq (fn () =>
-        case (pull fd sq) of
+        case (pull fd sq param) of
             NONE => NONE
           | SOME (v,sq2) => if (pred v) then
               SOME (Done v,copy sq2)
@@ -427,10 +436,10 @@ struct
   in parallel, and drastically simplifes the filter function so you won't notice
   that it forces evaluation on pulling up to the next "true" element
   *)
-  fun filter fd pred xq =
+  fun filter fd pred xq param =
     map (fn x => the x) (*Convert SOME x => x*)
       (filter' fd (fn x => not (is_none x)) (*Filter out the nones*)
-      (map (fn x => if (pred x) then SOME x else NONE) xq)); (*The map function
+      (map (fn x => if (pred x) then SOME x else NONE) xq) param); (*The map function
       based on the filter function.*)
   
   (*Flatten (concatenate) a sequence of sequences. This too maintains
@@ -449,9 +458,9 @@ struct
   3. Avoiding parallel pulling here increases the coarseness of the concurrency,
   which for now is considered a good thing.
   *)
-  fun flat fd sqq = Seq (fn () =>
+  fun flat fd sqq param = Seq (fn () =>
     let (*val _ = PolyML.print("Pulling from flat") *) in 
-    case (pull fd sqq) of (*I'll need the next sequence in the sequence of sequences.
+    case (pull fd sqq param) of (*I'll need the next sequence in the sequence of sequences.
     This is likely to be cheap, so it just pulls one element*)
         NONE => NONE (*Must have finished flattening*)
         (*I will need to pull the element out of this sequence, and append it to whatever
@@ -459,7 +468,7 @@ struct
       | SOME (xq,xqq) => (*case (pull fd (append xq (flat fd xqq))) of
                   NONE => NONE
                 | SOME (v,sq2) => SOME (Done v,sq2)*)
-                pull_elem (append xq (flat fd xqq))
+                pull_elem (append xq (flat fd xqq param))
         end)
   
   (*Maps a function which produces a sequence
@@ -506,11 +515,11 @@ struct
   
   (*Turn a parallel lazy sequence into a sequential lazy
   sequence. This is still lazy*)
-  fun sequential_seq_of fd sq = Seq.make (fn() =>
+  fun sequential_seq_of fd sq param = Seq.make (fn() =>
       let (*val _ = PolyML.print("Pulling from sequential_seq_of") *) in
-      case (pull fd sq) of
+      case (pull fd sq param) of
           NONE => NONE
-        | SOME (e,sq2) => SOME (e,sequential_seq_of fd sq2) end)
+        | SOME (e,sq2) => SOME (e,sequential_seq_of fd sq2 param) end)
   
   (*Turn a sequential lazy sequence into a parallel lazy sequence.
   Elements that were originally in the lazy sequence will continue
@@ -529,23 +538,23 @@ struct
   fun singleton f x = f [x] |> map (fn [y] => y | _ => raise Empty);
   
   (*Print a sequence, up to the n elements as supplied*)
-  fun print fd print_elem count =
+  fun print fd print_elem count xq param =
     let
       fun prnt (k: int) xq =
         if k > count then ()
         else
-          (case pull fd xq of
+          (case pull fd xq param of
             NONE => ()
           | SOME (x, xq') => (print_elem k x; writeln ""; prnt (k + 1) xq'));
-    in prnt 1 end;
+    in prnt 1 xq end;
   
   (*Accumulating a function over a sequence; this is lazy.
   Apply the function to an element of the first
   sequence and the sequence produced by "this" to produce a new
   sequence.*)
-  fun it_right fd f (xq, yq) =
+  fun it_right fd f (xq, yq) param =
     let
-      fun its s = Seq (fn () => case (pull fd s) of
+      fun its s = Seq (fn () => case (pull fd s param) of
           NONE => pull_elem yq
         | SOME (v,sq2) => pull_elem (f (v,its sq2)))
     in its xq end;
@@ -554,7 +563,7 @@ struct
   Then apply g to every element in this sequence to produce
   a new sequence for each individual result, and then
   append the results*)
-  fun op THEN (f, g) fd x = maps fd g (f x);
+  fun op THEN (f, g) fd x param = maps fd g (f x) param;
   
   (*Apply a function f to an element x to produce a sequence
   If the sequence is initially empty, then return g x instead*)
@@ -571,7 +580,7 @@ struct
   (*For every function in the list, apply
   that function to each element in the sequence generated so far,
   and append the resulting sequences*)
-  fun EVERY fd fs = fold_rev (fn a => fn b => THEN (a,b) fd) fs succeed;
+  fun EVERY fd fs x param = fold_rev (fn a => fn b => fn x => THEN (a,b) fd x param) fs succeed x;
   
   (*Wait for the first function to return a non-empty sequence
   and return that sequence*)
@@ -586,22 +595,22 @@ struct
   sequence, a singleton sequence with x will be returned. Otherwise,
   f is then applied to every element in the produced sequence.
   This recurs.*)
-  fun REPEAT fd f =
+  fun REPEAT fd f x param =
     let
       fun rep qs x = Seq (fn() =>
-        (case pull fd (f x) of
+        (case pull fd (f x) param of
           NONE => SOME (Done x, repq qs)
         | SOME (x', q) => pull_elem (rep (q :: qs) x')))
       and repq [] = Seq (fn () => NONE)
         | repq (q :: qs) = Seq (fn() =>
-            (case pull fd q of
+            (case pull fd q param of
               NONE => (pull_elem (repq qs))
             | SOME (x, q) => pull_elem (rep (q :: qs) x)));
-    in fn x => rep [] x end;
+    in rep [] x end;
   
   (*Apply the given function to the sequence first.
   Then repeat it across the resulting sequence.*)
-  fun REPEAT1 fd f = THEN (f, REPEAT fd f) fd;
+  fun REPEAT1 fd f x param = THEN (f, fn y => REPEAT fd f y param) fd x param;
   
   (*If the first integer is less than the second, this returns
   a singleton sequence with the element supplied. Otherwise,
@@ -609,15 +618,15 @@ struct
   This sequence is appended to a sequence formed recursively
   by reapplying Interval, reducing the second integer by 1, to
   every element produced in the first sequence.*)
-  fun INTERVAL fd f (i: int) j x =
+  fun INTERVAL fd f (i: int) j x param =
     if i > j then single x
-    else op THEN (f j, INTERVAL fd f i (j - 1)) fd x;
+    else op THEN (f j, fn y => INTERVAL fd f i (j - 1) y param) fd x param;
   
   (*If the fnction returns the empty sequence, this will
   return the empty sequence. Otherwise it will return the frst
   element only of the resulting sequence*)
-  fun DETERM fd f x = Seq (fn () => pull_elem (
-    (case pull fd (f x) of
+  fun DETERM fd f x param = Seq (fn () => pull_elem (
+    (case pull fd (f x) param of
       NONE => empty
     | SOME (x', _) => cons x' empty)));
 end;
@@ -638,6 +647,29 @@ signature MJB_SAFE_PARALLEL_SEQ =
 sig
   exception Empty_Parallel_Sequence of string
   type 'a seq
+  (*The type of parameters passed to the lazy sequence*)
+  type param = (int option * int)
+  (*These functions allow the setting of parameters in the parallel lazy sequence,
+  which govern how the elements are pulled from the sequence! Note that
+  when sequences with different parameters are combined, you should consider the behaviour
+  unpredictable so please avoid this!*)
+  
+  (*Set how many elements should be pulled by the sequence in parallel.
+  If NONE is supplied, then the sequence will no longer behave in a lazy way.
+  However, do not consider it guaranteed that all elements will be pulled. If elements
+  appear too small to be worth pulling, a single element only may be pulled sequentialy.*)
+  val set_look_ahead : 'a seq -> int option -> 'a seq
+  (*Set how many elements the sequence checks ahead of its current pull before it
+  decides to pull further elements. This can help to keep the future's library loaded
+  for longer, while keeping the sequence more lazy*)
+  val set_buffer : 'a seq -> int -> 'a seq
+  (*Return the parameter values*)
+  val get_look_ahead : 'a seq -> int option
+  val get_buffer : 'a seq -> int
+  
+  (*An exception raised when parameters are set poorly*)
+  exception Parallel_Lazy_Sequence_Params of string
+  
   (*Return the future data in use by this sequence*)
   val get_future_data : 'a seq -> MJB_Simple_Future.future_data
   (*Set the future data to be used by this sequence (generally avoid doing this)*)
@@ -673,16 +705,16 @@ sig
   val singleton: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a list -> 'b list seq) -> 'a -> 'b seq
   val print: (MJB_Simple_Future.future_data -> int -> 'a -> unit) -> int -> 'a seq -> unit
   val it_right: (MJB_Simple_Future.future_data -> 'a * 'b seq -> 'b seq) -> 'a seq * 'b seq -> 'b seq
-  val THEN: (MJB_Simple_Future.future_data -> 'a -> 'b seq) * (MJB_Simple_Future.future_data -> 'b -> 'c seq) -> MJB_Simple_Future.future_data -> 'a -> 'c seq
-  val ORELSE: (MJB_Simple_Future.future_data -> 'a -> 'b seq) * (MJB_Simple_Future.future_data -> 'a -> 'b seq) -> MJB_Simple_Future.future_data -> 'a -> 'b seq
-  val APPEND: (MJB_Simple_Future.future_data -> 'a -> 'b seq) * (MJB_Simple_Future.future_data -> 'a -> 'b seq) -> MJB_Simple_Future.future_data -> 'a -> 'b seq
-  val EVERY: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) list -> 'a -> 'a seq
-  val FIRST: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b seq) list -> 'a -> 'b seq
-  val TRY: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) -> 'a -> 'a seq
-  val REPEAT: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) -> 'a -> 'a seq
-  val REPEAT1: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) -> 'a -> 'a seq
-  val INTERVAL: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> int -> 'a -> 'a seq) -> int -> int -> 'a -> 'a seq
-  val DETERM: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b seq) -> 'a -> 'b seq
+  val THEN: (MJB_Simple_Future.future_data -> 'a -> 'b seq) * (MJB_Simple_Future.future_data -> 'b -> 'c seq) -> MJB_Simple_Future.future_data -> 'a -> param -> 'c seq
+  val ORELSE: (MJB_Simple_Future.future_data -> 'a -> 'b seq) * (MJB_Simple_Future.future_data -> 'a -> 'b seq) -> MJB_Simple_Future.future_data -> 'a -> param -> 'b seq
+  val APPEND: (MJB_Simple_Future.future_data -> 'a -> 'b seq) * (MJB_Simple_Future.future_data -> 'a -> 'b seq) -> MJB_Simple_Future.future_data -> 'a -> param -> 'b seq
+  val EVERY: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) list -> 'a -> param -> 'a seq
+  val FIRST: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b seq) list -> 'a -> param -> 'b seq
+  val TRY: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) -> 'a -> param -> 'a seq
+  val REPEAT: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) -> 'a -> param -> 'a seq
+  val REPEAT1: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a seq) -> 'a -> param -> 'a seq
+  val INTERVAL: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> int -> 'a -> 'a seq) -> int -> int -> 'a -> param -> 'a seq
+  val DETERM: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b seq) -> 'a -> param -> 'b seq
 end;
 
 (*The safer way to use the parallel sequence, which manages the future data considerably for you.
@@ -698,61 +730,93 @@ A direct implementation of what is below might be able to avoid this, but it is 
 the mapping will take any significant amount of time.*)
 structure MJB_Safe_Parallel_Seq :> MJB_SAFE_PARALLEL_SEQ =
 struct
+  (*The number of cores available with this machine*)
+  val num_cores = Thread.numProcessors();
+  (*This is the number of elements further down the sequence that will attempt
+  to be evaluated after a pull*)
+  val recommended_look_ahead = SOME (num_cores * 10);
+  (*How far I am willing to look ahead to find the first unsta*)
+  val recommended_buffer = num_cores;
   exception Empty_Parallel_Sequence of string
+  (*An exception raised when parameters are set poorly*)
+  exception Parallel_Lazy_Sequence_Params of string
   structure Future = MJB_Simple_Future;
   structure Seq = MJB_Parallel_Seq;
-  type 'a seq = ('a Seq.seq) * Future.future_data
+  (*Parameters are tagged onto the end*)
+  type param = (int option * int)
+  type 'a seq = ('a Seq.seq) * Future.future_data * param
   (*Return the future data in use by this sequence*)
-  fun get_future_data (_,fd) = fd
+  fun get_future_data (_,fd,_) = fd
   (*Set the future data to be used by this sequence (generally avoid doing this)*)
-  fun set_future_data fd (sq,_) = (sq,fd)
+  fun set_future_data fd (sq,_,param) = (sq,fd,param)
+  
+  (*Set how many elements should be pulled by the sequence in parallel.
+  If NONE is supplied, then the sequence will no longer behave in a lazy way.
+  However, do not consider it guaranteed that all elements will be pulled. If elements
+  appear too small to be worth pulling, a single element only may be pulled sequentialy.*)
+  fun set_look_ahead (sq,fd,(_,buffer)) la = case la of
+      NONE => (sq,fd,(NONE,buffer))
+    | (SOME v) => if (v<=0) then raise Parallel_Lazy_Sequence_Params "Look ahead must strictly be positive (>=1)"
+      else (sq,fd,(la,buffer))
+  (*Set how many elements the sequence checks ahead of its current pull before it
+  decides to pull further elements. This can help to keep the future's library loaded
+  for longer, while keeping the sequence more lazy*)
+  fun set_buffer (sq,fd,(la,_)) v = if (v<0) then
+    raise Parallel_Lazy_Sequence_Params "Buffer must be non-negative (>=0)"
+    else (sq,fd,(la,v))
+    
+  (*Return the parameter values*)
+  fun get_look_ahead (_,_,(la,_)) = la
+  fun get_buffer (_,_,(_,buffer)) = buffer
+  
+  fun fst' (a,_,_) = a
   
   (*All the functions below make use of the sequence passed in. A few complications
   do arise. In particular, if a function requires a function which returns a sequence,
   then this returned sequence is not of type Seq.seq. Hence, the function has to
   be modified. The extreme case of this is in FIRST and EVERY, where a list of functions
   have to be adjusted.*)
-  fun make f (sq,fd) = (Seq.make f sq,fd)
-  fun empty fd = (Seq.empty,fd)
-  fun pull (sq,fd) = case (Seq.pull fd sq) of
+  fun make f (sq,fd,param) = (Seq.make f sq,fd,param)
+  fun empty fd = (Seq.empty,fd,(recommended_look_ahead,recommended_buffer))
+  fun pull (sq,fd,param) = case (Seq.pull fd sq param) of
       NONE => NONE
-    | SOME (v,sq2) => SOME (v,(sq2,fd))
-  fun cons v (sq,fd) = (Seq.cons v sq,fd)
-  fun single fd v = (Seq.single v,fd)
-  fun try fd f v = (Seq.try (f fd) v,fd)
-  fun hd (sq,fd) = Seq.hd fd sq
-  fun tl (sq,fd) = (Seq.tl sq,fd)
-  fun chop n (sq,fd) = let val (ls,sq2) = Seq.chop fd n sq in (ls,(sq2,fd)) end
-  fun take n (sq,fd) = (Seq.take n sq,fd)
-  fun list_of (sq,fd) = Seq.list_of fd sq
-  fun of_list fd ls = (Seq.of_list ls,fd)
-  fun append (sq,fd) (sq2,_) = (Seq.append sq sq2,fd)
-  fun map f (sq,fd) = (Seq.map (f fd) sq,fd)
-  fun mapp f (sq,fd) (sq2,_) = (Seq.mapp (f fd) sq sq2,fd)
-  fun interleave  ((sq,fd),(sq2,_)) = (Seq.interleave (sq,sq2),fd)
-  fun filter f (sq,fd) = (Seq.filter fd (f fd) sq,fd)
-  fun flat (sqq,fd) = (Seq.flat fd (Seq.map fst sqq),fd)
-  fun maps f (sq,fd) = (Seq.maps fd (fn a => fst (f fd a)) sq,fd)
-  fun map_filter f (sq,fd) = (Seq.map_filter fd (f fd) sq,fd)
-  fun lift f (sq,fd) b = (Seq.lift (f fd) sq b,fd)
-  fun lifts f (sq,fd) b = (Seq.lifts fd (fn a => fn b' => fst (f fd a b')) sq b,fd)
-  fun succeed fd v = (Seq.succeed v,fd)
-  fun fail fd v = (Seq.fail v,fd)
-  fun sequential_seq_of (sq,fd) = Seq.sequential_seq_of fd sq
-  fun truly_sequential_seq_of (sq,fd) =  Seq.truly_sequential_seq_of fd sq
-  fun of_sequential_seq fd sq = (Seq.of_sequential_seq sq,fd)
-  fun singleton fd f v = (Seq.singleton (fn a => fst (f fd a)) v,fd)
-  fun print f n (sq,fd) = Seq.print fd (f fd) n sq
-  fun it_right f ((sq,fd),(sq2,_)) = (Seq.it_right fd (fn (a,b) => fst (f fd (a,(b,fd)))) (sq,sq2),fd)
-  fun THEN (f,g) fd v = (Seq.THEN (fn a => fst (f fd a),fn b => fst (g fd b)) fd v,fd)
-  fun ORELSE (f,g) fd v = (Seq.ORELSE (fn a => fst (f fd a),fn b => fst (g fd b)) v,fd)
-  fun APPEND (f,g) fd v = (Seq.APPEND (fn a => fst (f fd a),fn b => fst (g fd b)) v,fd)
-  fun EVERY fd fs v = (Seq.EVERY fd (List.map (fn f => (fn a => fst (f fd a))) fs) v,fd)
-  fun FIRST fd fs v = (Seq.FIRST (List.map (fn f => (fn a => fst (f fd a))) fs) v,fd)
-  fun TRY fd f v = (Seq.TRY (fn a => fst (f fd a)) v,fd)
-  fun REPEAT fd f v = (Seq.REPEAT fd (fn a => fst (f fd a)) v,fd)
-  fun REPEAT1 fd f v = (Seq.REPEAT1 fd (fn a => fst (f fd a)) v,fd)
-  fun INTERVAL fd f i j v = (Seq.INTERVAL fd (fn n => fn a => fst (f fd n a)) i j v,fd)
-  fun DETERM fd f v = (Seq.DETERM fd (fn a => fst (f fd a)) v,fd)
+    | SOME (v,sq2) => SOME (v,(sq2,fd,param))
+  fun cons v (sq,fd,param) = (Seq.cons v sq,fd,param)
+  fun single fd v = (Seq.single v,fd,(recommended_look_ahead,recommended_buffer))
+  fun try fd f v = (Seq.try (f fd) v,fd,(recommended_look_ahead,recommended_buffer))
+  fun hd (sq,fd,param) = Seq.hd fd sq param
+  fun tl (sq,fd,param) = (Seq.tl sq,fd,param)
+  fun chop n (sq,fd,param) = let val (ls,sq2) = Seq.chop fd n sq param in (ls,(sq2,fd,param)) end
+  fun take n (sq,fd,param) = (Seq.take n sq,fd,param)
+  fun list_of (sq,fd,param) = Seq.list_of fd sq param
+  fun of_list fd ls = (Seq.of_list ls,fd,(recommended_look_ahead,recommended_buffer))
+  fun append (sq,fd,param) (sq2,_,_) = (Seq.append sq sq2,fd,param)
+  fun map f (sq,fd,param) = (Seq.map (f fd) sq,fd,param)
+  fun mapp f (sq,fd,param) (sq2,_,_) = (Seq.mapp (f fd) sq sq2,fd,param)
+  fun interleave  ((sq,fd,param),(sq2,_,_)) = (Seq.interleave (sq,sq2),fd,param)
+  fun filter f (sq,fd,param) = (Seq.filter fd (f fd) sq param,fd,param)
+  fun flat (sqq,fd,param) = (Seq.flat fd (Seq.map fst' sqq) param,fd,param)
+  fun maps f (sq,fd,param) = (Seq.maps fd (fn a => fst' (f fd a)) sq param,fd,param)
+  fun map_filter f (sq,fd,param) = (Seq.map_filter fd (f fd) sq param,fd,param)
+  fun lift f (sq,fd,param) b = (Seq.lift (f fd) sq b,fd,param)
+  fun lifts f (sq,fd,param) b = (Seq.lifts fd (fn a => fn b' => fst' (f fd a b')) sq b param,fd,param)
+  fun succeed fd v = (Seq.succeed v,fd,(recommended_look_ahead,recommended_buffer))
+  fun fail fd v = (Seq.fail v,fd,(recommended_look_ahead,recommended_buffer))
+  fun sequential_seq_of (sq,fd,param) = Seq.sequential_seq_of fd sq param
+  fun truly_sequential_seq_of (sq,fd,_) =  Seq.truly_sequential_seq_of fd sq
+  fun of_sequential_seq fd sq = (Seq.of_sequential_seq sq,fd,(recommended_look_ahead,recommended_buffer))
+  fun singleton fd f v = (Seq.singleton (fn a => fst' (f fd a)) v,fd,(recommended_look_ahead,recommended_buffer))
+  fun print f n (sq,fd,param) = Seq.print fd (f fd) n sq param
+  fun it_right f ((sq,fd,param),(sq2,_,_)) = (Seq.it_right fd (fn (a,b) => fst' (f fd (a,(b,fd,param)))) (sq,sq2) param,fd,param)
+  fun THEN (f,g) fd v param = (Seq.THEN (fn a => fst' (f fd a),fn b => fst' (g fd b)) fd v param,fd,param)
+  fun ORELSE (f,g) fd v param= (Seq.ORELSE (fn a => fst' (f fd a),fn b => fst' (g fd b)) v,fd,param)
+  fun APPEND (f,g) fd v param = (Seq.APPEND (fn a => fst' (f fd a),fn b => fst' (g fd b)) v,fd,param)
+  fun EVERY fd fs v param = (Seq.EVERY fd (List.map (fn f => (fn a => fst' (f fd a))) fs) v param,fd,param)
+  fun FIRST fd fs v param = (Seq.FIRST (List.map (fn f => (fn a => fst' (f fd a))) fs) v,fd,param)
+  fun TRY fd f v param = (Seq.TRY (fn a => fst' (f fd a)) v,fd,param)
+  fun REPEAT fd f v param = (Seq.REPEAT fd (fn a => fst' (f fd a)) v param,fd,param)
+  fun REPEAT1 fd f v param = (Seq.REPEAT1 fd (fn a => fst' (f fd a)) v param,fd,param)
+  fun INTERVAL fd f i j v param = (Seq.INTERVAL fd (fn n => fn a => fst' (f fd n a)) i j v param,fd,param)
+  fun DETERM fd f v param = (Seq.DETERM fd (fn a => fst' (f fd a)) v param,fd,param)
 end;
 
