@@ -147,6 +147,11 @@ sig
    * object/array from the stream
    *)
   val json_source : TextIO.instream -> (json, (string, unit) Source.source) Source.source
+  
+  (**
+   * Read in a file containing JSON
+   *)
+  val read_file : string -> json
 end
 
 structure Json =
@@ -431,6 +436,13 @@ fun json_source instream =
     (Parser.p_top_level >> single) NONE
       (Source.raw_stream (fn c => c = "}" orelse c = "]") instream)
   |> Source.set_prompt ""
+
+fun read_file file = let
+  val ins = TextIO.openIn file
+  val (json_out, _) = the (Source.get_single (json_source ins))
+  val _ = TextIO.closeIn ins
+in json_out
+end
 
 fun enc_kv (k, v) = (encode (String k)) ^ ":" ^ (encode v)
 and encode (String x) = "\"" ^ escape x ^ "\""
