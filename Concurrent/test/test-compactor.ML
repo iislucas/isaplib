@@ -386,7 +386,7 @@ local
         ()
       end) ()
   
-  (*Test the compactor when performing maps over a sequence*)
+    (*Test the compactor when performing maps over a sequence*)
     val _ = Testing.test "Compactor: testing compactor when mapping (maps) over a sequence" (fn () =>
       let
         (*The function to be mapped over the list*)
@@ -428,6 +428,31 @@ local
       in
         ()
       end) ()
+      
+    (*Test the laziness of the compactor*)
+    val _ = Testing.test "Compactor: testing laziness" (fn () =>
+      let
+        (*Construct an infinite sequence...*)
+        fun infinite() = Seq.make (fn () => SOME(1,infinite()));
+        (*NThe function to apply over the sequence*)
+        fun to_apply _ = 2;
+        (*My compactor...*)
+        val comp = Compactor.new_static 100;
+        (*Map the function...*)
+        val static_seq = Compactor.compact_map_seq comp to_apply (infinite());
+        (*Dynamic version...*)
+        val comp = Compactor.new_dynamic (Time.fromMilliseconds 10);
+        val dynamic_seq = Compactor.compact_map_seq comp to_apply (infinite());
+        (*Perform the test!*)
+        val static_first_elem = fst (the (Seq.pull ((fst (the (Seq.pull static_seq))) ())));
+        val dynamic_first_elem = fst (the (Seq.pull ((fst (the (Seq.pull dynamic_seq))) ()))); 
+        val _ = if (static_first_elem=dynamic_first_elem andalso dynamic_first_elem=2) then () else
+                raise ERROR "Compactor failed laziness test";
+      in
+        ()
+      end) ()
+      
+      
 in
   val _ = Testing.assert_no_failed_tests();
   val _ = "UNIT TESTS FOR COMPACTOR PASSED!"
@@ -602,7 +627,7 @@ in
           end
         
         (*Dummy compactors*)
-        val dynamic_dummy = Compactor.new_dynamic (Time.fromMicroseconds(100))
+        val dynamic_dummy = Compactor.new_dynamic (Time.fromMicroseconds(10000))
         val static_dummy = Compactor.new_static 1
         
         (*A good list for checking how the compactor performs trying to run on lists of varyng hardness
@@ -647,8 +672,8 @@ in
             Seq.map (fn (x,_) => x) (
             Compactor.compact_with_list comp funcs ())))));()));
             (*Sequential*)
-            val t1 = time (wrap_sequential (fn () => Seq.list_of (
-            Seq.map (fn f => f()) (Seq.of_list funcs))));
+            val t1 = time (fn () => Seq.list_of (
+            Seq.map (fn f => f()) (Seq.of_list funcs)));
           in
             TextIO.print(
             "\nParallel took: " ^ LargeInt.toString(t2) ^ "\n" ^
@@ -671,8 +696,17 @@ in
         (*Test the length of the list*)
         fun length_time_test time hardness who_runs = test_all dynamic_dummy (lengths_list time hardness) who_runs
         
+        (*REMOVE SECONDARY TEST*)
+        fun run() = test_all (Compactor.prime dynamic_dummy (SOME 15) false) [(10000,100000,900),(10000,100000,1000),(10000,100000,2000),(10000,100000,3000),(10000,100000,4000),(10000,100000,5000),(10000,100000,6000),(10000,100000,7000),(10000,100000,8000),(10000,100000,9000),(10000,100000,10000)] both;
+        
         (*Test the hardness of the functions to be compacted*)
-        fun hardness_time_test len time who_runs = test_all dynamic_dummy (hardness_list len time) who_runs
+        fun hardness_time_test len time who_runs =
+          let
+            val comp = dynamic_dummy;
+            val comp = Compactor.prime comp (SOME 15) false;
+          in
+            test_all comp (hardness_list len time) who_runs
+          end
         
         (*Test the target times with priming enabled*)
         fun target_time_test_prime len hardness limit go_static who_runs = test_all
@@ -688,7 +722,57 @@ in
           Compactor.set_time
           (Compactor.prime dynamic_dummy limit go_static) (Time.fromMicroseconds t))
           (random_list low high len)
+          
+        (*This test traces the progress of the compactor.*)
+        fun trace_test hardnesses comp =
+          let
+            (*Generate the list of functions...*)
+            fun funcs [] = []
+              | funcs (h::hs) = (fn () => ([time (gen_func h)]))::(funcs hs);
+            val _ = PolyML.print ("Using this many functions: " ^ (Int.toString (List.length (funcs hardnesses))));
+            fun f x = x ();
+            (*The first problem is to generate groups of tasks via the compactor...*)
+            val seq = Seq.of_list (funcs hardnesses);
+            (*
+            fun compact_with_seq comp seq f_id =
+    compact (set_fold_direction comp Left) (fn sq => Seq.pull sq) seq f_id
+    *)
+            val seq = Compactor.compact_with_seq comp (Seq.map (fn x => fn sq => (f x)::sq) seq) [];
+            val par_seq = Par_Seq.of_sequential_seq (fd()) seq;
+            val par_seq = Par_Seq.map (fn _ => fn (f,_) => 
+                let val sw = Stopwatch.start Stopwatch.new;
+                    val size = List.length (f());
+                    val t = Time.toMicroseconds(Stopwatch.check sw)
+                in (t,size) end) par_seq;
+            val _ = PolyML.print ("Running parallel algorithm");
+            val res = Seq.list_of (Par_Seq.sequential_seq_of par_seq);
+            val _ = PolyML.print ("Writing results");
+            val _ = PolyML.print ("Constructed " ^ (Int.toString (List.length res)));
+            (*Print out the entire trace...*)
+            val file = File_Aux.append();
+            fun print_res (t,size) = File.writeStr file ("Group size: " ^ (Int.toString(size)) ^ " Time: " ^ (LargeInt.toString(t)) ^ "\n");
+            val _ = map print_res res;
+          in
+            ()
+          end
         
+        (*Help to generate traces...*)
+        fun make_trace (len_1,h1) (len_2,h2) (len_3,h3) =
+          (repeat_elem len_1 h1)@(repeat_elem len_2 h2)@(repeat_elem len_3 h3)
+        
+        (*Create and run a trace test!*)
+        fun create_trace_test time (len_1,h1) (len_2,h2) (len_3,h3) =
+          let
+            val comp = Compactor.new_dynamic (Time.fromMicroseconds(time));
+            val comp = dynamic_dummy;
+            val comp = Compactor.prime comp (SOME 10) false;
+            (*Make a static compactor!*)
+            val comp = Compactor.new_static 100;
+          in
+            (File_Aux.renew();
+            trace_test (make_trace (len_1,h1) (len_2,h2) (len_3,h3)) comp;
+            File_Aux.close())
+          end
       end;
     end;
   end;

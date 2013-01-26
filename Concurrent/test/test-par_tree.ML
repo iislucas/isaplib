@@ -599,6 +599,7 @@ in
           val par_tree = Par_Tree.set_order_matters par_tree ordermatters;
           val par_tree = Par_Tree.set_no_groups par_tree no_groups;
           val par_tree = Par_Tree.set_compactor par_tree comp;
+          val par_tree = Par_Tree.set_node_limit par_tree NONE;
           fun func x = (gen_func hardness ();Help.tree_producer branches x);
           val root = (Par_Tree.Node depth);
           val parallel = fn () => Seq.list_of (Par_Tree.compute_tree par_tree root func);
@@ -629,6 +630,11 @@ in
         List.map (fn h => generic_test ordermatters (Par_Tree.get_compactor (Par_Tree.new (fd()))) NONE h branches depth who_runs) hardnesses;
         File_Aux.close()
         )
+      infix ---;
+      val hardness_list = (1---5)@(1---10)@(gen_list 9 20 (fn x => x + 10))@
+          (gen_list 9 200 (fn x => x + 100))@(gen_list 9 2000 (fn x => x + 1000))
+          
+      fun run_hardness_test() = hardness_test false 2 18 hardness_list both;
       
       (*Similar to the hardness test except that this time the depth
       varies, allowing for more varying numbers of leaves*)
@@ -638,6 +644,76 @@ in
         List.map (fn d => generic_test ordermatters (Par_Tree.get_compactor (Par_Tree.new (fd()))) NONE hardness branches d who_runs) depths;
         File_Aux.close()
         )
+      
+      (*This is used for a test against a tree with a random number of children
+      per node, up to a fixed depth! Uses fixed hardness*)
+      fun test_random_children_tree2 (low,high) depth (low_h,high_h) =
+        let
+          (*To do this, I will need to construct the random tree first,
+          and then process it in parallel and then sequentially...*)
+          fun gen_tree d = if (0=d) then [Par_Tree.Leaf 1]
+            else repeat_ls (Par_Tree.Node (d-1)) (random low high);
+          (*Now create the tree...
+          The tree will be constructed using pointers so that the node function
+          can figure out where it is...*)
+          datatype ('a,'b) thing = Next of ('a * ((('a,'b) thing) List.list)) | Stop of 'b
+          fun create_tree (Par_Tree.Node d) = Next (Par_Tree.Node (random low_h high_h),(map create_tree (gen_tree d)))
+            | create_tree (Par_Tree.Leaf v) = Stop (Par_Tree.Leaf v)
+          (*The tree to be computed...*)  
+          val my_tree = create_tree (Par_Tree.Node depth);
+          (*Now to work out the node function...
+          Each node produced must have a reference to the next node in the above tree.
+          Otherwise it won't be possible to figure out how to compute the next element
+          *)
+          fun to_map (Next (Par_Tree.Node d,next_kids)) = Par_Tree.Node (d,next_kids)
+            | to_map (Stop (Par_Tree.Leaf v)) = Par_Tree.Leaf v
+            | to_map _ = raise ERROR "Tree mess!";
+          
+          fun apply_to_node (chosen_h,children) = (gen_func chosen_h ();map to_map (children))
+          (*The root function...*)
+          val root = case (my_tree) of
+              Stop (Par_Tree.Leaf v) => Par_Tree.Leaf v
+            | Next (Par_Tree.Node d,children) => Par_Tree.Node (d,children)
+            | _ => raise ERROR "Tree mess!";
+          (*The parallel tree*)
+          val par_tree = Par_Tree.new (fd());
+          val par_tree = Par_Tree.set_node_limit par_tree NONE;
+          (*Now apply the parallel and sequential algorithms!*)
+          val _ = PolyML.print("Running parallel. (" ^ (Int.toString(low_h)) ^ "," ^ (Int.toString(high_h)) ^ ")");
+          val t_par = time (fn () => Seq.list_of (Par_Tree.compute_tree par_tree root apply_to_node));
+          val _ = PolyML.print("Running sequential. (" ^ (Int.toString(low_h)) ^ "," ^ (Int.toString(high_h)) ^ ")");
+          val t_seq = time (fn () => Seq.list_of (sequential_traverse apply_to_node root));
+          val file = File_Aux.append();
+        in
+          (File.writeStr file
+            ("Low hardness: " ^ (Int.toString(low_h)) ^
+            " High hardness: " ^ (Int.toString(high_h)) ^
+            " Depth: " ^ (Int.toString(depth)) ^
+            " Low: " ^ (Int.toString(low)) ^
+            " High: " ^ (Int.toString(high)) ^
+            " Sequential: " ^ (LargeInt.toString(t_seq)) ^
+            " Parallel: " ^ (LargeInt.toString(t_par)) ^ "\n");())
+        end
+      
+      (*Apply the random test over nodes with varying hardness
+      over the randomly constructed trees*)
+      fun test_random_children_tree (low,high) depth hardnesses =(
+        File_Aux.renew();
+        List.map (fn h => test_random_children_tree2 (low,high) depth h) hardnesses;
+        File_Aux.close())
+      
+      (*Run the random children test tree!*)
+      fun run_random_children () = test_random_children_tree (1,5) 10 (
+      map (fn x => (x,x)) [1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,
+      600,700,800,900,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000])
+      
+      fun run_random_all () = test_random_children_tree (1,5) 10 (
+      map (fn x => (1,x * 2)) [1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,
+      600,700,800,900,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000])
+      
+      fun run_constant () = test_random_children_tree (2,2) 10 (
+      map (fn x => (x,x)) [1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,
+      600,700,800,900,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000])
     end;
   end;
 end;

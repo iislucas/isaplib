@@ -12,7 +12,7 @@ local
   to have the correct desired behaviour*)
   
   (*Identify the default parameters*)
-  val param = (Par_Seq.get_look_ahead (Par_Seq.empty (fd())),(Par_Seq.get_buffer (Par_Seq.empty (fd()))));
+  val param = (Par_Seq.get_look_ahead (Par_Seq.empty (fd())),(Par_Seq.get_buffer (Par_Seq.empty (fd()))),(Par_Seq.get_time_boundary (Par_Seq.empty (fd()))));
   
   (*Test the setting of future data*)
   val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
@@ -26,7 +26,7 @@ local
     end) ()
     
   (*Test the setting of the look ahead*)
-  val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
+  val _ = Testing.test "Par_Tree: testing look ahead setting" (fn () =>
     let
       val par_seq = Par_Seq.empty (fd());
       val par_seq = Par_Seq.set_look_ahead par_seq (SOME 127);
@@ -37,12 +37,23 @@ local
     end) ()
     
   (*Test the setting of the buffer*)
-  val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
+  val _ = Testing.test "Par_Tree: testing buffer setting" (fn () =>
     let
       val par_seq = Par_Seq.empty (fd());
       val par_seq = Par_Seq.set_buffer par_seq 39;
       val _ = if ((Par_Seq.get_buffer par_seq)=39) then () else
               raise ERROR "Par_Seq: failed buffer setting";
+    in
+      ()
+    end) ()
+    
+  (*Test the setting of the time boundary*)
+  val _ = Testing.test "Par_Tree: testing time boundary setting" (fn () =>
+    let
+      val par_seq = Par_Seq.empty (fd());
+      val par_seq = Par_Seq.set_time_boundary par_seq 132;
+      val _ = if ((Par_Seq.get_time_boundary par_seq)=132) then () else
+              raise ERROR "Par_Seq: failed time boundary setting";
     in
       ()
     end) ()
@@ -662,6 +673,26 @@ local
         else raise ERROR "Par_Seq: REPEAT1 test failed on populated"
         else raise ERROR "Par_Seq: REPEAT1 test failed on empty"
       end) ()
+      
+      (*Test the laziness of the parallel sequence*)
+      val _ = Testing.test "Par_Seq: Laziness test" (fn () =>
+        let
+          (*The infinite sequence...*)
+          fun infinite() = Seq.make (fn () => SOME(1,infinite()));
+          val sequential = infinite();
+          val parallel = Par_Seq.of_sequential_seq (fd()) (infinite());
+          (*Map a function over each...*)
+          val sequential = Seq.map (fn _ => 2) sequential;
+          val parallel = Par_Seq.map (fn _ => fn _ => 2) parallel;
+          (*Trying pulling an element...*)
+          val (first_seq,_) = the (Seq.pull sequential);
+          val (first_par,_) = the (Par_Seq.pull parallel);
+          (*Check they are the same and equalto 2*)
+          val _ = if (first_seq = first_par andalso first_seq = 2) then () else
+                  raise ERROR "Par_Seq: laziness test failed"
+        in
+         ()
+        end) ()
 in
   val _ = Testing.assert_no_failed_tests();
   val _ = "UNIT TESTS FOR PARALLEL LAZY SEQUENCE PASSED!"
@@ -796,19 +827,19 @@ in
       parallel algorithm runs more sequentially than it should, it will probably
       appear faster due to its ability to make use of the cores more effectively*)
       
-      fun wrap_sequential sq =
+      fun wrap_sequential sq n=
         fn() =>(
         let
-          val num_cores = Thread.numProcessors();
+          val num_cores_to_use = n;
           fun gen_futures 0 = []
             | gen_futures n = let
-                val f = Future.future infinite
+                val f = (Thread.fork (infinite,[]))
               in
                 f::(gen_futures (n-1))
               end;
-          val to_cancel = gen_futures (num_cores-1);
+          val to_cancel = gen_futures (num_cores_to_use);
           fun cancel_all [] = ()
-            | cancel_all (f::fs) = (Future.cancel f;cancel_all fs)
+            | cancel_all (f::fs) = (Thread.kill f;cancel_all fs)
         in
           (sq();cancel_all to_cancel;())
         end)
@@ -975,7 +1006,48 @@ in
         range given for each element in the list*)
         fun test_against_random_hardness lengths (low,high) include_filter who_runs =
           test_against_generic (attach lengths (Random (low,high))) include_filter who_runs
+        
+        fun run_hardness_test() = test_against_hardness [10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800,900,1000
+        ,2000,3000,4000,5000,6000,7000,8000,9000,10000,20000,30000,40000,50000,60000,70000,80000,90000,100000] 10000 false both
+        
+        (*Test the parallel lazy sequence with varying numbers of processors available*)
+        fun test_processors2 (low,high) hardness len first =
+          if (low>high) then () else let
+            val file = File_Aux.append();
+            (*The function to be applied*)
+            val func = gen_func hardness;
+            (*Set the number of available processors...*)
+            val _ = Multithreading.max_threads:=low;
+            (*Create the original parallel*)
+            val sq = Seq.of_list (repeat_ls () len);
+            val par_sq = Par_Seq.of_sequential_seq (fd()) sq;
+            (*Using default parameters!*)
+            val run_parallel = (fn () => Par_Seq.list_of (Par_Seq.map (wrap_fd func) par_sq))
+            val run_sequential = (fn () => Seq.list_of (Seq.map func sq))
+            (*Now time the runs! (Only one result from the sequential is really needed*)
+            val _ = if (first) then (PolyML.print("Running sequential");()) else ();
+            val t_seq = if (first) then (time (wrap_sequential run_sequential ((Thread.numProcessors())-1))) else 0;
+            val _ = PolyML.print("Running parallel. No cores: " ^ (Int.toString(low)));
+            val t_par = time (wrap_sequential run_parallel ((Thread.numProcessors())-low));
+          in
+            (*Report!*)
+            (File.writeStr file ("Processors " ^ (Int.toString(low)) ^ " Sequential " ^ (LargeInt.toString(t_seq)) ^ " Parallel " ^ (LargeInt.toString(t_par)) ^ "\n");
+            test_processors2 (low+1,high) hardness len false
+            )
+          end
           
+        fun test_processors (low,high) hardness len =
+          let val old = !Multithreading.max_threads; in
+          (
+          File_Aux.renew();
+          test_processors2 (low,high) hardness len true;
+          File_Aux.close();
+          Multithreading.max_threads:=old;()
+          ) end
+        (*
+        fun run_hardness_test() = test_against_hardness [10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800,900,1000] 10000 false both;
+        *)
+        
         (*REMOVE*)
         (*These tests aren't for the parallel lazy sequence. They test the overload
         capabilities of the future's library to see what good values are...

@@ -1,9 +1,0 @@
-Time_aimed_at: 4000 List_length: 500 Hardness: 10000 Parallel: 255926 Sequential: 1336310
-Time_aimed_at: 4000 List_length: 1000 Hardness: 10000 Parallel: 238591 Sequential: 1794818
-Time_aimed_at: 4000 List_length: 1500 Hardness: 10000 Parallel: 444385 Sequential: 2326754
-Time_aimed_at: 4000 List_length: 2000 Hardness: 10000 Parallel: 661658 Sequential: 3254575
-Time_aimed_at: 4000 List_length: 2500 Hardness: 10000 Parallel: 1034086 Sequential: 3737191
-Time_aimed_at: 4000 List_length: 3000 Hardness: 10000 Parallel: 866554 Sequential: 4721709
-Time_aimed_at: 4000 List_length: 3500 Hardness: 10000 Parallel: 1084139 Sequential: 5760337
-Time_aimed_at: 4000 List_length: 4000 Hardness: 10000 Parallel: 1716719 Sequential: 6138637
-Time_aimed_at: 4000 List_length: 4500 Hardness: 10000 Parallel: 1453901 Sequential: 7065715

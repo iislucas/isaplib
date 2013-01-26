@@ -373,8 +373,8 @@ struct
   is producing enough groups. Hopefully this will be efficient enough.
   *)
   val recommended_time = Time.fromMicroseconds 2000; (*Number of microseconds for groups to aim for*)
-  val num_cores = Thread.numProcessors();
-  val recommended_length = num_cores * 40;
+  fun num_cores() = Multithreading.max_threads_value();
+  fun recommended_length() = num_cores() * 40;
   val recommended_prime_length = 15; (*How long the compactor should be allowed to run for*)
   val recommended_est = 1; (*For the initial size of groups*)
   val node_limit = 16000; (*This is a limit on the number of nodes that may be gathered*)
@@ -402,7 +402,7 @@ struct
   
   (*Create a new parallelising tree. You must supply the future data that it
   should use.*)
-  fun new fd = (recommended_compactor,recommended_length,fd,order_matters,SOME node_limit,NONE)
+  fun new fd = (recommended_compactor,recommended_length(),fd,order_matters,SOME node_limit,NONE)
   
   (*Get the future data in use by this parallel tree*)
   fun get_future_data (_,_,fd,_,_,_) = fd
@@ -415,7 +415,7 @@ struct
   10*the number of cores is a good way to overload the future's library.*)
   fun set_no_groups (c,_,fd,ord,nlimit,estimator) l =
     case l of
-        NONE => (c,recommended_length,fd,ord,nlimit,estimator)
+        NONE => (c,recommended_length(),fd,ord,nlimit,estimator)
       | SOME length => (c,length,fd,ord,nlimit,estimator)
     
   (*Return the number of groups to be created before parallelisation.
@@ -581,6 +581,24 @@ struct
     in
       add a b
     end
+    
+  (*This function computes all a sequence of nodes...*)
+  fun compute_all_nodes nodes fd comp f = 
+    let
+      (*Now parallelise over this sequence...
+      Each group produces a sequence of sequences of children
+      Hence, the resulting sequence is a sequence of sequences of sequences!*)
+      val par_seq = (
+        Par_Seq.of_sequential_seq fd (
+        Compactor.compact_with_seq comp (
+        Seq.map (fn x => fn sq => Seq.cons (f x) sq) nodes) Seq.empty));
+      (*val par_seq = Par_Seq.set_look_ahead par_seq NONE;
+      val par_seq = Par_Seq.set_buffer par_seq 1;
+      val par_seq = Par_Seq.set_time_boundary par_seq 400;*)
+    in
+      Par_Seq.sequential_seq_of (
+      Par_Seq.map (fn _ => fn (f,n) => (f(),n)) par_seq)
+    end
   
   (*
   fd is the future data that the leaf_sequence should use
@@ -636,12 +654,7 @@ struct
             (*Now parallelise over this sequence...
             Each group produces a sequence of sequences of children
             Hence, the resulting sequence is a sequence of sequences of sequences!*)
-            val result =
-              Par_Seq.sequential_seq_of (
-              Par_Seq.map (fn _ => fn (f,n) => (f(),n)) (
-              Par_Seq.of_sequential_seq fd (
-              Compactor.compact_with_seq comp (
-              Seq.map (fn x => fn sq => Seq.cons (f x) sq) nodes) Seq.empty)))
+            val result = compute_all_nodes nodes fd comp f;
             (*val _ = PolyML.print("Computed all of the children");*)
             (*Check the final estimate and flatten the results*)
             fun get_est sq = case (Seq.pull sq) of
@@ -701,15 +714,7 @@ struct
         val comp = Compactor.set_estimated_number (get_compactor par_tree) (SOME est);
         val fd = get_future_data par_tree;
         val nodes_to_compute_seq = Seq.of_list nodes_to_compute;
-        (*Now parallelise over this sequence...
-        Each group produces a sequence of sequences of children
-        Hence, the resulting sequence is a sequence of sequences of sequences!*)
-        val result =
-          Par_Seq.sequential_seq_of (
-          Par_Seq.map (fn _ => fn (f,n) => (f(),n)) (
-          Par_Seq.of_sequential_seq fd (
-          Compactor.compact_with_seq comp (
-          Seq.map (fn x => fn sq => Seq.cons (f x) sq) nodes_to_compute_seq) Seq.empty)));
+        val result = compute_all_nodes nodes_to_compute_seq fd comp f;
         (*Check the final estimate and flatten the results*)
         fun get_est sq = case (Seq.pull sq) of
             NONE => ([],~1) (*Guaranteed to be at least one element*)

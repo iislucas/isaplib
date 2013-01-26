@@ -1,37 +1,47 @@
-Hardness: 10 Count: 10000 Parallel: 633297 Sequential: 45720
-Hardness: 20 Count: 10000 Parallel: 1004072 Sequential: 91454
-Hardness: 30 Count: 10000 Parallel: 1231235 Sequential: 137142
-Hardness: 40 Count: 10000 Parallel: 757414 Sequential: 181939
-Hardness: 50 Count: 10000 Parallel: 1308822 Sequential: 227512
-Hardness: 60 Count: 10000 Parallel: 1027906 Sequential: 272840
-Hardness: 70 Count: 10000 Parallel: 668240 Sequential: 318541
-Hardness: 80 Count: 10000 Parallel: 1081643 Sequential: 364184
-Hardness: 90 Count: 10000 Parallel: 1107314 Sequential: 409339
-Hardness: 100 Count: 10000 Parallel: 1345776 Sequential: 450687
-Hardness: 200 Count: 10000 Parallel: 731123 Sequential: 784595
-Hardness: 300 Count: 10000 Parallel: 902685 Sequential: 818005
-Hardness: 400 Count: 10000 Parallel: 831616 Sequential: 1203332
-Hardness: 500 Count: 10000 Parallel: 1305064 Sequential: 1353296
-Hardness: 600 Count: 10000 Parallel: 1136341 Sequential: 1515268
-Hardness: 700 Count: 10000 Parallel: 1253212 Sequential: 1496397
-Hardness: 800 Count: 10000 Parallel: 1280173 Sequential: 1769308
-Hardness: 900 Count: 10000 Parallel: 1201967 Sequential: 1958602
-Hardness: 1000 Count: 10000 Parallel: 1205229 Sequential: 2019358
-Hardness: 2000 Count: 10000 Parallel: 676088 Sequential: 3405577
-Hardness: 3000 Count: 10000 Parallel: 571538 Sequential: 5007100
-Hardness: 4000 Count: 10000 Parallel: 693315 Sequential: 6591685
-Hardness: 5000 Count: 10000 Parallel: 914951 Sequential: 8097374
-Hardness: 6000 Count: 10000 Parallel: 1028412 Sequential: 9490175
-Hardness: 7000 Count: 10000 Parallel: 1138969 Sequential: 10991628
-Hardness: 8000 Count: 10000 Parallel: 1101233 Sequential: 12550476
-Hardness: 9000 Count: 10000 Parallel: 1341842 Sequential: 14093371
-Hardness: 10000 Count: 10000 Parallel: 1453568 Sequential: 15559707
-Hardness: 20000 Count: 10000 Parallel: 2585213 Sequential: 31479655
-Hardness: 30000 Count: 10000 Parallel: 3708613 Sequential: 46923958
-Hardness: 40000 Count: 10000 Parallel: 4850996 Sequential: 62290617
-Hardness: 50000 Count: 10000 Parallel: 5898257 Sequential: 78079512
-Hardness: 60000 Count: 10000 Parallel: 7165247 Sequential: 93389640
-Hardness: 70000 Count: 10000 Parallel: 8112297 Sequential: 108993259
-Hardness: 80000 Count: 10000 Parallel: 9377461 Sequential: 124815380
-Hardness: 90000 Count: 10000 Parallel: 10485944 Sequential: 140504636
-Hardness: 100000 Count: 10000 Parallel: 12197508 Sequential: 156233959
+Block size: 1 Time: 15178648
+Block size: 2 Time: 11274085
+Block size: 3 Time: 9032564
+Block size: 4 Time: 7291434
+Block size: 5 Time: 6509741
+Block size: 6 Time: 5696896
+Block size: 7 Time: 5181218
+Block size: 8 Time: 4632628
+Block size: 9 Time: 3910494
+Block size: 10 Time: 3615536
+Block size: 20 Time: 2726284
+Block size: 30 Time: 2396944
+Block size: 40 Time: 2030914
+Block size: 50 Time: 1871573
+Block size: 60 Time: 1505148
+Block size: 70 Time: 1171125
+Block size: 80 Time: 962388
+Block size: 90 Time: 795263
+Block size: 100 Time: 706997
+Block size: 200 Time: 1742052
+Block size: 300 Time: 1170217
+Block size: 400 Time: 771017
+Block size: 500 Time: 609349
+Block size: 600 Time: 597103
+Block size: 700 Time: 598075
+Block size: 800 Time: 584564
+Block size: 900 Time: 576293
+Block size: 1000 Time: 577548
+Block size: 2000 Time: 586327
+Block size: 3000 Time: 593697
+Block size: 4000 Time: 591609
+Block size: 5000 Time: 597293
+Block size: 6000 Time: 591315
+Block size: 7000 Time: 630735
+Block size: 8000 Time: 656860
+Block size: 9000 Time: 672863
+Block size: 10000 Time: 608236
+Block size: 11000 Time: 598905
+Block size: 12000 Time: 1221147
+Block size: 13000 Time: 629065
+Block size: 14000 Time: 672462
+Block size: 15000 Time: 599990
+Block size: 16000 Time: 589996
+Block size: 17000 Time: 592752
+Block size: 18000 Time: 592122
+Block size: 19000 Time: 605089
+Block size: 20000 Time: 626688

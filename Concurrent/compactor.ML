@@ -317,13 +317,14 @@ struct
   val defaultEstimate = NONE;
   val defaultPriming = SOME (defaultPrimingLimit,defaultGoStatic);
   val defaultScaling = (2,2)
+  val defaultDirection = Left;
   
   (*Create a new compactor which will always combine
   the specified number of functions*)
   fun new_static n = if (n<=0) then
     raise Compactor_Error ("Cannot create a static compactor expected to compact a non-positive" ^
     " number of elements")
-    else (Left,Static n,defaultScaling)
+    else (defaultDirection,Static n,defaultScaling)
   
   (*Create a new compactor which will change
   how many functions are compacted according to how long
@@ -333,7 +334,7 @@ struct
   fun new_dynamic time = if (time<Time.zeroTime) then
     raise Compactor_Error ("Cannot create a compactor expected to produce functions which" ^
     " require negative time to run")
-    else (Left,Dynamic (time,defaultEstimate,defaultPriming),defaultScaling)
+    else (defaultDirection,Dynamic (time,defaultEstimate,defaultPriming),defaultScaling)
   
   (*For a dynamic compactor, set the time to aim for*)
   fun set_time (dir,Dynamic (_,est,pr),scaling) t =

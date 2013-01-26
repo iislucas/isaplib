@@ -19,7 +19,7 @@ sig
   type 'a seq
   (*This is the type of parameters to pass into the parallel lazy sequence,
   which governs how elements are pulled*)
-  type param = (int option * int)
+  type param = (int option * int * int)
   
   (*Add a function for future evaluation to the sequence.
   The format is different to the form of make in the original sequential sequence
@@ -230,7 +230,7 @@ struct
   (*Recommended defaults for the parameter settings
   Lookahead is optional. If NONE, all elements will be pulled at the same time!
   The second int is the buffer, and generally it should be less than lookahead*)
-  type param = (int option * int);
+  type param = (int option * int * int);
   
   (*Add a function for future evaluation to the sequence.
   The format is different to the form of make in the original sequential sequence
@@ -289,11 +289,6 @@ struct
   (*
   fun pull fd sq = pull_one fd (pull_ahead fd sq look_ahead)
   *)
-  (*If pulling takes longer than this to compute, the next
-  series of values will be pulled in parallel.
-  This reduces the severity of the worst case.*)
-  (*Time in microseconds*)
-  val time_boundary = 400;
   
   
   (*Get the next element from the sequence. Returns NONE
@@ -302,7 +297,7 @@ struct
   Pulling from the same sequence twice (to return exactly the same element)
   can be especially painful since further values in the sequence may be
   re-evaluated too, so avoid this!!*)
-  fun pull fd sq (look_ahead,buffer) =
+  fun pull fd sq (look_ahead,buffer,time_boundary) =
     let
       val sw = Stopwatch.start (Stopwatch.new);
       (*val _ = PolyML.print("Timing first pull");*)
@@ -648,7 +643,7 @@ sig
   exception Empty_Parallel_Sequence of string
   type 'a seq
   (*The type of parameters passed to the lazy sequence*)
-  type param = (int option * int)
+  type param = (int option * int * int)
   (*These functions allow the setting of parameters in the parallel lazy sequence,
   which govern how the elements are pulled from the sequence! Note that
   when sequences with different parameters are combined, you should consider the behaviour
@@ -663,9 +658,13 @@ sig
   decides to pull further elements. This can help to keep the future's library loaded
   for longer, while keeping the sequence more lazy*)
   val set_buffer : 'a seq -> int -> 'a seq
+  (*Set how long a function must take in order to trigger a parallel
+  computation. The integer given is in microseconds*)
+  val set_time_boundary : 'a seq -> int -> 'a seq
   (*Return the parameter values*)
   val get_look_ahead : 'a seq -> int option
   val get_buffer : 'a seq -> int
+  val get_time_boundary : 'a seq -> int
   
   (*An exception raised when parameters are set poorly*)
   exception Parallel_Lazy_Sequence_Params of string
@@ -731,19 +730,25 @@ the mapping will take any significant amount of time.*)
 structure MJB_Safe_Parallel_Seq :> MJB_SAFE_PARALLEL_SEQ =
 struct
   (*The number of cores available with this machine*)
-  val num_cores = Thread.numProcessors();
+  fun num_cores() = Multithreading.max_threads_value();
   (*This is the number of elements further down the sequence that will attempt
   to be evaluated after a pull*)
-  val recommended_look_ahead = SOME (num_cores * 10);
+  fun recommended_look_ahead() = SOME ((num_cores()) * 10);
   (*How far I am willing to look ahead to find the first unsta*)
-  val recommended_buffer = num_cores;
+  fun recommended_buffer() = num_cores();
+  (*If pulling takes longer than this to compute, the next
+  series of values will be pulled in parallel.
+  This reduces the severity of the worst case.*)
+  (*Time in microseconds*)
+  val recommended_time_boundary = 400;
+  
   exception Empty_Parallel_Sequence of string
   (*An exception raised when parameters are set poorly*)
   exception Parallel_Lazy_Sequence_Params of string
   structure Future = MJB_Simple_Future;
   structure Seq = MJB_Parallel_Seq;
   (*Parameters are tagged onto the end*)
-  type param = (int option * int)
+  type param = (int option * int * int)
   type 'a seq = ('a Seq.seq) * Future.future_data * param
   (*Return the future data in use by this sequence*)
   fun get_future_data (_,fd,_) = fd
@@ -754,21 +759,26 @@ struct
   If NONE is supplied, then the sequence will no longer behave in a lazy way.
   However, do not consider it guaranteed that all elements will be pulled. If elements
   appear too small to be worth pulling, a single element only may be pulled sequentialy.*)
-  fun set_look_ahead (sq,fd,(_,buffer)) la = case la of
-      NONE => (sq,fd,(NONE,buffer))
+  fun set_look_ahead (sq,fd,(_,buffer,time_boundary)) la = case la of
+      NONE => (sq,fd,(NONE,buffer,time_boundary))
     | (SOME v) => if (v<=0) then raise Parallel_Lazy_Sequence_Params "Look ahead must strictly be positive (>=1)"
-      else (sq,fd,(la,buffer))
+      else (sq,fd,(la,buffer,time_boundary))
   (*Set how many elements the sequence checks ahead of its current pull before it
   decides to pull further elements. This can help to keep the future's library loaded
   for longer, while keeping the sequence more lazy*)
-  fun set_buffer (sq,fd,(la,_)) v = if (v<0) then
+  fun set_buffer (sq,fd,(la,_,time_boundary)) v = if (v<0) then
     raise Parallel_Lazy_Sequence_Params "Buffer must be non-negative (>=0)"
-    else (sq,fd,(la,v))
+    else (sq,fd,(la,v,time_boundary))
+  (*Set how long a function must take in order to trigger a parallel
+  computation. The integer given is in microseconds*)
+  fun set_time_boundary (sq,fd,(la,buffer,_)) time_boundary = if (time_boundary<=0) then
+    raise Parallel_Lazy_Sequence_Params "Time boundary must be positive (>0)"
+    else (sq,fd,(la,buffer,time_boundary))
     
   (*Return the parameter values*)
-  fun get_look_ahead (_,_,(la,_)) = la
-  fun get_buffer (_,_,(_,buffer)) = buffer
-  
+  fun get_look_ahead (_,_,(la,_,_)) = la
+  fun get_buffer (_,_,(_,buffer,_)) = buffer
+  fun get_time_boundary (_,_,(_,_,time_boundary)) = time_boundary
   fun fst' (a,_,_) = a
   
   (*All the functions below make use of the sequence passed in. A few complications
@@ -777,19 +787,19 @@ struct
   be modified. The extreme case of this is in FIRST and EVERY, where a list of functions
   have to be adjusted.*)
   fun make f (sq,fd,param) = (Seq.make f sq,fd,param)
-  fun empty fd = (Seq.empty,fd,(recommended_look_ahead,recommended_buffer))
+  fun empty fd = (Seq.empty,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
   fun pull (sq,fd,param) = case (Seq.pull fd sq param) of
       NONE => NONE
     | SOME (v,sq2) => SOME (v,(sq2,fd,param))
   fun cons v (sq,fd,param) = (Seq.cons v sq,fd,param)
-  fun single fd v = (Seq.single v,fd,(recommended_look_ahead,recommended_buffer))
-  fun try fd f v = (Seq.try (f fd) v,fd,(recommended_look_ahead,recommended_buffer))
+  fun single fd v = (Seq.single v,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
+  fun try fd f v = (Seq.try (f fd) v,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
   fun hd (sq,fd,param) = Seq.hd fd sq param
   fun tl (sq,fd,param) = (Seq.tl sq,fd,param)
   fun chop n (sq,fd,param) = let val (ls,sq2) = Seq.chop fd n sq param in (ls,(sq2,fd,param)) end
   fun take n (sq,fd,param) = (Seq.take n sq,fd,param)
   fun list_of (sq,fd,param) = Seq.list_of fd sq param
-  fun of_list fd ls = (Seq.of_list ls,fd,(recommended_look_ahead,recommended_buffer))
+  fun of_list fd ls = (Seq.of_list ls,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
   fun append (sq,fd,param) (sq2,_,_) = (Seq.append sq sq2,fd,param)
   fun map f (sq,fd,param) = (Seq.map (f fd) sq,fd,param)
   fun mapp f (sq,fd,param) (sq2,_,_) = (Seq.mapp (f fd) sq sq2,fd,param)
@@ -800,12 +810,12 @@ struct
   fun map_filter f (sq,fd,param) = (Seq.map_filter fd (f fd) sq param,fd,param)
   fun lift f (sq,fd,param) b = (Seq.lift (f fd) sq b,fd,param)
   fun lifts f (sq,fd,param) b = (Seq.lifts fd (fn a => fn b' => fst' (f fd a b')) sq b param,fd,param)
-  fun succeed fd v = (Seq.succeed v,fd,(recommended_look_ahead,recommended_buffer))
-  fun fail fd v = (Seq.fail v,fd,(recommended_look_ahead,recommended_buffer))
+  fun succeed fd v = (Seq.succeed v,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
+  fun fail fd v = (Seq.fail v,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
   fun sequential_seq_of (sq,fd,param) = Seq.sequential_seq_of fd sq param
   fun truly_sequential_seq_of (sq,fd,_) =  Seq.truly_sequential_seq_of fd sq
-  fun of_sequential_seq fd sq = (Seq.of_sequential_seq sq,fd,(recommended_look_ahead,recommended_buffer))
-  fun singleton fd f v = (Seq.singleton (fn a => fst' (f fd a)) v,fd,(recommended_look_ahead,recommended_buffer))
+  fun of_sequential_seq fd sq = (Seq.of_sequential_seq sq,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
+  fun singleton fd f v = (Seq.singleton (fn a => fst' (f fd a)) v,fd,(recommended_look_ahead(),recommended_buffer(),recommended_time_boundary))
   fun print f n (sq,fd,param) = Seq.print fd (f fd) n sq param
   fun it_right f ((sq,fd,param),(sq2,_,_)) = (Seq.it_right fd (fn (a,b) => fst' (f fd (a,(b,fd,param)))) (sq,sq2) param,fd,param)
   fun THEN (f,g) fd v param = (Seq.THEN (fn a => fst' (f fd a),fn b => fst' (g fd b)) fd v param,fd,param)
