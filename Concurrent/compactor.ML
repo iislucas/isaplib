@@ -1,5 +1,6 @@
-(*
-This is a signature for a compactor!
+(*  Title:      Pure/Concurrent/compactor.ML
+    Author:     Michael James Bradley
+    
 A compactor was designed to help with the parallelisation of fast-to-compute
 functions, which are typically not parallelisable due to the required overheads.
 It will automatically combine lots of small functions into larger ones which
@@ -15,12 +16,15 @@ Dynamic: you specify how long any group of functions should take, and the
          as "little" functions) should be combined to acheive this. If the
          cumulative running times of the little functions changes, then
          a dynamic compactor will adapt to this.
+         
+There are a number of additional parameters and settings to enable you to try and optimise
+its performance.
 *)
 signature MJB_COMPACTOR =
 sig
   (*This exception is raised whenever you use a compactor incorrectly.
   (It will not be raised due to a fault in the compactor itself)*)
-  exception Compactor_Error of string
+  exception Compactor_Use_Error of string
   (*The type of a compactor!*)
   type compactor
   (*The type of a direction. This is used for accumulating the results
@@ -55,7 +59,7 @@ sig
     
   (*For a dynamic compactor, set the time to aim for*)
   val set_time : compactor
-    -> Time.time (*The time it should now aim for*)
+    -> Time.time (*The time it should now aim for groups to take*)
     -> compactor
     
   (*Return the time a dynamic compactor is aiming for*)
@@ -63,7 +67,7 @@ sig
   
   (*For a static compactor, set the size of the groups created*)
   val set_size : compactor
-    -> int (*Return the size of the group created*)
+    -> int (*The new group size*)
     -> compactor
   
   (*For a static compactor, return the size of the groups it is going
@@ -76,17 +80,17 @@ sig
   (*Returns true if a compactor is static*)
   val is_static : compactor -> bool
   
-  (*For a dynamic compactors only, set the estimated number of functions
+  (*For dynamic compactors only, set the estimated number of functions
   that you think need to be compacted to use up the time given to this compactor
   If NONE is supplied, it will use a default.
   
-  Default: NONE
+  Default: NONE (when first created)
   *)
   val set_estimated_number : compactor
-    -> int option (* The number of functions you think will need to be combined to make up the right time *)
+    -> int option (* The number of little functions you think will need to be combined to make up the right time *)
     -> compactor
   
-  (*Return the estimated number of functions (set by you) that should be
+  (*Return the estimated number of little functions (set by you) that should be
   compacted to make up the required amount of time
   
   Default: NONE
@@ -132,7 +136,7 @@ sig
                      a compactor may never consider the situation stable
                      enough to stop precomputing! *)
     -> bool       (* If true, this will turn a dynamic compactor into a static
-                     one once compacting is complete. Static compactors
+                     one once the precomputation is complete. Static compactors
                      have a smaller overhead than dynamic compactors, so
                      if you are confident the priming has given a good
                      result, then it might be worth setting this to true. *)
@@ -154,20 +158,25 @@ sig
   anomalies can cause dramatic shifts in estimates)
   
   high - how much the compactor is allowed to scale up its estimate for the number
-  of functions required in a group, if it discovered it was wrong
+  of functions required in a group, if it discovered it was wrong (in its previous estimate)
   low - how much the compactor is allowed to scale down its estimate for the number
   of functions required in a group, if it discovered it was wrong
   
   Note: the compactor will only accept values >=1. For most purposes, 1 is clearly not helpful...
   
-  This is pointless if the compactor is static!! So it will throw an error
+  This is pointless if the compactor is static! So it will throw an error
+  
+  Default: (2,2)
   *)
   val set_scaling : compactor
     -> (int * int) (* (low,high) - described above *)
     -> compactor
     
   (*Return the scaling in use by the compactor. If you have not set any,
-  then this will return the defaults used*)
+  then this will return the defaults used
+  
+  Default: (2,2)
+  *)
   val get_scaling : compactor
     -> (int * int)
   
@@ -187,7 +196,7 @@ sig
                                              little function to the next one *)
     -> ((unit -> 'b) * int) Seq.seq       (* The result is a sequence of functions which, when run, will
                                              compute a group of the little functions supplied and return
-                                             the result. The integer says how many functions the compactor WANTED
+                                             the result. The integer says how many functions the compactor wanted
                                              (not necessarily succeeded) to put into this group *)
   
   (****************************************)
@@ -241,24 +250,6 @@ sig
     -> ('b List.list)                 (* The list of elements *)
     -> (unit -> 'c List.list) Seq.seq (* A sequence of lists of elements produced. Each list of elements
                                          is formed from compacting several applications of the function together*)
-  
-  (*Note:
-  This may be something better done explicitly in code so it has not been implemented, but it
-  should be possible to use a special producer in the compactor to automatically traverse trees of
-  recursion. For example, if a recursive function only recurs on itself with two calls, so the tree
-  only ever has two branches at each node, then clearly this is too short a list of functions
-  for the compactor.
-  
-  However, if you automatically traverse the tree without evaluating its leaves as
-  you go (generating nodes) then if it is deep, it may be possible to return a long list of the nodes
-  each containing independent branches suitable for the compactor.
-  
-  Pictorially, this is like chopping the trunk of the tree off to collect a lot of its branches.
-  
-  In reality, this problem is usually solved by parallelising at multiple depths in the tree so more
-  than just the two cores in the above example can be used. However, if the number of branches is not
-  certain, the function suggested could be quite useful for automatically assessing the tree.
-  *)
 end;
 
 (*
@@ -277,7 +268,7 @@ struct
   
   (*This exception is raised whenever you use a compactor incorrectly.
   (It will not be raised due to a fault in the compactor itself)*)
-  exception Compactor_Error of string
+  exception Compactor_Use_Error of string
   
   (*The type of a direction. This is used for accumulating the results
   of functions, and is similar to the idea of folding left or right.
@@ -311,7 +302,7 @@ struct
   The last two integers are the scaling factors (scaling: (up,down))*)
   type compactor = (direction * comp * (int * int))
   
-  (*Default initialisation values:*)
+  (*Default initialisation values*)
   val defaultPrimingLimit = SOME 15;
   val defaultGoStatic = false;
   val defaultEstimate = NONE;
@@ -322,7 +313,7 @@ struct
   (*Create a new compactor which will always combine
   the specified number of functions*)
   fun new_static n = if (n<=0) then
-    raise Compactor_Error ("Cannot create a static compactor expected to compact a non-positive" ^
+    raise Compactor_Use_Error ("Cannot create a static compactor expected to compact a non-positive" ^
     " number of elements")
     else (defaultDirection,Static n,defaultScaling)
   
@@ -332,36 +323,36 @@ struct
   You specify how long you want each returned function
   to take roughly*)
   fun new_dynamic time = if (time<Time.zeroTime) then
-    raise Compactor_Error ("Cannot create a compactor expected to produce functions which" ^
+    raise Compactor_Use_Error ("Cannot create a compactor expected to produce functions which" ^
     " require negative time to run")
     else (defaultDirection,Dynamic (time,defaultEstimate,defaultPriming),defaultScaling)
   
   (*For a dynamic compactor, set the time to aim for*)
   fun set_time (dir,Dynamic (_,est,pr),scaling) t =
-    if (t<Time.zeroTime) then raise Compactor_Error ("Cannot create a compactor expected to produce functions which" ^
+    if (t<Time.zeroTime) then raise Compactor_Use_Error ("Cannot create a compactor expected to produce functions which" ^
     " require negative time to run")
     else
     (dir,Dynamic (t,est,pr),scaling)
-    | set_time _ _ = raise Compactor_Error ("Cannot set the time " ^
+    | set_time _ _ = raise Compactor_Use_Error ("Cannot set the time " ^
     "of a static compactor")
   
   (*Return the time a dynamic compactor is aiming for*)
   fun get_time (_,Dynamic (t,_,_),_) = t
-    | get_time _ = raise Compactor_Error ("Cannot get the time " ^
+    | get_time _ = raise Compactor_Use_Error ("Cannot get the time " ^
     "of a static compactor")
   
   (*For a static compactor, set the size of the groups created*)
   fun set_size (dir,Static (_),scaling) n = if (n<=0) then
-    raise Compactor_Error ("Cannot create a static compactor expected to compact a non-positive" ^
+    raise Compactor_Use_Error ("Cannot create a static compactor expected to compact a non-positive" ^
     " number of elements")
     else (dir,Static n,scaling)
-    | set_size _ _ = raise Compactor_Error ("Cannot set the size of a dynamic " ^
+    | set_size _ _ = raise Compactor_Use_Error ("Cannot set the size of a dynamic " ^
     "compactor")
   
   (*For a static compactor, return the size of the groups it is going
   to produce*)
   fun get_size (_,Static n,_) = n
-    | get_size _ = raise Compactor_Error ("Cannot get the size of a dynamic " ^
+    | get_size _ = raise Compactor_Use_Error ("Cannot get the size of a dynamic " ^
     "compactor")
     
   (*Returns true if a compactor is dynamic*)
@@ -379,7 +370,7 @@ struct
   Default: NONE
   *)
   fun set_estimated_number (dir,(Dynamic (t,_,p)),scaling) i = (dir,Dynamic (t,i,p),scaling)
-    | set_estimated_number _ _ = raise Compactor_Error
+    | set_estimated_number _ _ = raise Compactor_Use_Error
     "Cannot set the estimated number of functions in a dynamic compactor."
   
   (*Return the estimated number of functions (set by you) that should be
@@ -388,7 +379,7 @@ struct
   Default: NONE
   *)
   fun get_estimated_number (_,(Dynamic (_,i,_)),_) = i
-    | get_estimated_number _ = raise Compactor_Error
+    | get_estimated_number _ = raise Compactor_Use_Error
     "Cannot retrieve the estimated number of functions in a dynamic compactor."
     
   (*Sets the direction in which functions are compacted.
@@ -419,10 +410,10 @@ struct
   fun prime (dir,Dynamic (t,est,_),scaling) limit go_static =
     if (is_none limit) then (dir,Dynamic (t,est,SOME (limit,go_static)),scaling)
     else (if ((the limit)<0) then
-      raise Compactor_Error
+      raise Compactor_Use_Error
       "Cannot prime a dynamic compactor with a negative limit."
       else (dir,Dynamic (t,est,SOME (limit,go_static)),scaling))
-    | prime _ _ _ = raise Compactor_Error
+    | prime _ _ _ = raise Compactor_Use_Error
     "Cannot prime a static compactor."
   
   (*Tell the compactor not to prime itself first*)
@@ -439,12 +430,12 @@ struct
     | check_prime _ = NONE
     
   (*Set the scaling for the compactor*)
-  fun set_scaling (_,Static _,_) _ = raise Compactor_Error "Cannot set the scaling factors for a static compactor."
+  fun set_scaling (_,Static _,_) _ = raise Compactor_Use_Error "Cannot set the scaling factors for a static compactor."
     | set_scaling (dir,cp,_) (high,low) = if (high<1) then
-        raise (Compactor_Error "Cannot set the scaling up factor to be less than one")
+        raise (Compactor_Use_Error "Cannot set the scaling up factor to be less than one")
       else
       if (low<1) then
-        raise (Compactor_Error "Cannot set the scaling down factor to be less than one")
+        raise (Compactor_Use_Error "Cannot set the scaling down factor to be less than one")
       else
         (dir,cp,(high,low))
       
@@ -530,7 +521,7 @@ struct
   Adjusting the estimate:
   ***********************
   
-  I have now run a load of the functions and have the time it took them to run. I now
+  I have run a lot of the functions and have the time it took them to run. I now
   take the following steps:
   
   Firstly, I compare my time stamp with the one in the estimate.
@@ -539,14 +530,14 @@ struct
   
   Assuming I am newer, I now look if my total time was closer to the target than the stored time.
   If so, I store my result and compute the average appropriately, provided that the new time
-  is at least 10% changed from the stored time.
+  is at least 10% different from the stored time.
   
   If my time is actually worse, I compute my average time and see if it varies
   from the previous average time by more than a specific percentage. This is done by seeing
   if my average falls between 25% either side of the existing average
   (So 75% (3/4) of the existing average and 125% (5/4) of it). If I do
   fall between this result, then I decide to record my result. Otherwise, I do not
-  bother.
+  worry.
   *)
   
 	(*
@@ -555,14 +546,13 @@ struct
 	Args: the recorded time for this group
 	      the number of functions in this group
 	      a reference to the shared estimate
-	      the time stampfor this group
+	      the time stamp for this group
 	      the target time for this compactor
 	
 	Note: this is optimised to avoid computing anything unnecessarily,
 	which makes the code look very ugly...*)
 	fun adjust rec_t n my_ref time_stamp target_t =
 	  let
-	     (*val _ = PolyML.print("Dynamically adjusting...");*)
 	     val (total,_,low_avg,high_avg,stamp) = !my_ref; (*The current estimate*)
 	     val time = (Time.toMicroseconds rec_t) : LargeInt.int
 	     (*My average*)
@@ -595,30 +585,22 @@ struct
 	*)
 	fun suggested t (total,no_fs,_,_,_) (scaleup,scaledown) =
 	  let
-	    
-	    (*val _ = PolyML.print("Suggesting... Total was: " ^ (LargeInt.toString(total)) ^
-	            " using " ^ (LargeInt.toString(no_fs)) ^ " functions. Was aiming for " ^
-	            (LargeInt.toString(t)));*)
 	    val ans = if (total>t) then
 	      (*The current total is above the target!*)
 	      if ((total div (scaledown : LargeInt.int))>=t) then
 	        (*Halving (scaling down) is still above, so do this...*)
-	        ((*PolyML.print("Halving");*)
-	        (no_fs div (scaledown : LargeInt.int)) : LargeInt.int)
+	        (no_fs div (scaledown : LargeInt.int)) : LargeInt.int
 	      else
 	        (*Scale to the right number of functions*)
-	        ((*PolyML.print("Set to average");*)
-	        ((t * no_fs) div total) : LargeInt.int)
+	        ((t * no_fs) div total) : LargeInt.int
 	    else
 	      (*The current total is lower than the target*)
 	      if ((total * (scaleup : LargeInt.int))<=t) then
-	        (*Doubling (Scaling up) is still below, so do this...*)
-	        ((*PolyML.print("Doubling up");*)
-	        (no_fs * (scaleup : LargeInt.int)) : LargeInt.int)
+	        (*Doubling (scaling up) is still below, so do this...*)
+	        (no_fs * (scaleup : LargeInt.int)) : LargeInt.int
 	      else
 	        (*Scale to the right number of functions*)
-	        ((*PolyML.print("Set to average");*)
-	        ((t * no_fs) div total) : LargeInt.int)
+	        ((t * no_fs) div total) : LargeInt.int
 	  in
 	    if (ans<=(0 : LargeInt.int)) then (1 : LargeInt.int) (*Minimum number*) else ans
 	  end
@@ -632,9 +614,9 @@ struct
         the next element to be fed to the producer
         the first element to be fed to the little functions
         the reference to the shared estimate
+        the scaling factors to use when updating the estimate
   *)
   fun choose_dynamic time_stamp dir t producer next_input f_id my_ref scaling =
-    ((*PolyML.print("Compacting with dynamic case");*)
     Seq.make (fn() =>(*First, grab however many functions I want*)
     let val sg = (suggested t (!my_ref) scaling) (*Get the suggested number*)
         val (fs,new_prod) = grab sg producer next_input [] in
@@ -661,14 +643,14 @@ struct
         NONE => Seq.empty (*No more little functions left*)
       | SOME next_input => choose_dynamic (time_stamp+1) dir t producer next_input f_id my_ref scaling
     )
-    end))
+    end)
     
   
   (*Prime the dynamic compactor first. This uses almost the same algorithm for computing
   the estimates, but does this work sequentially initially.
-  The algorithm is modified a little to handle EXTREMELY (less than a millisecond) quick
-  functions which the ordinary dynamic algorithm would be confused by. Hence, this has a higher
-  overhead and updates more often.
+  The algorithm is modified a little to handle EXTREMELY (less than a microsecond) quick
+  functions which the ordinary dynamic algorithm would be confused by due to random variation.
+  Hence, this has a higher overhead and updates more often.
   
   Args: whether or not the compactor is nearly stable (requires stability over two precomputed groups)
         the time stamp for the next group of little functions
@@ -681,23 +663,18 @@ struct
         the current number of precomputed functions that are permitted left (setting this to -1 effectively
         means priming will continue until stability is reached
         whether or not the compactor should become static after priming is complete
+        the scaling parameters to use when updating the estimate
   *)
   fun prime_dynamic _ time_stamp dir t producer next_input f_id (est as (_,no_fs,_,_,_)) 0 go_static scaling =
-
-      ((*PolyML.print("Hit limit while priming");*)
       (*Need to stop priming*)
       if (go_static) then (*Become a static compactor*)
         choose_static dir no_fs producer next_input f_id
       else (*Stay as a dynamic compactor*)
-       choose_dynamic (time_stamp+1) dir t producer next_input f_id (Unsynchronized.ref est) scaling)
+       choose_dynamic (time_stamp+1) dir t producer next_input f_id (Unsynchronized.ref est) scaling
     (*Normal case...*)
     | prime_dynamic stable time_stamp dir t producer next_input f_id (est as (total,no_fs,low_avg,high_avg,_)) limit go_static scaling =
       Seq.make (fn() =>
-      ((*PolyML.print("Priming dynamic");*)
-      let 
-        (*val _ = PolyML.print("Suggesting... Total was: " ^ (LargeInt.toString(total)) ^
-	            " using " ^ (LargeInt.toString(no_fs)) ^ " functions. Was aiming for " ^
-	            (LargeInt.toString(t)));*)
+      let
         val sg = suggested t est scaling; (*Compute the suggested number of functions...*)
         val (fs,new_prod) = grab sg producer next_input []
       in
@@ -709,9 +686,6 @@ struct
           val sw = Stopwatch.start (Stopwatch.new);
           val ans = combine dir fs f_id;
           val time = Time.toMicroseconds (fst (Stopwatch.stop sw));
-          (*val _ = TextIO.print("Adjusting. My time was: " ^ LargeInt.toString(time) ^ " for " ^
-           LargeInt.toString(sg) ^ " functions. Previous time was " ^ LargeInt.toString(total) ^
-           " with " ^ LargeInt.toString(no_fs) ^ " functions.");*)
           (*Work out what the adjustment should be...*)
           (*My average time*)
           val my_avg = (time div sg) : LargeInt.int;
@@ -724,7 +698,7 @@ struct
           (*The new estimate that will be used*)
           val res_est = (*I know my time stamp is better than the existing one, so I don't need to check this.*)
             if ((abs(t-time)<abs(t-total) orelse (total<5000)) andalso (
-            (*Heuristic for very small times ^*)
+            (*Heuristic for very small times above*)
             (*At extremely small times, it is hard to see an improvement*)
             abs(time-total)>(total div 10) orelse (
             (*If there was no change, did the number of functions change in the right direction?*)
@@ -754,11 +728,9 @@ struct
               if ((get_no_fs res_est)=no_fs) then
                 if stable then (*The result has stabilised! Use this...*)
                   if (go_static) then (*Turn into a static compactor!*)
-                    ((*PolyML.print("Priming complete");*)
-                    choose_static dir no_fs producer next_input f_id)
+                    choose_static dir no_fs producer next_input f_id
                   else (*Stay dynamic*)
-                    ((*PolyML.print("Priming complete");*)
-                    choose_dynamic (time_stamp+1) dir t producer next_input f_id (Unsynchronized.ref est) scaling)
+                    choose_dynamic (time_stamp+1) dir t producer next_input f_id (Unsynchronized.ref est) scaling
                 else (*Mark it as stable for the next attempt*)
                   prime_dynamic true (time_stamp+1) dir t producer next_input f_id res_est (limit-1) go_static scaling
               else (*Definitely not ready to stop priming yet...*)
@@ -766,7 +738,7 @@ struct
           )
         end
       end
-      ))
+      )
     
   (*
   This is the most generic way to set up a compactor. Look at the argument
@@ -786,7 +758,7 @@ struct
                     val low_avg = (((3 : LargeInt.int) * avg) div (4 : LargeInt.int)) : LargeInt.int;
                     val high_avg = (low_avg + ((avg div (2 : LargeInt.int)) : LargeInt.int)) : LargeInt.int
                 in
-                  (time,est,low_avg,high_avg,0) (*From the supplied estimate!*)
+                  (time,est,low_avg,high_avg,0) (*Form the supplied estimate*)
                   : (LargeInt.int * LargeInt.int * LargeInt.int * LargeInt.int * LargeInt.int)
                 end
         in

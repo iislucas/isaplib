@@ -1,15 +1,16 @@
-(*The signature for the stop watch. The stop watch is designed to
-make timing functions much easier.
+(*  Title:      Pure/General/stopwatch.ML
+    Author:     Michael James Bradley
 
-Note: the stop watch does not have the capability of calling
-a function when a certain time is reached. That would be up to
-another part of the program, as it requires a heavy overhead and would
-probably be inaccurate. Additionally, it would introduce concurrency...*)
+The stopwatch structure is designed just to make timing functions simpler and hopefully
+more intuitive.
+*)
 signature MJB_STOPWATCH =
 sig
   type T; (*The type of the stop watch*)
-  datatype Direction = UP | DOWN (*The direction of the stop watch*)
-  (*Create a brand new stop watch! Set to time up and has 0 time on it.*)
+  (*The direction of the stop watch
+  If it is up, its time is increasing. Otherwise it is decreasing.*)
+  datatype Direction = UP | DOWN
+  (*Create a brand new stop watch. Set to time up and has 0 time on it.*)
   val new : T
   (*Start the timer on the stop watch. If it is already running, this does
   nothing.*)
@@ -20,7 +21,7 @@ sig
   (*Stop the timer. This returns the amount of time on the stop watch,
   and does reset it to 0*)
   val stop : T -> (Time.time * T)
-  (*Reset the timer to 0. If it is still timing, it will continue timing.*)
+  (*Reset the timer to 0. If it is still timing, it WILL continue timing.*)
   val reset : T -> T
   (*Read the current time on the stop watch. If the stop watch is active,
   then time will continue to pass effectively. If it is paused, it will stay paused.*)
@@ -44,8 +45,8 @@ end;
 (*The structure to implement the stopwatch:*)
 structure MJB_Stopwatch :> MJB_STOPWATCH =
 struct
-  (*(is timing,the time on the stop watch,the time since the last take, the direction)*)
   datatype Direction = UP | DOWN (*The direction of the stop watch*)
+  (*(is timing,the time on the stop watch,the time since the last reading, the direction)*)
   type T = (bool * Time.time * Time.time * Direction) (*The type of the stop watch*)
   (*Create a brand new stop watch! Set to time up and has 0 time on it.*)
   val new = (false,Time.zeroTime,Time.zeroTime,UP)
