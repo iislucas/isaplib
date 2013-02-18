@@ -120,10 +120,6 @@ structure Project
 
   (*** Global project refs ***)
 
-  (* When save_states_ref is true, then for each file that make is called on, a 
-     heap file is saved. *)
-  val save_states_ref = Unsynchronized.ref false;
-
   (* The project filename currently being compiled. *)
   val current_filename_ref = Unsynchronized.ref (NONE : string option);
   fun set_current_filename n_opt = current_filename_ref := n_opt; 
@@ -151,8 +147,6 @@ structure Project
   (* the directory in which save_sub_dir_ref is created and in which .save files 
      are stored. *)
   val save_subdir_name_ref = Unsynchronized.ref ".polysave";
-  fun set_save_subdir_name s = (save_subdir_name_ref := s);
-  fun get_save_subdir_name () = !save_subdir_name_ref;
 
   (*** Basic filesystem ***)
 
@@ -172,7 +166,7 @@ structure Project
           in result end handle e => (OS.FileSys.chDir old_dir; raise e)
         end;
 
-  fun apply_from_file path_to_file f x = 
+  fun apply_from_file path_to_file f _ = 
       let val {dir, file} = OS.Path.splitDirFile path_to_file;
           val _ = set_current_filename (SOME path_to_file);
           val result = apply_from_dir dir f file;
@@ -194,7 +188,7 @@ structure Project
   fun savepath_of_filepath save_postfix filepath = 
       let
         val {file,dir} = OS.Path.splitDirFile filepath
-        val save_dir = OS.Path.concat (dir, get_save_subdir_name ());
+        val save_dir = OS.Path.concat (dir, !save_subdir_name_ref);
         val save_file = 
             OS.Path.joinBaseExt { base = file, ext = SOME save_postfix };
       in OS.Path.joinDirFile { dir = save_dir, file = save_file } end;
@@ -299,7 +293,7 @@ structure Project
   (* simple PolyML.use, but changes to files directory first, notes edit
      time for poject. *)
   fun use_root path_to_file = 
-      let val {dir, file} = OS.Path.splitDirFile path_to_file;
+      let val {file, ...} = OS.Path.splitDirFile path_to_file;
       in 
         if state_is_Changed () 
         then save_project_child_state (pre_savepath_of path_to_file)
@@ -311,7 +305,7 @@ structure Project
   (* simple PolyML.use, but changes to files directory first, notes edit
      time for poject. *)
   fun basic_use path_to_file = 
-      let val {dir, file} = OS.Path.splitDirFile path_to_file;
+      let val {file, ...} = OS.Path.splitDirFile path_to_file;
       in set_state_changed ();
          set_latest_heappath NONE;
          apply_from_file path_to_file PolyML.use file
