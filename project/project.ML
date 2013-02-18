@@ -114,8 +114,10 @@ structure Project
 : ML_PROJECT
 = struct
 
-  structure Log = Log(val init_level = 3); 
-  val log = Log.log;
+  structure Log = Log(val init_level = 1);
+  val log_debug = Log.log 3;
+  val log_detail = Log.log 2;
+  val log_info = Log.log 1;
   val log_err = Log.log ~2;
 
   (*** Global project refs ***)
@@ -141,7 +143,7 @@ structure Project
   fun ensure_at_latest_heap () =
       (case get_latest_heappath () of NONE => ()
           | SOME s => 
-            (log 2 ("ensure_at_latest_heap caused loading of heap:" ^ s);
+            (log_detail ("ensure_at_latest_heap caused loading of heap:" ^ s);
              PolyML.SaveState.loadState s));
 
   (* the directory in which save_sub_dir_ref is created and in which .save files 
@@ -210,29 +212,29 @@ structure Project
      was found.) *)
   fun save_project_child_state save_path = 
       let (* make .polysave dir for preuse saved heaps. *)
-        val _ = log 2 ("save_project_child_state " ^ (save_path));
+        val _ = log_detail ("save_project_child_state " ^ (save_path));
         val {file,dir} = OS.Path.splitDirFile save_path
         val _ = create_dirs dir;
         val full_save_path = 
             OS.Path.joinDirFile {dir = OS.FileSys.fullPath dir, file = file};
-        val _ = log 2 ("full_save_path: " ^ full_save_path);
+        val _ = log_detail ("full_save_path: " ^ full_save_path);
         val depth = List.length(PolyML.SaveState.showHierarchy());
       in 
-         (log 3 ("previous heaps: ");
-          log 3 (string_of_save_hierarchy ());
+         (log_debug ("previous heaps: ");
+          log_debug (string_of_save_hierarchy ());
           (* save child heap; note save path is full, needed so later save
              paths can find this one. TODO: think about this, better (relative) 
              way? *)
           set_latest_heappath (SOME full_save_path);
           (* don't maintain a chain of more than 100 child states; if the depth if 100 or more, write a new full heap. *)
           if (depth < 100) then 
-            (log 2 ("saving child state...");
+            (log_detail ("saving child state...");
              PolyML.SaveState.saveChild (full_save_path, depth))
           else 
-            (log 2 ("saving full state...");
+            (log_detail ("saving full state...");
              PolyML.SaveState.saveState full_save_path);
           (* this is the latest heap path *)
-          log 2 ("saved: " ^ full_save_path))
+          log_detail ("saved: " ^ full_save_path))
        end;
 
   (*** project state ***)
@@ -267,7 +269,7 @@ structure Project
          (case Time.compare (t2,t) of LESS => () | EQUAL => () 
           | GREATER => set_state_edittime t2));
   fun depend_on_file s = add_state_edittime (OS.FileSys.modTime s) 
-        handle e => (log 0 ("Failed to read file: " ^ s); raise e); 
+        handle e => (log_err ("Failed to read file: " ^ s); raise e); 
   fun depend_on_files l = List.foldr (fn (s,()) => depend_on_file s) () l;
 
   fun state_edited_before t2 =
@@ -314,6 +316,7 @@ structure Project
   (* *)
   fun make path_to_file =
   let
+    val _ = log_detail (">>> Make " ^ path_to_file);
     val oldstate = get_state(); 
     val _ = depend_on_file path_to_file;
     (* setup paths *)
@@ -321,11 +324,11 @@ structure Project
     val postuse_save_path = post_savepath_of path_to_file
     (* logging for debugging *)
     fun logPath name path = 
-          (log 2 (name ^ ": " ^ path ^ " ("
+          (log_debug (name ^ ": " ^ path ^ " ("
       ^ (Time.toString (OS.FileSys.modTime path)) ^ ")")
-	handle OS.SysErr _ => log 2 (name ^ ": " ^ path ^ " (mtime not available)"));
+	handle OS.SysErr _ => log_debug (name ^ ": " ^ path ^ " (mtime not available)"));
     val _ = logPath "path_to_file" path_to_file;
-    val _ = log 2 ("old state: " ^ (string_of_state oldstate));
+    val _ = log_debug ("old state: " ^ (string_of_state oldstate));
     val _ = logPath "preuse_save_path" preuse_save_path;
     val _ = logPath "postuse_save_path" postuse_save_path;
   in
@@ -334,16 +337,16 @@ structure Project
        andalso heap_is_newer_than_edits postuse_save_path
     then (* we skip compilation. *) 
       (set_latest_heappath (SOME (OS.FileSys.fullPath postuse_save_path));
-          log 2 ("unmodified."); ())
+          log_info (">>> " ^ path_to_file ^ " unchanged"); ())
     else
       ((* else if old state was also Changed, then no need to load heap as ML is already at the latest state (we compiled the last file). But otherwise, nothing has been loaded yet, so we need to make sure that we have the latest heap loaded before using compiling this file... *)
        if state_is_Changed () then () else ensure_at_latest_heap ();
        save_project_child_state preuse_save_path;
-       log 2 ("using file...");
+       log_info (">>> Using " ^ path_to_file);
        basic_use path_to_file; 
-       log 2 ("file used.");
+       log_detail (">>> " ^ path_to_file ^" used");
        save_project_child_state postuse_save_path;
-       log 2 ("completed.");
+       log_detail (">>> Heap for " ^ path_to_file ^ " saved");
        ())
     (* handle IO.Io d => raise IO.Io d; *)
   end;
