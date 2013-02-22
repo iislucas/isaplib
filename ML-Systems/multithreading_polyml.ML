@@ -1,7 +1,7 @@
 (*  Title:      Pure/ML-Systems/multithreading_polyml.ML
     Author:     Makarius
 
-Multithreading in Poly/ML 5.2.1 or later (cf. polyml/basis/Thread.sml).
+Multithreading in Poly/ML (cf. polyml/basis/Thread.sml).
 *)
 
 signature MULTITHREADING_POLYML =
@@ -29,16 +29,12 @@ struct
 
 val available = true;
 
-val max_threads = ref 0;
+val max_threads = ref 1;
 
-(*WHY WAS THIS LIMITED TO FOUR!!!*)
 fun max_threads_value () =
   let val m = ! max_threads in
     if m > 0 then m
-    else (*
-    Int.min (Int.max (Thread.numProcessors (), 1), 4)
-    *)
-    Int.max (Thread.numProcessors (), 1)
+    else Int.min (Int.max (Thread.numProcessors (), 1), 8)
   end;
 
 fun enabled () = max_threads_value () > 1;

@@ -6,17 +6,15 @@ use "basics/log.ML";
 use "project/project.ML";
 use "project/testing.ML";
 
-(* For debugging Project turn on logging: 
-   PolyML.Project.Log.level_ref := 5; 
+(* For debugging Project turn on logging:
+   PolyML.Project.Log.level_ref := 5;
 *)
 PolyML.Project.set_state_unchanged ();
-PolyML.Project.depend_on_files 
+PolyML.Project.depend_on_files
   [(* stuff loaded by "ML-Systems/polyml.ML" *)
    "ML-Systems/polyml.ML",
-   "ML-Systems/polyml_common.ML",
    "ML-Systems/multithreading_polyml.ML",
    "ML-Systems/unsynchronized.ML",
-   "ML-Systems/compiler_polyml-5.3.ML",
    "General/exn.ML",
    "ML-Systems/multithreading.ML",
    "General/timing.ML",
@@ -67,29 +65,29 @@ PolyML.Project.make "General/heap.ML";
 PolyML.Project.make "General/ord_list.ML";
 PolyML.Project.make "General/balanced_tree.ML";
 PolyML.Project.make "General/long_name.ML";
-PolyML.Project.make "General/graph.ML";
 PolyML.Project.make "General/buffer.ML";
 PolyML.Project.make "General/pretty.ML";
+PolyML.Project.make "General/xml.ML";
+PolyML.Project.make "General/graph.ML";
 PolyML.Project.make "General/binding.ML";
 PolyML.Project.make "General/path.ML";
 PolyML.Project.make "General/url.ML";
 PolyML.Project.make "General/file.ML";
-PolyML.Project.make "General/xml.ML";
 PolyML.Project.make "General/yxml.ML";
 PolyML.Project.make "General/json.ML";
 
-
 (*MJB*)
-PolyML.Project.make "General/stopwatch.ML";
-
 Testing.make_test "General/test/json-test.ML";
 
-(* from Isabelle/src/Pure/Concurrent; this is the main stuff loaded in 
+(* from Isabelle/src/Pure/Concurrent; this is the main stuff loaded in
    Pure/ROOT.ML *)
+PolyML.Project.make "ML/exn_properties_polyml.ML";
+PolyML.Project.make "ML/ml_statistics_polyml-5.5.0.ML";
 PolyML.Project.make "Concurrent/ROOT.ML";
 
 (*MJB: simplification of the future calls.
 It needs to be made here to use Synchronized and Future at the same time*)
+PolyML.Project.make "General/stopwatch.ML";
 PolyML.Project.make "Concurrent/simple_future.ML";
 PolyML.Project.make "Concurrent/par_seq.ML";
 PolyML.Project.make "Concurrent/compactor.ML";
@@ -107,7 +105,7 @@ PolyML.Project.make "basics/toplevel.ML";
 
 (* PolyML.Project.use_root "parser/ROOT.ML"; *)
 
-if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap" then () 
-else 
+if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap" then ()
+else
  (PolyML.Project.ensure_at_latest_heap ();
   PolyML.Project.save_project_child_state "heaps/all_child.heap");

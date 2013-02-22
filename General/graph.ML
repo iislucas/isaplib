@@ -22,38 +22,37 @@ sig
   val empty: 'a T
   val is_empty: 'a T -> bool
   val keys: 'a T -> key list
-  val dest: 'a T -> (key * key list) list
   val get_first: (key * ('a * (Keys.T * Keys.T)) -> 'b option) -> 'a T -> 'b option
   val fold: (key * ('a * (Keys.T * Keys.T)) -> 'b -> 'b) -> 'a T -> 'b -> 'b
-  val subgraph: (key -> bool) -> 'a T -> 'a T
   val get_entry: 'a T -> key -> key * ('a * (Keys.T * Keys.T))        (*exception UNDEF*)
-  val map: (key -> 'a -> 'b) -> 'a T -> 'b T
   val get_node: 'a T -> key -> 'a                                     (*exception UNDEF*)
   val map_node: key -> ('a -> 'a) -> 'a T -> 'a T
   val map_node_yield: key -> ('a -> 'b * 'a) -> 'a T -> 'b * 'a T
+  val map: (key -> 'a -> 'b) -> 'a T -> 'b T
   val imm_preds: 'a T -> key -> Keys.T
   val imm_succs: 'a T -> key -> Keys.T
   val immediate_preds: 'a T -> key -> key list
   val immediate_succs: 'a T -> key -> key list
   val all_preds: 'a T -> key list -> key list
   val all_succs: 'a T -> key list -> key list
+  val strong_conn: 'a T -> key list list
   val minimals: 'a T -> key list
   val maximals: 'a T -> key list
   val is_minimal: 'a T -> key -> bool
   val is_maximal: 'a T -> key -> bool
-  val strong_conn: 'a T -> key list list
   val new_node: key * 'a -> 'a T -> 'a T                              (*exception DUP*)
   val default_node: key * 'a -> 'a T -> 'a T
-  val del_nodes: key list -> 'a T -> 'a T                             (*exception UNDEF*)
   val del_node: key -> 'a T -> 'a T                                   (*exception UNDEF*)
   val is_edge: 'a T -> key * key -> bool
   val add_edge: key * key -> 'a T -> 'a T                             (*exception UNDEF*)
   val del_edge: key * key -> 'a T -> 'a T                             (*exception UNDEF*)
+  val restrict: (key -> bool) -> 'a T -> 'a T
+  val dest: 'a T -> ((key * 'a) * key list) list
+  val make: ((key * 'a) * key list) list -> 'a T                      (*exception DUP | UNDEF*)
   val merge: ('a * 'a -> bool) -> 'a T * 'a T -> 'a T                 (*exception DUP*)
   val join: (key -> 'a * 'a -> 'a) (*exception DUP/SAME*) ->
     'a T * 'a T -> 'a T                                               (*exception DUP*)
   val irreducible_paths: 'a T -> key * key -> key list list
-  val all_paths: 'a T -> key * key -> key list list
   exception CYCLES of key list list
   val add_edge_acyclic: key * key -> 'a T -> 'a T                     (*exception UNDEF | CYCLES*)
   val add_deps_acyclic: key * key list -> 'a T -> 'a T                (*exception UNDEF | CYCLES*)
@@ -63,6 +62,8 @@ sig
   val merge_trans_acyclic: ('a * 'a -> bool) -> 'a T * 'a T -> 'a T   (*exception CYCLES*)
   exception DEP of key * key
   val schedule: ((key * 'b) list -> key * 'a -> 'b) -> 'a T -> 'b list  (*exception DEP*)
+  val encode: key XML.Encode.T -> 'a XML.Encode.T -> 'a T XML.Encode.T
+  val decode: key XML.Decode.T -> 'a XML.Decode.T -> 'a T XML.Decode.T
 end;
 
 functor Graph(Key: KEY): GRAPH =
@@ -91,7 +92,6 @@ fun remove x (Keys tab) = Keys (Table.delete_safe x tab);
 fun fold f (Keys tab) = Table.fold (f o #1) tab;
 fun fold_rev f (Keys tab) = Table.fold_rev (f o #1) tab;
 
-fun make xs = Basics.fold insert xs empty;
 fun dest keys = fold_rev cons keys [];
 
 fun filter P keys = fold (fn x => P x ? insert x) keys empty;
@@ -111,17 +111,9 @@ exception SAME = Table.SAME;
 val empty = Graph Table.empty;
 fun is_empty (Graph tab) = Table.is_empty tab;
 fun keys (Graph tab) = Table.keys tab;
-fun dest (Graph tab) = map (fn (x, (_, (_, succs))) => (x, Keys.dest succs)) (Table.dest tab);
 
 fun get_first f (Graph tab) = Table.get_first f tab;
 fun fold_graph f (Graph tab) = Table.fold f tab;
-
-fun subgraph P G =
-  let
-    fun subg (k, (i, (preds, succs))) =
-      if P k then Table.update (k, (i, (Keys.filter P preds, Keys.filter P succs)))
-      else I;
-  in Graph (fold_graph subg G Table.empty) end;
 
 fun get_entry (Graph tab) x =
   (case Table.lookup_key tab x of
@@ -137,14 +129,14 @@ fun map_entry_yield x f (G as Graph tab) =
 
 (* nodes *)
 
-fun map_nodes f (Graph tab) = Graph (Table.map (apfst o f) tab);
-
 fun get_node G = #1 o #2 o get_entry G;
 
 fun map_node x f = map_entry x (fn (i, ps) => (f i, ps));
 
 fun map_node_yield x f = map_entry_yield x (fn (i, ps) =>
   let val (a, i') = f i in (a, (i', ps)) end);
+
+fun map_nodes f (Graph tab) = Graph (Table.map (apfst o f) tab);
 
 
 (* reachability *)
@@ -154,7 +146,7 @@ fun reachable next xs =
   let
     fun reach x (rs, R) =
       if Keys.member R x then (rs, R)
-      else Keys.fold reach (next x) (rs, Keys.insert x R) |>> cons x;
+      else Keys.fold_rev reach (next x) (rs, Keys.insert x R) |>> cons x;
     fun reachs x (rss, R) =
       reach x ([], R) |>> (fn rs => rs :: rss);
   in fold reachs xs ([], Keys.empty) end;
@@ -170,31 +162,27 @@ fun immediate_succs G = Keys.dest o imm_succs G;
 fun all_preds G = flat o #1 o reachable (imm_preds G);
 fun all_succs G = flat o #1 o reachable (imm_succs G);
 
-(*minimal and maximal elements*)
-fun minimals G = fold_graph (fn (m, (_, (preds, _))) => Keys.is_empty preds ? cons m) G [];
-fun maximals G = fold_graph (fn (m, (_, (_, succs))) => Keys.is_empty succs ? cons m) G [];
-fun is_minimal G x = Keys.is_empty (imm_preds G x);
-fun is_maximal G x = Keys.is_empty (imm_succs G x);
-
 (*strongly connected components; see: David King and John Launchbury,
   "Structuring Depth First Search Algorithms in Haskell"*)
 fun strong_conn G =
   rev (filter_out null (#1 (reachable (imm_preds G) (all_succs G (keys G)))));
 
 
-(* nodes *)
+(* minimal and maximal elements *)
+
+fun minimals G = fold_graph (fn (m, (_, (preds, _))) => Keys.is_empty preds ? cons m) G [];
+fun maximals G = fold_graph (fn (m, (_, (_, succs))) => Keys.is_empty succs ? cons m) G [];
+fun is_minimal G x = Keys.is_empty (imm_preds G x);
+fun is_maximal G x = Keys.is_empty (imm_succs G x);
+
+
+(* node operations *)
 
 fun new_node (x, info) (Graph tab) =
   Graph (Table.update_new (x, (info, (Keys.empty, Keys.empty))) tab);
 
 fun default_node (x, info) (Graph tab) =
   Graph (Table.default (x, (info, (Keys.empty, Keys.empty))) tab);
-
-fun del_nodes xs (Graph tab) =
-  Graph (tab
-    |> fold Table.delete xs
-    |> Table.map (fn _ => fn (i, (preds, succs)) =>
-      (i, (fold Keys.remove xs preds, fold Keys.remove xs succs))));
 
 fun del_node x (G as Graph tab) =
   let
@@ -208,8 +196,11 @@ fun del_node x (G as Graph tab) =
       |> Keys.fold (del_adjacent apfst) succs)
   end;
 
+fun restrict pred G =
+  fold_graph (fn (x, _) => not (pred x) ? del_node x) G G;
 
-(* edges *)
+
+(* edge operations *)
 
 fun is_edge G (x, y) = Keys.member (imm_succs G x) y handle UNDEF _ => false;
 
@@ -226,10 +217,20 @@ fun del_edge (x, y) G =
   else G;
 
 fun diff_edges G1 G2 =
-  flat (dest G1 |> map (fn (x, ys) => ys |> map_filter (fn y =>
-    if is_edge G2 (x, y) then NONE else SOME (x, y))));
+  fold_graph (fn (x, (_, (_, succs))) =>
+    Keys.fold (fn y => not (is_edge G2 (x, y)) ? cons (x, y)) succs) G1 [];
 
 fun edges G = diff_edges G empty;
+
+
+(* dest and make *)
+
+fun dest G = fold_graph (fn (x, (i, (_, succs))) => cons ((x, i), Keys.dest succs)) G [];
+
+fun make entries =
+  empty
+  |> fold (new_node o fst) entries
+  |> fold (fn ((x, _), ys) => fold (fn y => add_edge (x, y)) ys) entries;
 
 
 (* join and merge *)
@@ -271,19 +272,6 @@ fun irreducible_paths G (x, y) =
       if eq_key (x, z) then cons (z :: path)
       else fold (paths (z :: path)) (irreducible_preds G X path z);
   in if eq_key (x, y) andalso not (is_edge G (x, x)) then [[]] else paths [] y [] end;
-
-
-(* all paths *)
-
-fun all_paths G (x, y) =
-  let
-    val (_, X) = reachable (imm_succs G) [x];
-    fun paths path z =
-      if not (null path) andalso eq_key (x, z) then [z :: path]
-      else if Keys.member X z andalso not (member eq_key path z)
-      then maps (paths (z :: path)) (immediate_preds G z)
-      else [];
-  in paths [] y end;
 
 
 (* maintain acyclic graphs *)
@@ -336,6 +324,19 @@ fun schedule f G =
   in map (the o Table.lookup results) xs end;
 
 
+(* XML data representation *)
+
+fun encode key info G =
+  dest G |>
+    let open XML.Encode
+    in list (pair (pair key info) (list key)) end;
+
+fun decode key info body =
+  body |>
+    let open XML.Decode
+    in list (pair (pair key info) (list key)) end |> make;
+
+
 (*final declarations of this structure!*)
 val map = map_nodes;
 val fold = fold_graph;
@@ -343,4 +344,5 @@ val fold = fold_graph;
 end;
 
 structure Graph = Graph(type key = string val ord = fast_string_ord);
+structure String_Graph = Graph(type key = string val ord = string_ord);
 structure Int_Graph = Graph(type key = int val ord = int_ord);

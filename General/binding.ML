@@ -122,19 +122,21 @@ val conceal =
 (* print *)
 
 fun pretty (Binding {prefix, qualifier, name, pos, ...}) =
-  Pretty.markup (Position.markup pos Markup.binding)
-    [Pretty.str (Long_Name.implode (map #1 (prefix @ qualifier) @ [name]))]
-  |> Pretty.quote;
+  if name = "" then Pretty.str "\"\""
+  else
+    Pretty.markup (Position.markup pos Markup.binding)
+      [Pretty.str (Long_Name.implode (map #1 (prefix @ qualifier) @ [name]))]
+    |> Pretty.quote;
 
 val print = Pretty.str_of o pretty;
 
 
 (* check *)
 
-fun bad binding = "Bad name binding: " ^ print binding ^ Position.str_of (pos_of binding);
+fun bad binding = "Bad name binding: " ^ print binding ^ Position.here (pos_of binding);
 
 fun check binding =
-  if Symbol.is_ident (Symbol.explode (name_of binding)) then ()
+  if Symbol_Pos.is_identifier (name_of binding) then ()
   else legacy_feature (bad binding);
 
 end;

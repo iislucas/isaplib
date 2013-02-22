@@ -1,7 +1,7 @@
-(*  Title:      Pure/ML/ml_compiler_polyml-5.3.ML
+(*  Title:      Pure/ML/ml_compiler_polyml.ML
     Author:     Makarius
 
-Advanced runtime compilation for Poly/ML 5.3.0.
+Advanced runtime compilation for Poly/ML.
 *)
 
 structure ML_Compiler: ML_COMPILER =
@@ -11,15 +11,10 @@ struct
 
 fun position_of (loc: PolyML.location) =
   let
-    val {file = text, startLine = line, startPosition = offset,
-      endLine = _, endPosition = end_offset} = loc;
-    val props =
-      (case YXML.parse text of
-        XML.Elem ((e, atts), _) => if e = Markup.positionN then atts else []
-      | XML.Text s => Position.file_name s);
+    val {startLine = line, startPosition = offset, endPosition = end_offset, ...} = loc;
+    val props = Exn_Properties.of_location loc;
   in
-    Position.make
-      {line = line, column = 0, offset = offset, end_offset = end_offset, props = props}
+    Position.make {line = line, offset = offset, end_offset = end_offset, props = props}
   end;
 
 fun exn_position exn =
@@ -27,6 +22,7 @@ fun exn_position exn =
     NONE => Position.none
   | SOME loc => position_of loc);
 
+val exn_messages_ids = Runtime.exn_messages_ids exn_position;
 val exn_messages = Runtime.exn_messages exn_position;
 val exn_message = Runtime.exn_message exn_position;
 
@@ -35,31 +31,31 @@ val exn_message = Runtime.exn_message exn_position;
 
 fun report_parse_tree depth space =
   let
-    val report_text =
+    val reported_text =
       (case Context.thread_data () of
-        SOME (Context.Proof ctxt) => Context_Position.report_text ctxt
-      | _ => Position.report_text);
+        SOME (Context.Proof ctxt) => Context_Position.reported_text ctxt
+      | _ => Position.reported_text);
 
-    fun report_entity kind loc decl =
-      report_text (position_of loc)
+    fun reported_entity kind loc decl =
+      reported_text (position_of loc)
         (Markup.entityN, (Markup.kindN, kind) :: Position.def_properties_of (position_of decl)) "";
 
-    fun report loc (PolyML.PTtype types) =
-          cons (fn () =>
-            PolyML.NameSpace.displayTypeExpression (types, depth, space)
-            |> pretty_ml |> Pretty.from_ML |> Pretty.string_of
-            |> report_text (position_of loc) Markup.ML_typing)
-      | report loc (PolyML.PTdeclaredAt decl) =
-          cons (fn () => report_entity Markup.ML_defN loc decl)
-      | report loc (PolyML.PTopenedAt decl) =
-          cons (fn () => report_entity Markup.ML_openN loc decl)
-      | report loc (PolyML.PTstructureAt decl) =
-          cons (fn () => report_entity Markup.ML_structN loc decl)
-      | report _ (PolyML.PTnextSibling tree) = report_tree (tree ())
-      | report _ (PolyML.PTfirstChild tree) = report_tree (tree ())
-      | report _ _ = I
-    and report_tree (loc, props) = fold (report loc) props;
-  in fn tree => List.app (fn e => e ()) (report_tree tree []) end;
+    fun reported loc (PolyML.PTtype types) =
+          cons
+            (PolyML.NameSpace.displayTypeExpression (types, depth, space)
+              |> pretty_ml |> Pretty.from_ML |> Pretty.string_of
+              |> reported_text (position_of loc) Markup.ML_typing)
+      | reported loc (PolyML.PTdeclaredAt decl) =
+          cons (reported_entity Markup.ML_defN loc decl)
+      | reported loc (PolyML.PTopenedAt decl) =
+          cons (reported_entity Markup.ML_openN loc decl)
+      | reported loc (PolyML.PTstructureAt decl) =
+          cons (reported_entity Markup.ML_structN loc decl)
+      | reported _ (PolyML.PTnextSibling tree) = reported_tree (tree ())
+      | reported _ (PolyML.PTfirstChild tree) = reported_tree (tree ())
+      | reported _ _ = I
+    and reported_tree (loc, props) = fold (reported loc) props;
+  in fn tree => Output.report (implode (reported_tree tree [])) end;
 
 
 (* eval ML source tokens *)
@@ -72,9 +68,7 @@ fun eval verbose pos toks =
 
     (* input *)
 
-    val location_props =
-      op ^ (YXML.output_markup (Markup.position |> Markup.properties
-            (filter (member (op =) [Markup.idN, Markup.fileN] o #1) (Position.properties_of pos))));
+    val location_props = op ^ (YXML.output_markup (":", #props (Position.dest pos)));
 
     val input_buffer =
       Unsynchronized.ref (toks |> map
@@ -112,10 +106,8 @@ fun eval verbose pos toks =
       let
         val pos = position_of loc;
         val txt =
-          (Position.is_reported pos ? Markup.markup Markup.no_report)
-            ((if hard then "Error" else "Warning") ^ Position.str_of pos ^ ":\n") ^
-          Pretty.string_of (Pretty.from_ML (pretty_ml msg)) ^
-          Position.reported_text pos Markup.report "";
+          (if hard then "ML error" else "ML warning") ^ Position.here pos ^ ":\n" ^
+          Pretty.string_of (Pretty.from_ML (pretty_ml msg));
       in if hard then err txt else warn txt end;
 
 

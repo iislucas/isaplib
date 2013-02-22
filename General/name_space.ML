@@ -14,6 +14,7 @@ sig
   type T
   val empty: string -> T
   val kind_of: T -> string
+  val defined_entry: T -> string -> bool
   val the_entry: T -> string ->
     {concealed: bool, group: serial option, theory_name: string, pos: Position.T, id: serial}
   val entry_ord: T -> string * string -> order
@@ -33,7 +34,6 @@ sig
   val hide: bool -> string -> T -> T
   val merge: T * T -> T
   type naming
-  val default_naming: naming
   val conceal: naming -> naming
   val get_group: naming -> serial option
   val set_group: serial option -> naming -> naming
@@ -45,20 +45,25 @@ sig
   val parent_path: naming -> naming
   val mandatory_path: string -> naming -> naming
   val qualified_path: bool -> binding -> naming -> naming
+  val default_naming: naming
+  val local_naming: naming
   val transform_binding: naming -> binding -> binding
   val full_name: naming -> binding -> string
-  val declare: Proof.context -> bool -> naming -> binding -> T -> string * T
+  val base_name: binding -> string
   val alias: naming -> binding -> string -> T -> T
+  val naming_of: Context.generic -> naming
+  val map_naming: (naming -> naming) -> Context.generic -> Context.generic
+  val declare: Context.generic -> bool -> binding -> T -> string * T
   type 'a table = T * 'a Symtab.table
-  val check: Proof.context -> 'a table -> xstring * Position.T -> string * 'a
+  val check: Context.generic -> 'a table -> xstring * Position.T -> string * 'a
   val get: 'a table -> string -> 'a
-  val define: Proof.context -> bool -> naming -> binding * 'a -> 'a table -> string * 'a table
+  val define: Context.generic -> bool -> binding * 'a -> 'a table -> string * 'a table
   val empty_table: string -> 'a table
   val merge_tables: 'a table * 'a table -> 'a table
   val join_tables: (string -> 'a * 'a -> 'a) (*Symtab.SAME*) ->
     'a table * 'a table -> 'a table
   val dest_table: Proof.context -> 'a table -> (string * 'a) list
-  val extern_table: Proof.context -> 'a table -> (xstring * 'a) list
+  val extern_table: Proof.context -> 'a table -> ((Markup.T * xstring) * 'a) list
 end;
 
 structure Name_Space: NAME_SPACE =
@@ -83,18 +88,14 @@ type entry =
   id: serial};
 
 fun entry_markup def kind (name, {pos, id, ...}: entry) =
-  let
-    val props =
-      if def then (Markup.defN, string_of_int id) :: Position.properties_of pos
-      else (Markup.refN, string_of_int id) :: Position.def_properties_of pos;
-  in Markup.properties props (Markup.entity kind name) end;
+  Markup.properties (Position.entity_properties_of def id pos) (Markup.entity kind name);
 
-fun print_entry def kind (name, entry) =
-  quote (Markup.markup (entry_markup def kind (name, entry)) name);
+fun print_entry_ref kind (name, entry) =
+  quote (Markup.markup (entry_markup false kind (name, entry)) name);
 
-fun err_dup kind entry1 entry2 =
+fun err_dup kind entry1 entry2 pos =
   error ("Duplicate " ^ kind ^ " declaration " ^
-    print_entry true kind entry1 ^ " vs. " ^ print_entry true kind entry2);
+    print_entry_ref kind entry1 ^ " vs. " ^ print_entry_ref kind entry2 ^ Position.here pos);
 
 fun undefined kind name = "Undefined " ^ kind ^ ": " ^ quote name;
 
@@ -121,6 +122,8 @@ fun empty kind = make_name_space (kind, Symtab.empty, Symtab.empty);
 
 fun kind_of (Name_Space {kind, ...}) = kind;
 
+fun defined_entry (Name_Space {entries, ...}) = Symtab.defined entries;
+
 fun the_entry (Name_Space {kind, entries, ...}) name =
   (case Symtab.lookup entries name of
     NONE => error ("Unknown " ^ kind ^ " " ^ quote name)
@@ -130,7 +133,7 @@ fun entry_ord space = int_ord o pairself (#id o the_entry space);
 
 fun markup (Name_Space {kind, entries, ...}) name =
   (case Symtab.lookup entries name of
-    NONE => Markup.hilite
+    NONE => Markup.intensify
   | SOME (_, entry) => entry_markup false kind (name, entry));
 
 fun is_concealed space name = #concealed (the_entry space name);
@@ -236,12 +239,12 @@ fun merge
     val entries' = (entries1, entries2) |> Symtab.join
       (fn name => fn ((_, entry1), (_, entry2)) =>
         if #id entry1 = #id entry2 then raise Symtab.SAME
-        else err_dup kind' (name, entry1) (name, entry2));
+        else err_dup kind' (name, entry1) (name, entry2) Position.none);
   in make_name_space (kind', internals', entries') end;
 
 
 
-(** naming contexts **)
+(** naming context **)
 
 (* datatype naming *)
 
@@ -260,8 +263,6 @@ fun map_naming f (Naming {conceal, group, theory_name, path}) =
 fun map_path f = map_naming (fn (conceal, group, theory_name, path) =>
   (conceal, group, theory_name, f path));
 
-
-val default_naming = make_naming (false, NONE, "", []);
 
 val conceal = map_naming (fn (_, group, theory_name, path) =>
   (true, group, theory_name, path));
@@ -285,6 +286,9 @@ fun mandatory_path elems = map_path (fn path => path @ [(elems, true)]);
 
 fun qualified_path mandatory binding = map_path (fn path =>
   path @ #2 (Binding.dest (Binding.qualified mandatory "" binding)));
+
+val default_naming = make_naming (false, NONE, "", []);
+val local_naming = default_naming |> add_path "local";
 
 
 (* full name *)
@@ -311,6 +315,8 @@ fun name_spec (naming as Naming {path, ...}) raw_binding =
 fun full_name naming =
   name_spec naming #> #2 #> map #1 #> Long_Name.implode;
 
+val base_name = full_name default_naming #> Long_Name.base_name;
+
 
 (* accesses *)
 
@@ -331,40 +337,6 @@ fun accesses naming binding =
   in pairself (map Long_Name.implode) (sfxs @ pfxs, sfxs) end;
 
 
-(* declaration *)
-
-fun new_entry strict (name, (externals, entry)) =
-  map_name_space (fn (kind, internals, entries) =>
-    let
-      val entries' =
-        (if strict then Symtab.update_new else Symtab.update) (name, (externals, entry)) entries
-          handle Symtab.DUP dup =>
-            err_dup kind (dup, #2 (the (Symtab.lookup entries dup))) (name, entry);
-    in (kind, internals, entries') end);
-
-fun declare ctxt strict naming binding space =
-  let
-    val Naming {group, theory_name, ...} = naming;
-    val (concealed, spec) = name_spec naming binding;
-    val (accs, accs') = accesses naming binding;
-
-    val name = Long_Name.implode (map fst spec);
-    val _ = name = "" andalso err_bad binding;
-
-    val pos = Position.default (Binding.pos_of binding);
-    val entry =
-     {concealed = concealed,
-      group = group,
-      theory_name = theory_name,
-      pos = pos,
-      id = serial ()};
-    val space' = space
-      |> fold (add_name name) accs
-      |> new_entry strict (name, (accs', entry));
-    val _ = Context_Position.report ctxt pos (entry_markup true (kind_of space) (name, entry));
-  in (name, space') end;
-
-
 (* alias *)
 
 fun alias naming binding name space =
@@ -383,15 +355,78 @@ fun alias naming binding name space =
 
 
 
-(** name space coupled with symbol table **)
+(** context naming **)
+
+structure Data_Args =
+struct
+  type T = naming;
+  val empty = default_naming;
+  fun extend _ = default_naming;
+  fun merge _ = default_naming;
+  fun init _ = local_naming;
+end;
+
+structure Global_Naming = Theory_Data(Data_Args);
+structure Local_Naming = Proof_Data(Data_Args);
+
+fun naming_of (Context.Theory thy) = Global_Naming.get thy
+  | naming_of (Context.Proof ctxt) = Local_Naming.get ctxt;
+
+fun map_naming f (Context.Theory thy) = Context.Theory (Global_Naming.map f thy)
+  | map_naming f (Context.Proof ctxt) = Context.Proof (Local_Naming.map f ctxt);
+
+
+
+(** entry definition **)
+
+(* declaration *)
+
+fun new_entry strict (name, (externals, entry)) =
+  map_name_space (fn (kind, internals, entries) =>
+    let
+      val entries' =
+        (if strict then Symtab.update_new else Symtab.update) (name, (externals, entry)) entries
+          handle Symtab.DUP dup =>
+            err_dup kind (dup, #2 (the (Symtab.lookup entries dup))) (name, entry) (#pos entry);
+    in (kind, internals, entries') end);
+
+fun declare context strict binding space =
+  let
+    val naming = naming_of context;
+    val Naming {group, theory_name, ...} = naming;
+    val (concealed, spec) = name_spec naming binding;
+    val (accs, accs') = accesses naming binding;
+
+    val name = Long_Name.implode (map fst spec);
+    val _ = name = "" andalso err_bad binding;
+
+    val (proper_pos, pos) = Position.default (Binding.pos_of binding);
+    val entry =
+     {concealed = concealed,
+      group = group,
+      theory_name = theory_name,
+      pos = pos,
+      id = serial ()};
+    val space' = space
+      |> fold (add_name name) accs
+      |> new_entry strict (name, (accs', entry));
+    val _ =
+      if proper_pos then
+        Context_Position.report_generic context pos
+          (entry_markup true (kind_of space) (name, entry))
+      else ();
+  in (name, space') end;
+
+
+(* definition in symbol table *)
 
 type 'a table = T * 'a Symtab.table;
 
-fun check ctxt (space, tab) (xname, pos) =
+fun check context (space, tab) (xname, pos) =
   let val name = intern space xname in
     (case Symtab.lookup tab name of
-      SOME x => (Context_Position.report ctxt pos (markup space name); (name, x))
-    | NONE => error (undefined (kind_of space) name ^ Position.str_of pos))
+      SOME x => (Context_Position.report_generic context pos (markup space name); (name, x))
+    | NONE => error (undefined (kind_of space) name ^ Position.here pos))
   end;
 
 fun get (space, tab) name =
@@ -399,8 +434,8 @@ fun get (space, tab) name =
     SOME x => x
   | NONE => error (undefined (kind_of space) name));
 
-fun define ctxt strict naming (binding, x) (space, tab) =
-  let val (name, space') = declare ctxt strict naming binding space
+fun define context strict (binding, x) (space, tab) =
+  let val (name, space') = declare context strict binding space
   in (name, (space', Symtab.update (name, x) tab)) end;
 
 fun empty_table kind = (empty kind, Symtab.empty);
@@ -415,8 +450,10 @@ fun ext_table ctxt (space, tab) =
   Symtab.fold (fn (name, x) => cons ((name, extern ctxt space name), x)) tab []
   |> Library.sort_wrt (#2 o #1);
 
-fun dest_table ctxt tab = map (apfst #1) (ext_table ctxt tab);
-fun extern_table ctxt tab = map (apfst #2) (ext_table ctxt tab);
+fun dest_table ctxt table = map (apfst #1) (ext_table ctxt table);
+
+fun extern_table ctxt (space, tab) =
+  map (fn ((name, xname), x) => ((markup space name, xname), x)) (ext_table ctxt (space, tab));
 
 end;
 

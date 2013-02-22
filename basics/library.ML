@@ -62,17 +62,11 @@ sig
   val the_single: 'a list -> 'a
   val singleton: ('a list -> 'b list) -> 'a -> 'b
   val yield_singleton: ('a list -> 'c -> 'b list * 'c) -> 'a -> 'c -> 'b * 'c
-  val apply: ('a -> 'a) list -> 'a -> 'a
   val perhaps_apply: ('a -> 'a option) list -> 'a -> 'a option
   val perhaps_loop: ('a -> 'a option) -> 'a -> 'a option
   val foldl1: ('a * 'a -> 'a) -> 'a list -> 'a
   val foldr1: ('a * 'a -> 'a) -> 'a list -> 'a
-  val flat: 'a list list -> 'a list
-  val unflat: 'a list list -> 'b list -> 'b list list
-  val burrow: ('a list -> 'b list) -> 'a list list -> 'b list list
-  val burrow_options: ('a list -> 'b list) -> 'a option list -> 'b option list
-  val burrow_fst: ('a list -> 'b list) -> ('a * 'c) list -> ('b * 'c) list
-  val fold_burrow: ('a list -> 'c -> 'b list * 'd) -> 'a list list -> 'c -> 'b list list * 'd
+  val eq_list: ('a * 'a -> bool) -> 'a list * 'a list -> bool
   val maps: ('a -> 'b list) -> 'a list -> 'b list
   val filter: ('a -> bool) -> 'a list -> 'a list
   val filter_out: ('a -> bool) -> 'a list -> 'a list
@@ -80,34 +74,40 @@ sig
   val take: int -> 'a list -> 'a list
   val drop: int -> 'a list -> 'a list
   val chop: int -> 'a list -> 'a list * 'a list
-  val chop_while: ('a -> bool) -> 'a list -> 'a list * 'a list
+  val chop_groups: int -> 'a list -> 'a list list
   val nth: 'a list -> int -> 'a
+  val nth_list: 'a list list -> int -> 'a list
   val nth_map: int -> ('a -> 'a) -> 'a list -> 'a list
   val nth_drop: int -> 'a list -> 'a list
-  val nth_list: 'a list list -> int -> 'a list
   val map_index: (int * 'a -> 'b) -> 'a list -> 'b list
   val fold_index: (int * 'a -> 'b -> 'b) -> 'a list -> 'b -> 'b
   val map_range: (int -> 'a) -> int -> 'a list
   val split_last: 'a list -> 'a list * 'a
-  val find_index: ('a -> bool) -> 'a list -> int
   val find_first: ('a -> bool) -> 'a list -> 'a option
-  val get_index: ('a -> 'b option) -> 'a list -> (int * 'b) option
+  val find_index: ('a -> bool) -> 'a list -> int
   val get_first: ('a -> 'b option) -> 'a list -> 'b option
-  val eq_list: ('a * 'a -> bool) -> 'a list * 'a list -> bool
+  val get_index: ('a -> 'b option) -> 'a list -> (int * 'b) option
+  val flat: 'a list list -> 'a list
+  val unflat: 'a list list -> 'b list -> 'b list list
+  val grouped: int -> (('a list -> 'b list) -> 'c list list -> 'd list list) ->
+    ('a -> 'b) -> 'c list -> 'd list
+  val burrow: ('a list -> 'b list) -> 'a list list -> 'b list list
+  val burrow_options: ('a list -> 'b list) -> 'a option list -> 'b option list
+  val fold_burrow: ('a list -> 'c -> 'b list * 'd) -> 'a list list -> 'c -> 'b list list * 'd
+  val separate: 'a -> 'a list -> 'a list
+  val surround: 'a -> 'a list -> 'a list
+  val replicate: int -> 'a -> 'a list
+  val map_product: ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
+  val fold_product: ('a -> 'b -> 'c -> 'c) -> 'a list -> 'b list -> 'c -> 'c
   val map2: ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
   val fold2: ('a -> 'b -> 'c -> 'c) -> 'a list -> 'b list -> 'c -> 'c
   val fold_rev2: ('a -> 'b -> 'c -> 'c) -> 'a list -> 'b list -> 'c -> 'c
   val forall2: ('a -> 'b -> bool) -> 'a list -> 'b list -> bool
+  val map_split: ('a -> 'b * 'c) -> 'a list -> 'b list * 'c list
   val zip_options: 'a list -> 'b option list -> ('a * 'b) list
   val ~~ : 'a list * 'b list -> ('a * 'b) list
-  val map_split: ('a -> 'b * 'c) -> 'a list -> 'b list * 'c list
   val split_list: ('a * 'b) list -> 'a list * 'b list
-  val map_product: ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
-  val fold_product: ('a -> 'b -> 'c -> 'c) -> 'a list -> 'b list -> 'c -> 'c
-  val map_transpose: ('a list -> 'b) -> 'a list list -> 'b list
-  val separate: 'a -> 'a list -> 'a list
-  val surround: 'a -> 'a list -> 'a list
-  val replicate: int -> 'a -> 'a list
+  val burrow_fst: ('a list -> 'b list) -> ('a * 'c) list -> ('b * 'c) list
   val is_prefix: ('a * 'a -> bool) -> 'a list -> 'a list -> bool
   val take_prefix: ('a -> bool) -> 'a list -> 'a list * 'a list
   val chop_prefix: ('a * 'b -> bool) -> 'a list * 'b list -> 'a list * ('a list * 'b list)
@@ -149,6 +149,7 @@ sig
   val suffix: string -> string -> string
   val unprefix: string -> string -> string
   val unsuffix: string -> string -> string
+  val trim_line: string -> string
   val replicate_string: int -> string -> string
   val translate_string: (string -> string) -> string -> string
   val match_string: string -> string -> bool
@@ -172,6 +173,7 @@ sig
   val distinct: ('a * 'a -> bool) -> 'a list -> 'a list
   val duplicates: ('a * 'a -> bool) -> 'a list -> 'a list
   val has_duplicates: ('a * 'a -> bool) -> 'a list -> bool
+  val map_transpose: ('a list -> 'b) -> 'a list list -> 'b list
 
   (*lists as multisets*)
   val remove1: ('b * 'a -> bool) -> 'b -> 'a list -> 'a list
@@ -202,8 +204,6 @@ sig
   exception RANDOM
   val random: unit -> real
   val random_range: int -> int -> int
-  val one_of: 'a list -> 'a
-  val frequency: (int * 'a) list -> 'a
 
   (*misc*)
   val divide_and_conquer: ('a -> 'a list * ('b list -> 'b)) -> 'a -> 'b
@@ -211,12 +211,11 @@ sig
     'a -> 'b -> 'c * 'b
   val partition_eq: ('a * 'a -> bool) -> 'a list -> 'a list list
   val partition_list: (int -> 'a -> bool) -> int -> int -> 'a list -> 'a list list
-  val legacy_gensym: string -> string
-  type stamp = unit Unsynchronized.ref
-  val stamp: unit -> stamp
   type serial = int
   val serial: unit -> serial
   val serial_string: unit -> string
+  eqtype stamp
+  val stamp: unit -> stamp
   structure Object: sig type T = exn end
   val cd: string -> unit
   val pwd: unit -> string
@@ -229,7 +228,6 @@ sig
   include BASIC_LIBRARY
   val foldl: ('a * 'b -> 'a) -> 'a * 'b list -> 'a
   val foldr: ('a * 'b -> 'b) -> 'a list * 'b -> 'b
-  val foldl_map: ('a * 'b -> 'a * 'c) -> 'a * 'b list -> 'a * 'c list
 end;
 
 structure Library: LIBRARY =
@@ -328,14 +326,11 @@ fun setmp_thread_data tag orig_data data f x =
 fun single x = [x];
 
 fun the_single [x] = x
-  | the_single _ = raise Empty;
+  | the_single _ = raise List.Empty;
 
 fun singleton f x = the_single (f [x]);
 
 fun yield_singleton f x = f [x] #>> the_single;
-
-fun apply [] x = x
-  | apply (f :: fs) x = apply fs (f x);
 
 fun perhaps_apply funs arg =
   let
@@ -375,26 +370,16 @@ fun foldr f (l, e) =
 
 (*  (op @) [x1, ..., xn]  ===>  ((x1 @ x2) @ x3) ... @ xn
     for operators that associate to the left (TAIL RECURSIVE)*)
-fun foldl1 f [] = raise Empty
+fun foldl1 f [] = raise List.Empty
   | foldl1 f (x :: xs) = foldl f (x, xs);
 
 (*  (op @) [x1, ..., xn]  ===>   x1 @ (x2 ... @ (x[n-1] @ xn))
     for n > 0, operators that associate to the right (not tail recursive)*)
-fun foldr1 f [] = raise Empty
+fun foldr1 f [] = raise List.Empty
   | foldr1 f l =
       let fun itr [x] = x
             | itr (x::l) = f(x, itr l)
       in  itr l  end;
-
-fun foldl_map f =
-  let
-    fun fold_aux (x, []) = (x, [])
-      | fold_aux (x, y :: ys) =
-          let
-            val (x', y') = f (x, y);
-            val (x'', ys') = fold_aux (x', ys);
-          in (x'', y' :: ys') end;
-  in fold_aux end;
 
 
 (* basic list functions *)
@@ -425,9 +410,11 @@ fun chop (0: int) xs = ([], xs)
   | chop _ [] = ([], [])
   | chop n (x :: xs) = chop (n - 1) xs |>> cons x;
 
-fun chop_while P [] = ([], [])
-  | chop_while P (ys as x :: xs) =
-      if P x then chop_while P xs |>> cons x else ([], ys);
+fun chop_groups n list =
+  (case chop (Int.max (n, 1)) list of
+    ([], _) => []
+  | (g, rest) => g :: chop_groups n rest);
+
 
 (*return nth element of a list, where 0 designates the first element;
   raise Subscript if list too short*)
@@ -461,18 +448,18 @@ fun map_range f i =
   in mapp 0 end;
 
 (*rear decomposition*)
-fun split_last [] = raise Empty
+fun split_last [] = raise List.Empty
   | split_last [x] = ([], x)
   | split_last (x :: xs) = apfst (cons x) (split_last xs);
+
+(*find first element satisfying predicate*)
+val find_first = List.find;
 
 (*find position of first element satisfying a predicate*)
 fun find_index pred =
   let fun find (_: int) [] = ~1
         | find n (x :: xs) = if pred x then n else find (n + 1) xs;
   in find 0 end;
-
-(*find first element satisfying predicate*)
-val find_first = List.find;
 
 (*get first element by lookup function*)
 fun get_first _ [] = NONE
@@ -485,9 +472,9 @@ fun get_index f =
   let
     fun get (_: int) [] = NONE
       | get i (x :: xs) =
-          case f x
-           of NONE => get (i + 1) xs
-            | SOME y => SOME (i, y)
+          (case f x of
+            NONE => get (i + 1) xs
+          | SOME y => SOME (i, y))
   in get 0 end;
 
 val flat = List.concat;
@@ -497,6 +484,8 @@ fun unflat (xs :: xss) ys =
       in ps :: unflat xss qs end
   | unflat [] [] = []
   | unflat _ _ = raise ListPair.UnequalLengths;
+
+fun grouped n comb f = chop_groups n #> comb (map f) #> flat;
 
 fun burrow f xss = unflat xss (f (flat xss));
 
@@ -677,9 +666,9 @@ fun read_radix_int radix cs =
     val limit = zero + radix;
     fun scan (num, []) = (num, [])
       | scan (num, c :: cs) =
-        if zero <= ord c andalso ord c < limit then
-          scan (radix * num + (ord c - zero), cs)
-        else (num, c :: cs);
+          if zero <= ord c andalso ord c < limit then
+            scan (radix * num + (ord c - zero), cs)
+          else (num, c :: cs);
   in scan (0, cs) end;
 
 val read_int = read_radix_int 10;
@@ -759,6 +748,8 @@ fun unprefix prfx s =
 fun unsuffix sffx s =
   if String.isSuffix sffx s then String.substring (s, 0, size s - size sffx)
   else raise Fail "unsuffix";
+
+val trim_line = perhaps (try (unsuffix "\n"));
 
 fun replicate_string (0: int) _ = ""
   | replicate_string 1 a = a
@@ -934,29 +925,55 @@ fun list_ord elem_ord (xs, ys) =
 
 (* sorting *)
 
-(*quicksort -- stable, i.e. does not reorder equal elements*)
-fun quicksort unique ord =
+(*stable mergesort -- preserves order of equal elements*)
+fun mergesort unique ord =
   let
-    fun qsort [] = []
-      | qsort (xs as [_]) = xs
-      | qsort (xs as [x, y]) =
+    fun merge (xs as x :: xs') (ys as y :: ys') =
           (case ord (x, y) of
-            LESS => xs
-          | EQUAL => if unique then [x] else xs
-          | GREATER => [y, x])
-      | qsort xs =
-          let val (lts, eqs, gts) = part (nth xs (length xs div 2)) xs
-          in qsort lts @ eqs @ qsort gts end
-    and part _ [] = ([], [], [])
-      | part pivot (x :: xs) = add (ord (x, pivot)) x (part pivot xs)
-    and add LESS x (lts, eqs, gts) = (x :: lts, eqs, gts)
-      | add EQUAL x (lts, [], gts) = (lts, [x], gts)
-      | add EQUAL x (res as (lts, eqs, gts)) = if unique then res else (lts, x :: eqs, gts)
-      | add GREATER x (lts, eqs, gts) = (lts, eqs, x :: gts);
-  in qsort end;
+            LESS => x :: merge xs' ys
+          | EQUAL =>
+              if unique then merge xs ys'
+              else x :: merge xs' ys
+          | GREATER => y :: merge xs ys')
+      | merge [] ys = ys
+      | merge xs [] = xs;
 
-fun sort ord = quicksort false ord;
-fun sort_distinct ord = quicksort true ord;
+    fun merge_all [xs] = xs
+      | merge_all xss = merge_all (merge_pairs xss)
+    and merge_pairs (xs :: ys :: xss) = merge xs ys :: merge_pairs xss
+      | merge_pairs xss = xss;
+
+    fun runs (x :: y :: xs) =
+          (case ord (x, y) of
+             LESS => ascending y [x] xs
+           | EQUAL =>
+               if unique then runs (x :: xs)
+               else ascending y [x] xs
+           | GREATER => descending y [x] xs)
+      | runs xs = [xs]
+
+    and ascending x xs (zs as y :: ys) =
+          (case ord (x, y) of
+             LESS => ascending y (x :: xs) ys
+           | EQUAL =>
+               if unique then ascending x xs ys
+               else ascending y (x :: xs) ys
+           | GREATER => rev (x :: xs) :: runs zs)
+      | ascending x xs [] = [rev (x :: xs)]
+
+    and descending x xs (zs as y :: ys) =
+          (case ord (x, y) of
+             GREATER => descending y (x :: xs) ys
+           | EQUAL =>
+               if unique then descending x xs ys
+               else (x :: xs) :: runs zs
+           | LESS => (x :: xs) :: runs zs)
+      | descending x xs [] = [x :: xs];
+
+  in merge_all o runs end;
+
+fun sort ord = mergesort false ord;
+fun sort_distinct ord = mergesort true ord;
 
 val sort_strings = sort string_ord;
 fun sort_wrt key xs = sort (string_ord o pairself key) xs;
@@ -1002,15 +1019,6 @@ fun random_range l h =
   if h < l orelse l < 0 then raise RANDOM
   else l + Real.floor (rmod (random ()) (real (h - l + 1)));
 
-fun one_of xs = nth xs (random_range 0 (length xs - 1));
-
-fun frequency xs =
-  let
-    val sum = foldl op + (0, map fst xs);
-    fun pick n ((k: int, x) :: xs) =
-      if n <= k then x else pick (n - k) xs
-  in pick (random_range 1 sum) xs end;
-
 
 
 (** misc **)
@@ -1047,35 +1055,14 @@ fun partition_eq (eq: 'a * 'a -> bool) =
   in part end;
 
 
-
-(* generating identifiers -- often fresh *)
-
-local
-(*Maps 0-61 to A-Z, a-z, 0-9; exclude _ or ' to avoid clash with internal/unusual indentifiers*)
-fun gensym_char i =
-  if i<26 then chr (ord "A" + i)
-  else if i<52 then chr (ord "a" + i - 26)
-  else chr (ord "0" + i - 52);
-
-val char_vec = Vector.tabulate (62, gensym_char);
-fun newid n = implode (map (fn i => Vector.sub (char_vec, i)) (radixpand (62, n)));
-
-val gensym_seed = Unsynchronized.ref (0: int);
-
-in
-  fun legacy_gensym pre =
-    pre ^ newid (NAMED_CRITICAL "legacy_gensym" (fn () => Unsynchronized.inc gensym_seed));
-end;
-
-
-(* stamps and serial numbers *)
-
-type stamp = unit Unsynchronized.ref;
-val stamp: unit -> stamp = Unsynchronized.ref;
+(* serial numbers and abstract stamps *)
 
 type serial = int;
 val serial = Multithreading.serial;
 val serial_string = string_of_int o serial;
+
+datatype stamp = Stamp of serial;
+fun stamp () = Stamp (serial ());
 
 
 (* generic objects *)
@@ -1108,4 +1095,3 @@ end;
 structure Basic_Library: BASIC_LIBRARY = Library;
 open Basic_Library;
 
-datatype legacy = UnequalLengths;

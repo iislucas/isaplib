@@ -26,9 +26,11 @@ sig
   val id_only: string -> T
   val get_id: T -> string option
   val put_id: string -> T -> T
+  val parse_id: T -> int option
   val of_properties: Properties.T -> T
   val properties_of: T -> Properties.T
   val def_properties_of: T -> Properties.T
+  val entity_properties_of: bool -> serial -> T -> Properties.T
   val default_properties: T -> Properties.T -> Properties.T
   val markup: T -> Markup.T -> Markup.T
   val is_reported: T -> bool
@@ -36,9 +38,12 @@ sig
   val report_text: T -> Markup.T -> string -> unit
   val report: T -> Markup.T -> unit
   type report = T * Markup.T
+  type report_text = report * string
+  val reports_text: report_text list -> unit
   val reports: report list -> unit
   val store_reports: report list Unsynchronized.ref -> T list -> ('a -> Markup.T list) -> 'a -> unit
-  val str_of: T -> string
+  val here: T -> string
+  val here_list: T list -> string
   type range = T * T
   val no_range: range
   val set_range: range -> T
@@ -46,7 +51,7 @@ sig
   val range: T -> T -> range
   val thread_data: unit -> T
   val setmp_thread_data: T -> ('a -> 'b) -> 'a -> 'b
-  val default: T -> T
+  val default: T -> bool * T
 end;
 
 structure Position: POSITION =
@@ -57,7 +62,8 @@ struct
 datatype T = Pos of (int * int * int) * Properties.T;
 
 fun norm_props (props: Properties.T) =
-  maps (fn a => the_list (find_first (fn (b, _) => a = b) props)) Markup.position_properties';
+  maps (fn a => the_list (find_first (fn (b, _) => a = b) props))
+    Markup.position_properties';
 
 fun make {line = i, offset = j, end_offset = k, props} = Pos ((i, j, k), norm_props props);
 fun dest (Pos ((i, j, k), props)) = {line = i, offset = j, end_offset = k, props = props};
@@ -118,6 +124,8 @@ fun id_only id = Pos ((0, 0, 0), [(Markup.idN, id)]);
 fun get_id (Pos (_, props)) = Properties.get props Markup.idN;
 fun put_id id (Pos (count, props)) = Pos (count, Properties.put (Markup.idN, id) props);
 
+fun parse_id pos = Option.map Markup.parse_int (get_id pos);
+
 
 (* markup properties *)
 
@@ -126,19 +134,23 @@ fun of_properties props =
     fun get name =
       (case Properties.get props name of
         NONE => 0
-      | SOME s => the_default 0 (Int.fromString s));
+      | SOME s => Markup.parse_int s);
   in
     make {line = get Markup.lineN, offset = get Markup.offsetN,
       end_offset = get Markup.end_offsetN, props = props}
   end;
 
 
-fun value k i = if valid i then [(k, string_of_int i)] else [];
+fun value k i = if valid i then [(k, Markup.print_int i)] else [];
 
 fun properties_of (Pos ((i, j, k), props)) =
   value Markup.lineN i @ value Markup.offsetN j @ value Markup.end_offsetN k @ props;
 
 val def_properties_of = properties_of #> (map (fn (x, y) => ("def_" ^ x, y)));
+
+fun entity_properties_of def id pos =
+  if def then (Markup.defN, Markup.print_int id) :: properties_of pos
+  else (Markup.refN, Markup.print_int id) :: def_properties_of pos;
 
 fun default_properties default props =
   if exists (member (op =) Markup.position_properties o #1) props then props
@@ -156,10 +168,13 @@ fun report_text pos markup txt = Output.report (reported_text pos markup txt);
 fun report pos markup = report_text pos markup "";
 
 type report = T * Markup.T;
+type report_text = report * string;
 
-val reports =
-  map (fn (pos, m) => if is_reported pos then Markup.markup_only (markup pos m) else "")
+val reports_text =
+  map (fn ((pos, m), txt) => if is_reported pos then Markup.markup (markup pos m) txt else "")
   #> implode #> Output.report;
+
+val reports = map (rpair "") #> reports_text;
 
 fun store_reports _ [] _ _ = ()
   | store_reports (r: report list Unsynchronized.ref) ps markup x =
@@ -167,21 +182,23 @@ fun store_reports _ [] _ _ = ()
       in Unsynchronized.change r (fold (fn p => fold (fn m => cons (p, m)) ms) ps) end;
 
 
-(* str_of *)
+(* here: inlined formal markup *)
 
-fun str_of pos =
+fun here pos =
   let
     val props = properties_of pos;
     val s =
       (case (line_of pos, file_of pos) of
-        (SOME i, NONE) => "(line " ^ string_of_int i ^ ")"
-      | (SOME i, SOME name) => "(line " ^ string_of_int i ^ " of " ^ quote name ^ ")"
+        (SOME i, NONE) => "(line " ^ Markup.print_int i ^ ")"
+      | (SOME i, SOME name) => "(line " ^ Markup.print_int i ^ " of " ^ quote name ^ ")"
       | (NONE, SOME name) => "(file " ^ quote name ^ ")"
       | _ => "");
   in
     if null props then ""
     else (if s = "" then "" else " ") ^ Markup.markup (Markup.properties props Markup.position) s
   end;
+
+val here_list = space_implode " " o map here;
 
 
 (* range *)
@@ -207,7 +224,7 @@ fun setmp_thread_data pos = Library.setmp_thread_data tag (thread_data ()) pos;
 end;
 
 fun default pos =
-  if pos = none then thread_data ()
-  else pos;
+  if pos = none then (false, thread_data ())
+  else (true, pos);
 
 end;

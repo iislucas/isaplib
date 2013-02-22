@@ -16,28 +16,29 @@ sig
   val str_of_group: group -> string
   val str_of_groups: group -> string
   type task
-  val dummy_task: unit -> task
+  val dummy_task: task
   val group_of_task: task -> group
   val name_of_task: task -> string
   val pri_of_task: task -> int
   val str_of_task: task -> string
   val str_of_task_groups: task -> string
-  val timing_of_task: task -> Time.time * Time.time * string list
+  val task_statistics: task -> Properties.T
   val running: task -> (unit -> 'a) -> 'a
   val joining: task -> (unit -> 'a) -> 'a
   val waiting: task -> task list -> (unit -> 'a) -> 'a
   type queue
   val empty: queue
+  val group_tasks: queue -> group -> task list
   val known_task: queue -> task -> bool
   val all_passive: queue -> bool
   val status: queue -> {ready: int, pending: int, running: int, passive: int}
-  val cancel: queue -> group -> task list * Thread.thread list
+  val cancel: queue -> group -> Thread.thread list
   val cancel_all: queue -> group list * Thread.thread list
   val finish: task -> queue -> bool * queue
   val enqueue_passive: group -> (unit -> bool) -> queue -> task * queue
   val enqueue: string -> group -> task list -> int -> (bool -> bool) -> queue -> task * queue
   val extend: task -> (bool -> bool) -> queue -> queue option
-  val dequeue_passive: Thread.thread -> task -> queue -> bool * queue
+  val dequeue_passive: Thread.thread -> task -> queue -> bool option * queue
   val dequeue: Thread.thread -> queue -> (task * (bool -> bool) list) option * queue
   val dequeue_deps: Thread.thread -> task list -> queue ->
     (((task * (bool -> bool) list) option * task list) * queue)
@@ -102,22 +103,28 @@ end;
 
 type timing = Time.time * Time.time * string list;  (*run, wait, wait dependencies*)
 
+val timing_start = (Time.zeroTime, Time.zeroTime, []): timing;
+
 fun new_timing () =
-  Synchronized.var "timing" ((Time.zeroTime, Time.zeroTime, []): timing);
+  if ! Multithreading.trace < 2 then NONE
+  else SOME (Synchronized.var "timing" timing_start);
 
 abstype task = Task of
  {group: group,
   name: string,
   id: int,
   pri: int option,
-  timing: timing Synchronized.var}
+  timing: timing Synchronized.var option,
+  pos: Position.T}
 with
 
-fun dummy_task () =
-  Task {group = new_group NONE, name = "", id = 0, pri = NONE, timing = new_timing ()};
+val dummy_task =
+  Task {group = new_group NONE, name = "", id = 0, pri = NONE, timing = NONE,
+    pos = Position.none};
 
 fun new_task group name pri =
-  Task {group = group, name = name, id = new_id (), pri = pri, timing = new_timing ()};
+  Task {group = group, name = name, id = new_id (), pri = pri, timing = new_timing (),
+    pos = Position.thread_data ()};
 
 fun group_of_task (Task {group, ...}) = group;
 fun name_of_task (Task {name, ...}) = name;
@@ -128,19 +135,29 @@ fun str_of_task (Task {name, id, ...}) =
 
 fun str_of_task_groups task = str_of_task task ^ " in " ^ str_of_groups (group_of_task task);
 
-fun timing_of_task (Task {timing, ...}) = Synchronized.value timing;
-
 fun update_timing update (Task {timing, ...}) e =
   uninterruptible (fn restore_attributes => fn () =>
     let
       val start = Time.now ();
       val result = Exn.capture (restore_attributes e) ();
       val t = Time.- (Time.now (), start);
-      val _ = Synchronized.change timing (update t);
+      val _ = (case timing of NONE => () | SOME var => Synchronized.change var (update t));
     in Exn.release result end) ();
 
 fun task_ord (Task {id = id1, pri = pri1, ...}, Task {id = id2, pri = pri2, ...}) =
   prod_ord (rev_order o option_ord int_ord) int_ord ((pri1, id1), (pri2, id2));
+
+fun task_statistics (Task {name, id, timing, pos, ...}) =
+  let
+    val (run, wait, wait_deps) =
+      (case timing of NONE => timing_start | SOME var => Synchronized.value var);
+    fun micros time = string_of_int (Time.toNanoseconds time div 1000);
+  in
+    [("now", signed_string_of_real (Time.toReal (Time.now ()))),
+     ("task_name", name), ("task_id", Markup.print_int id),
+     ("run", micros run), ("wait", micros wait), ("wait_deps", commas wait_deps)] @
+    Position.properties_of pos
+  end;
 
 end;
 
@@ -206,6 +223,7 @@ datatype queue = Queue of {groups: groups, jobs: jobs};
 fun make_queue groups jobs = Queue {groups = groups, jobs = jobs};
 val empty = make_queue Inttab.empty Task_Graph.empty;
 
+fun group_tasks (Queue {groups, ...}) group = Tasks.keys (get_tasks groups (group_id group));
 fun known_task (Queue {jobs, ...}) task = can (Task_Graph.get_entry jobs) task;
 
 
@@ -250,12 +268,9 @@ fun cancel (Queue {groups, jobs}) group =
   let
     val _ = cancel_group group Exn.Interrupt;
     val running =
-      Tasks.fold (fn (task, _) => fn (tasks, threads) =>
-          (case get_job jobs task of
-            Running thread => (task :: tasks, insert Thread.equal thread threads)
-          | Passive _ => (task :: tasks, threads)
-          | _ => (tasks, threads)))
-        (get_tasks groups (group_id group)) ([], []);
+      Tasks.fold (fn (task, _) =>
+          (case get_job jobs task of Running thread => insert Thread.equal thread | _ => I))
+        (get_tasks groups (group_id group)) [];
   in running end;
 
 fun cancel_all (Queue {jobs, ...}) =
@@ -314,8 +329,9 @@ fun dequeue_passive thread task (queue as Queue {groups, jobs}) =
   (case try (get_job jobs) task of
     SOME (Passive _) =>
       let val jobs' = set_job task (Running thread) jobs
-      in (true, make_queue groups jobs') end
-  | _ => (false, queue));
+      in (SOME true, make_queue groups jobs') end
+  | SOME _ => (SOME false, queue)
+  | NONE => (NONE, queue));
 
 fun dequeue thread (queue as Queue {groups, jobs}) =
   (case Task_Graph.get_first (uncurry ready_job) jobs of
@@ -336,7 +352,7 @@ fun dequeue_deps thread deps (queue as Queue {groups, jobs}) =
           | SOME (_, entry) =>
               (case ready_job task entry of
                 NONE => ready tasks (task :: rest)
-              | some => (some, List.revAppend (rest, tasks))));
+              | some => (some, fold cons rest tasks)));
 
     fun ready_dep _ [] = NONE
       | ready_dep seen (task :: tasks) =

@@ -3,7 +3,7 @@
     Author:     Stefan Berghofer
     Author:     Makarius
 
-Untyped XML trees and basic data representation.
+Untyped XML trees and representation of ML values.
 *)
 
 signature XML_DATA_OPS =
@@ -28,12 +28,13 @@ end;
 
 signature XML =
 sig
-  type attributes = Properties.T
+  type attributes = (string * string) list
   datatype tree =
-      Elem of Markup.T * tree list
+      Elem of (string * attributes) * tree list
     | Text of string
-    | CData of string
   type body = tree list
+  val wrap_elem: ((string * attributes) * tree list) * tree list -> tree
+  val unwrap_elem: tree -> (((string * attributes) * tree list) * tree list) option
   val add_content: tree -> Buffer.T -> Buffer.T
   val content_of: body -> string
   val header: string
@@ -48,7 +49,6 @@ sig
   val parse_element: string list -> tree * string list
   val parse_document: string list -> tree * string list
   val parse: string -> tree
-  val cache: unit -> tree -> tree
   exception XML_ATOM of string
   exception XML_BODY of body
   structure Encode: XML_DATA_OPS
@@ -60,18 +60,39 @@ struct
 
 (** XML trees **)
 
-type attributes = Properties.T;
+type attributes = (string * string) list;
 
 datatype tree =
-    Elem of Markup.T * tree list
-  | Text of string
-  | CData of string;
+    Elem of (string * attributes) * tree list
+  | Text of string;
 
 type body = tree list;
 
-fun add_content (Elem (_, ts)) = fold add_content ts
-  | add_content (Text s) = Buffer.add s
-  | add_content (CData s) = Buffer.add s;
+
+(* wrapped elements *)
+
+val xml_elemN = "xml_elem";
+val xml_nameN = "xml_name";
+val xml_bodyN = "xml_body";
+
+fun wrap_elem (((a, atts), body1), body2) =
+  Elem ((xml_elemN, (xml_nameN, a) :: atts), Elem ((xml_bodyN, []), body1) :: body2);
+
+fun unwrap_elem (Elem ((name, (n, a) :: atts), Elem ((name', atts'), body1) :: body2)) =
+      if name = xml_elemN andalso n = xml_nameN andalso name' = xml_bodyN andalso null atts'
+      then SOME (((a, atts), body1), body2) else NONE
+  | unwrap_elem _ = NONE;
+
+
+(* text context *)
+
+fun add_content tree =
+  (case unwrap_elem tree of
+    SOME (_, ts) => fold add_content ts
+  | NONE =>
+      (case tree of
+        Elem (_, ts) => fold add_content ts
+      | Text s => Buffer.add s));
 
 fun content_of body = Buffer.empty |> fold add_content body |> Buffer.content;
 
@@ -128,8 +149,6 @@ fun buffer_of depth tree =
           traverse_body d ts #>
           Buffer.add "</" #> Buffer.add name #> Buffer.add ">"
       | traverse _ (Text s) = Buffer.add (text s)
-      | traverse _ (CData s) = Buffer.add "<![CDATA[" #> Buffer.add (text s) #>
-          Buffer.add "]]>"
     and traverse_body 0 _ = Buffer.add "..."
       | traverse_body d ts = fold (traverse (d - 1)) ts;
   in Buffer.empty |> traverse depth tree end;
@@ -151,8 +170,12 @@ fun err msg (xs, _) =
 
 fun ignored _ = [];
 
+fun name_start_char c = Symbol.is_ascii_letter c orelse c = ":" orelse c = "_";
+fun name_char c = name_start_char c orelse Symbol.is_ascii_digit c orelse c = "-" orelse c = ".";
+val parse_name = Scan.one name_start_char ::: Scan.many name_char;
+
 val blanks = Scan.many Symbol.is_blank;
-val special = $$ "&" ^^ Symbol.scan_id ^^ $$ ";" >> decode;
+val special = $$ "&" ^^ (parse_name >> implode) ^^ $$ ";" >> decode;
 val regular = Scan.one Symbol.is_regular;
 fun regular_except x = Scan.one (fn c => Symbol.is_regular c andalso c <> x);
 
@@ -164,7 +187,7 @@ val parse_cdata =
   Scan.this_string "]]>";
 
 val parse_att =
-  (Symbol.scan_id --| (blanks -- $$ "=" -- blanks)) --
+  ((parse_name >> implode) --| (blanks -- $$ "=" -- blanks)) --
   (($$ "\"" || $$ "'") :|-- (fn s =>
     (Scan.repeat (special || regular_except s) >> implode) --| $$ s));
 
@@ -190,10 +213,6 @@ val parse_misc =
 
 val parse_optional_text =
   Scan.optional (parse_chars >> (single o Text)) [];
-
-fun name_start_char c = Symbol.is_ascii_letter c orelse c = ":" orelse c = "_";
-fun name_char c = name_start_char c orelse Symbol.is_ascii_digit c orelse c = "-" orelse c = ".";
-val parse_name = Scan.one name_start_char ::: Scan.many name_char;
 
 in
 
@@ -229,57 +248,9 @@ fun parse s =
   (case Scan.finite Symbol.stopper (Scan.error (!! (err (fn () => "Malformed element"))
       (blanks |-- parse_document --| blanks))) (raw_explode s) of
     (x, []) => x
-  | (_, ys) => error ("XML parsing error: Unprocessed input\n" ^ Symbol.beginning 100 ys));
+  | (_, ys) => error ("XML parsing error: unprocessed input\n" ^ Symbol.beginning 100 ys));
 
 end;
-
-
-(** cache for substructural sharing **)
-
-fun tree_ord tu =
-  if pointer_eq tu then EQUAL
-  else
-    (case tu of
-      (Text _, Elem _) => LESS
-    | (Elem _, Text _) => GREATER
-    | (Text _, CData _) => GREATER
-    | (CData _, Text _) => LESS
-    | (Elem _, CData _) => GREATER
-    | (CData _, Elem _) => LESS
-    | (CData s, CData s') => fast_string_ord (s, s')
-    | (Text s, Text s') => fast_string_ord (s, s')
-    | (Elem e, Elem e') =>
-        prod_ord
-          (prod_ord fast_string_ord (list_ord (prod_ord fast_string_ord fast_string_ord)))
-          (list_ord tree_ord) (e, e'));
-
-structure Treetab = Table(type key = tree val ord = tree_ord);
-
-fun cache () =
-  let
-    val strings = Unsynchronized.ref (Symtab.empty: unit Symtab.table);
-    val trees = Unsynchronized.ref (Treetab.empty: unit Treetab.table);
-
-    fun string s =
-      if size s <= 1 then s
-      else
-        (case Symtab.lookup (! strings) s of
-          SOME _ => s
-        | NONE => (Unsynchronized.change strings (Symtab.update (s, ())); s));
-
-    fun tree t =
-      (case Treetab.lookup (! trees) t of
-        SOME _ => t
-      | NONE =>
-          let
-            val t' =
-              (case t of
-                Elem ((a, ps), b) => Elem ((string a, map (pairself string) ps), map tree b)
-              | Text s => Text (string s)
-              | CData s => CData (string s));
-            val _ = Unsynchronized.change trees (Treetab.update (t', ()));
-          in t' end);
-  in tree end;
 
 
 
@@ -338,7 +309,8 @@ fun list f xs = map (node o f) xs;
 fun option _ NONE = []
   | option f (SOME x) = [node (f x)];
 
-fun variant fs x = [tagged (the (get_index (fn f => try f x) fs))];
+fun variant fs x =
+  [tagged (the (get_index (fn f => SOME (f x) handle General.Match => NONE) fs))];
 
 end;
 
@@ -371,8 +343,7 @@ fun node (Elem ((":", []), ts)) = ts
   | node t = raise XML_BODY [t];
 
 fun vector atts =
-  #1 (fold_map (fn (a, x) =>
-        fn i => if int_atom a = i then (x, i + 1) else raise XML_ATOM a) atts 0);
+  map_index (fn (i, (a, x)) => if int_atom a = i then x else raise XML_ATOM a) atts;
 
 fun tagged (Elem ((name, atts), ts)) = (int_atom name, (vector atts, ts))
   | tagged t = raise XML_BODY [t];
