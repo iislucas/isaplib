@@ -88,7 +88,7 @@ PolyML.Project.make "Concurrent/ROOT.ML";
 (*MJB: simplification of the future calls.
 It needs to be made here to use Synchronized and Future at the same time*)
 PolyML.Project.make "General/stopwatch.ML";
-PolyML.Project.make "Concurrent/simple_future.ML";
+PolyML.Project.make "Concurrent/future_wrapper.ML";
 PolyML.Project.make "Concurrent/par_seq.ML";
 PolyML.Project.make "Concurrent/compactor.ML";
 PolyML.Project.make "Concurrent/par_tree.ML";

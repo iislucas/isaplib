@@ -16,7 +16,7 @@ although usually approximately 3 seconds. I have put a few comments in Poly's gc
 of a Garbage Collector. Note that the times reported by threads are themselves in the seconds, so it is not a sequential part of the test
 that is slowing them down (at least as far as I can see).
 *)
-structure MJB_Futures_Memory_Test =
+structure Test_FuturesMemory =
 struct
   (*Some helper functions*)
   

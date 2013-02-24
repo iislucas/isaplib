@@ -2,16 +2,15 @@
 (partially lazy) tree!
 As always, the speed tests are in a separate structure*)
 local
-  open MJB_Par_Seq_Speed_Test.Help; (*Useful list functions*)
+  open Test_ParallelSeqSpeed.Help; (*Useful list functions*)
   (*************************************************)
   (****************CORRECTNESS TESTS****************)
   (*************************************************)
   
   (*Some fake future data*)
-  fun fd() = MJB_Simple_Future.new_future_data NONE;
+  fun fd() = Future_Wrapper.new_future_data NONE;
   (*For simpler reference*)
-  structure Par_Tree = MJB_Par_Tree;
-  structure Compactor = MJB_Compactor;
+  structure Par_Tree = Parallel_Tree;
     
   (*This datatype allows me to construct trees manually. A function will then take trees
   of this type, and construct a function which produces the given tree*)
@@ -146,9 +145,9 @@ local
   (*Test the future data...*)
   val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
     let
-      val fd = MJB_Simple_Future.new_future_data (SOME "Hello world")
+      val fd = Future_Wrapper.new_future_data (SOME "Hello world")
       val par_tree = Par_Tree.new fd;
-      val _ = if ((MJB_Simple_Future.get_message (Par_Tree.get_future_data par_tree))=(SOME "Hello world")) then () else
+      val _ = if ((Future_Wrapper.get_message (Par_Tree.get_future_data par_tree))=(SOME "Hello world")) then () else
               raise ERROR "Par_Tree: failed future data setting";
     in
       ()
@@ -497,17 +496,15 @@ in
   val _ = Testing.assert_no_failed_tests();
   val _ = "UNIT TESTS FOR PARALLEL TREE PASSED!"
   
-  structure MJB_Par_Tree_Speed_Test =
+  structure Test_ParallelTreeSpeed =
   struct
-    structure Par_Tree = MJB_Par_Tree;
-    structure Compactor = MJB_Compactor;
-    structure Stopwatch = MJB_Stopwatch;
-    structure Future = MJB_Simple_Future;
+    structure Par_Tree = Parallel_Tree;
+    structure Future = Future_Wrapper;
+    structure File = SimpleFileIO;
     
     (*A structure for handling the file used during testing*)
     structure File_Aux =
     struct
-      structure File = MJB_File;
       (*The default file to use*)
       val file = Unsynchronized.ref "../../isaplib/Concurrent/test/par_tree-results.txt";
       (*Open the file and be ready to append it...*)

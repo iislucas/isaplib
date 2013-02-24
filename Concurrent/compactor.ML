@@ -20,7 +20,7 @@ Dynamic: you specify how long any group of functions should take, and the
 There are a number of additional parameters and settings to enable you to try and optimise
 its performance.
 *)
-signature MJB_COMPACTOR =
+signature COMPACTOR =
 sig
   (*This exception is raised whenever you use a compactor incorrectly.
   (It will not be raised due to a fault in the compactor itself)*)
@@ -262,9 +262,8 @@ This memory is not synchronised on for speed, so it is possible that two functio
 to this memory at once. It will attempt to handle any exceptions caused by "giving up" on writing.
 This is MUCH more efficient than attempting to obtain a lock through, for example, Future.guarded_access.
 *)
-structure MJB_Compactor :> MJB_COMPACTOR =
+structure Compactor :> COMPACTOR =
 struct
-  structure Stopwatch = MJB_Stopwatch; (*Used for timing groups*)
   
   (*This exception is raised whenever you use a compactor incorrectly.
   (It will not be raised due to a fault in the compactor itself)*)

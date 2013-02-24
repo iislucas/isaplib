@@ -3,8 +3,6 @@ local
   (****************CORRECTNESS TESTS****************)
   (*************************************************)
   
-  structure Compactor = MJB_Compactor;
-  
   (*Test setting the group size in a static compactor*)
   val _ = Testing.test "Compactor: static group size set test" (fn () =>
     let
@@ -464,17 +462,14 @@ in
   (*These are held in an additional structure since they should not be run at
   compile time*)
   
-  structure MJB_Compactor_Speed_Test =
+  structure Test_CompactorSpeed =
   struct
-    structure Par_Seq = MJB_Safe_Parallel_Seq;
-    structure Stopwatch = MJB_Stopwatch;
-    structure Future = MJB_Simple_Future;
-    structure Compactor = MJB_Compactor;
-    
+    structure Par_Seq = Safe_Parallel_Seq;
+    structure Future = Future_Wrapper;
+    structure File = SimpleFileIO;
     (*A structure for handling the file used during testing*)
     structure File_Aux =
     struct
-      structure File = MJB_File;
       (*The default file to use*)
       val file = Unsynchronized.ref "../../isaplib/Concurrent/test/compactor-results.txt";
       (*Open the file and be ready to append it...*)
@@ -509,7 +504,7 @@ in
         )
     end;
     
-    structure Help = MJB_Par_Seq_Speed_Test.Help;
+    structure Help = Test_ParallelSeqSpeed.Help;
     
     (*Tests for the compactor are quite complicated. There are several predifined
     lists within the tests to demonstrate its performance (lists of lengths and
