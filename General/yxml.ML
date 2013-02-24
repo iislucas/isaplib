@@ -21,9 +21,9 @@ sig
   val embed_controls: string -> string
   val detect: string -> bool
   val output_markup: Markup.T -> string * string
-  val element: string -> XML.attributes -> string list -> string
   val string_of_body: XML.body -> string
   val string_of: XML.tree -> string
+  val output_markup_elem: Markup.T -> (string * string) * string
   val parse_body: string -> XML.body
   val parse: string -> XML.tree
 end;
@@ -62,15 +62,9 @@ fun output_markup (markup as (name, atts)) =
   if Markup.is_empty markup then Markup.no_output
   else (XY ^ name ^ implode (map (fn (a, x) => Y ^ a ^ "=" ^ x) atts) ^ X, XYX);
 
-fun element name atts body =
-  let val (pre, post) = output_markup (name, atts)
-  in pre ^ implode body ^ post end;
-
 fun string_of_body body =
   let
-    fun attrib (a, x) =
-      Buffer.add Y #>
-      Buffer.add a #> Buffer.add "=" #> Buffer.add x;
+    fun attrib (a, x) = Buffer.add Y #> Buffer.add a #> Buffer.add "=" #> Buffer.add x;
     fun tree (XML.Elem ((name, atts), ts)) =
           Buffer.add XY #> Buffer.add name #> fold attrib atts #> Buffer.add X #>
           trees ts #>
@@ -80,6 +74,16 @@ fun string_of_body body =
   in Buffer.empty |> trees body |> Buffer.content end;
 
 val string_of = string_of_body o single;
+
+
+(* wrapped elements *)
+
+val Z = chr 0;
+val Z_text = [XML.Text Z];
+
+fun output_markup_elem markup =
+  let val [bg1, bg2, en] = space_explode Z (string_of (XML.wrap_elem ((markup, Z_text), Z_text)))
+  in ((bg1, bg2), en) end;
 
 
 
@@ -99,7 +103,7 @@ val split_string =
 
 (* structural errors *)
 
-fun err msg = raise Fail ("Malformed YXML encoding: " ^ msg);
+fun err msg = raise Fail ("Malformed YXML: " ^ msg);
 fun err_attribute () = err "bad attribute";
 fun err_element () = err "bad element";
 fun err_unbalanced "" = err "unbalanced element"

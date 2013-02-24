@@ -1,8 +1,8 @@
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *) 
-(*  unification data  *) 
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-==-=-=-=-=-=-=-=-=-=- *)
+(*  unification data  *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-(* FIXME/TODO: name/move this file somewhere more appropriate. This has more to 
-   do with unification. *) 
+(* FIXME/TODO: name/move this file somewhere more appropriate. This has more to
+   do with unification. *)
 signature ORD_DATA
 = sig
   type data
@@ -12,7 +12,7 @@ signature ORD_DATA
   val data_eq : data * data -> bool
 end;
 
-signature BASIC_SUBST = 
+signature BASIC_SUBST =
 sig
   type subst (* substitution within data *)
   val empty_subst : subst
@@ -22,10 +22,10 @@ sig
   val print_subst : subst -> unit
 end;
 
-signature UNIFIABLE_DATA_SHARING 
-= sig 
-  type data 
-  type subst 
+signature UNIFIABLE_DATA_SHARING
+= sig
+  type data
+  type subst
 end;
 
 signature UNIFIABLE_DATA
@@ -46,9 +46,9 @@ end;
 functor IgnoredUnifiableData(
   structure S : BASIC_SUBST
   structure D : ORD_DATA
-  val default_data : D.data) 
+  val default_data : D.data)
 : UNIFIABLE_DATA
-= 
+=
 struct
   open D;
   open S;
@@ -72,12 +72,12 @@ sig
   sharing InjEndo.Dom = InjEndo.Cod
   sharing Map.Dom = InjEndo.Dom
   sharing Map.Cod = InjEndo.Dom
-  
-  (* it would be nice to have a syntax for 'this' structure, 
-     save myself the lines below... I guess resolving recursion would need a little thought. 
-     This issue is a bit deeper really: we need a language to specify 
-     signatures and their relations sensibly. 
-  
+
+  (* it would be nice to have a syntax for 'this' structure,
+     save myself the lines below... I guess resolving recursion would need a little thought.
+     This issue is a bit deeper really: we need a language to specify
+     signatures and their relations sensibly.
+
      Below is essentially: "this.NAME_SHARING = Map.Dom"
   *)
   sharing type name = Map.Dom.name;
@@ -102,14 +102,14 @@ sig
 end;
 
 (* string based names with maps and inj endos *)
-signature SSTR_NAME_AND_MAPS 
+signature SSTR_NAME_AND_MAPS
 = sig
   include SSTR_NAME
   structure Map : NAME_MAP;
   structure InjEndo : NAME_INJENDO;
-  sharing InjEndo.Dom = InjEndo.Cod
-  sharing Map.Dom = InjEndo.Dom
-  sharing Map.Cod = InjEndo.Dom
+  sharing InjEndo.Dom.Sharing = InjEndo.Cod.Sharing
+  sharing Map.Dom.Sharing = InjEndo.Dom.Sharing
+  sharing Map.Cod.Sharing = InjEndo.Dom.Sharing
   sharing Sharing = Map.Dom.Sharing;
 end;
 
@@ -117,7 +117,7 @@ signature NAME_AND_DATA
 = sig
   include SSTR_NAME_AND_MAPS
   include ORD_DATA
-  structure SharingWithData : NAME_AND_DATA_SHARING 
+  structure SharingWithData : NAME_AND_DATA_SHARING
   where type data = data
   sharing Sharing = SharingWithData;
   (* TODO: push Map and InjEndo into names? generally very useful *)
@@ -127,7 +127,7 @@ end;
 
 
 
-structure UnitSubst : BASIC_SUBST = 
+structure UnitSubst : BASIC_SUBST =
 struct
   type subst = unit (* substitution within data *)
   val empty_subst = ()
@@ -138,15 +138,15 @@ end;
 
 
 
-(* 
-PolyML Bug: very srange location of error message! 
+(*
+PolyML Bug: very srange location of error message!
 
 signature NAME_AND_UNIFIABLE_DATA
 = sig
   include SSTR_NAME_AND_MAPS
   include UNIFIABLE_DATA
   val default_data : data
-  structure SharingWithData : NAME_AND_UNIFIABLE_DATA_SHARING 
+  structure SharingWithData : NAME_AND_UNIFIABLE_DATA_SHARING
     where type data = data and type subst = subst
   structure SharingWithoutData : UNIFIABLE_DATA_NAME_SHARING
     sharing SharingWithoutData = SharingWithData; (* note NOT symmetric *)

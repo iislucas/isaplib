@@ -51,7 +51,7 @@ fun check_elem (chs as []) = err_elem "Illegal" chs
   | check_elem (chs as ["~"]) = err_elem "Illegal" chs
   | check_elem (chs as ["~", "~"]) = err_elem "Illegal" chs
   | check_elem chs =
-      (case inter (op =) ["/", "\\", ":"] chs of
+      (case inter (op =) ["/", "\\", "$", ":", "\"", "'"] chs of
         [] => chs
       | bads => err_elem ("Illegal character(s) " ^ commas_quote bads ^ " in") chs);
 
@@ -127,7 +127,7 @@ end;
 local
 
 fun explode_elem ".." = Parent
-  | explode_elem "~" = Variable "HOME"
+  | explode_elem "~" = Variable "USER_HOME"
   | explode_elem "~~" = Variable "ISABELLE_HOME"
   | explode_elem s =
       (case raw_explode s of
@@ -179,13 +179,18 @@ val split_ext = split_path (fn (prfx, s) => apfst (append prfx)
 
 (* expand variables *)
 
-fun eval (Variable s) = rep (explode_path (getenv_strict s))
+fun eval (Variable s) =
+      let val path = explode_path (getenv_strict s) in
+        if exists (fn Variable _ => true | _ => false) (rep path) then
+          error ("Illegal path variable nesting: " ^ s ^ "=" ^ print path)
+        else rep path
+      end
   | eval x = [x];
 
 val expand = rep #> maps eval #> norm #> Path;
 
 
-(* source position -- with smart replacement ISABELLE_HOME *)
+(* source position -- with smart replacement of ISABELLE_HOME *)
 
 val isabelle_home = explode_path "~~";
 

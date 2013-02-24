@@ -1,9 +1,9 @@
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  Title:      names.ML
     Author:     Lucas Dixon
                 lucas.dixon@ed.ac.uk
                 30 May 2008                                            *)
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  DESCRIPTION:
 
 Names + renaming for them
@@ -13,14 +13,14 @@ change it. But! you also don't want another renaming, call it "m"
 *not* to result in renaming "m" to "n". So you need both an avoid set
 as well as a ignore set. "n" gets added to the ignore set as well as
 the avoid set, thus "m" doesn't clobber "n" and all future occurances
-of "n" are ignored. 
+of "n" are ignored.
 
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
 (* Types within a NAME structure, to ease writing of sharing constraints *)
-signature NAME_SHARING = 
-sig 
+signature NAME_SHARING =
+sig
   type name
   type 'a table
   type nset
@@ -43,14 +43,15 @@ signature NAME
   sharing NTab.NSet = NSet;
 
   structure Tab : TABLE;
-  sharing NTab.Tab = Tab;
+  sharing type NTab.Tab.table = Tab.table;
+  sharing type NTab.Tab.key = Tab.key;
 
-  structure Rnm : RENAMING 
+  structure Rnm : RENAMING
   where type 'a nmap = 'a NTab.T
-  and type name = name 
-  and type nset = NSet.T 
+  and type name = name
+  and type nset = NSet.T
 
-  sharing type NTab.renaming = Rnm.T 
+  sharing type NTab.renaming = Rnm.T
   sharing type NSet.renaming = Rnm.T;
 
   val default_name : name
@@ -65,10 +66,10 @@ signature NAME
 
   val empty_renaming : renaming (* avoid these names *)
   val mk_renaming : NSet.T  (* ignore these *)
-                    -> NSet.T (* avoid these names *) 
+                    -> NSet.T (* avoid these names *)
                     -> name NTab.T (* Use this renaming map *)
                     -> renaming
-  val renaming_of_avoidset 
+  val renaming_of_avoidset
       : NSet.T (* avoid these names *)
         -> renaming
 
@@ -88,7 +89,7 @@ signature NAME
   val union_avoids_to_renaming : NSet.T -> renaming -> renaming
   (* ignores are auto also added to avoids *)
   val union_ignores_to_renaming : NSet.T -> renaming -> renaming
-  
+
   (* gets from renamings *)
   val newnames_of_renaming : renaming -> NSet.T
   val ignored_of_renaming : renaming -> NSet.T
@@ -99,7 +100,7 @@ signature NAME
   val print_renaming : renaming -> unit
 
 
-  (** types which want to be shared **) 
+  (** types which want to be shared **)
   structure Sharing : NAME_SHARING
   where type name = name
     and type 'a table = 'a Tab.table
@@ -109,8 +110,8 @@ signature NAME
 
   (* where type nmap = nmap *) (* note compound type; cannot use sharing *)
 
-(*   sharing type Rnm.name = name 
-  sharing type Rnm.nset = NSet.T 
+(*   sharing type Rnm.name = name
+  sharing type Rnm.nset = NSet.T
 *)
 
 end;
@@ -128,14 +129,14 @@ val dest : name -> src
 end;
 
 functor NameFun(
-  structure Namer : NAMER 
+  structure Namer : NAMER
   val default_name : Namer.name
 ) : NAME
 = struct
   (* create basic names *)
-  structure Nm : BASIC_NAME = 
+  structure Nm : BASIC_NAME =
     BasicNameFun(
-      structure Namer = Namer 
+      structure Namer = Namer
       val default_name = default_name);
 
   open Nm;
@@ -143,7 +144,7 @@ functor NameFun(
   structure Rnm = RenamingFun(Nm);
   structure NSet = NameSetFun(Nm);
   structure NTab = NameTabFun(Nm);
-  
+
   type renaming = Rnm.T
   val empty_renaming = Rnm.empty;
   val mk_renaming = Rnm.mk;
@@ -152,8 +153,8 @@ functor NameFun(
   val rename1 = Rnm.rename1;
   val try_compose_rename1 = Rnm.try_compose_rename1;
 
-  val union_ignores_to_renaming = Rnm.union_ignores; 
-  val union_avoids_to_renaming = Rnm.union_avoids; 
+  val union_ignores_to_renaming = Rnm.union_ignores;
+  val union_avoids_to_renaming = Rnm.union_avoids;
 
   val newnames_of_renaming = Rnm.get_newnames;
   val ignored_of_renaming = Rnm.get_ignored;
@@ -163,8 +164,8 @@ functor NameFun(
   val pretty_renaming = Rnm.pretty;
   val print_renaming = Rnm.print;
 
-  (** types which want to be shared **) 
-  structure Sharing = struct 
+  (** types which want to be shared **)
+  structure Sharing = struct
     type name = name
     type 'a table = 'a Tab.table
     type nset = NSet.T
@@ -175,23 +176,23 @@ functor NameFun(
 
 (* FIXME: respect depth properly; don't print out all things in set, just depth number of them. *)
   (* PolyML pretty print names *)
-  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value => 
+  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value =>
             ml_pretty (Pretty.to_ML (Nm.pretty_name value)));
-  
+
   (* pretty print name sets *)
-  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value => 
+  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value =>
             ml_pretty (Pretty.to_ML (NSet.pretty value)));
-  
+
   (* pretty name tables *)
-  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value => 
-          let fun pretty_f a = (Pretty.from_ML o pretty_ml o printArgTypes)  
+  val _ = PolyML.addPrettyPrinter (fn depth => fn printArgTypes => fn value =>
+          let fun pretty_f a = (Pretty.from_ML o pretty_ml o printArgTypes)
                                   (a,depth - 1)
-          in  
-            value |> NTab.list_of 
-                  |> map (fn (n,a) => 
-                     Pretty.block [Nm.pretty_name n, 
+          in
+            value |> NTab.list_of
+                  |> map (fn (n,a) =>
+                     Pretty.block [Nm.pretty_name n,
                                    Pretty.str "=>", pretty_f a])
-                  |> Pretty.list "{" "}" 
+                  |> Pretty.list "{" "}"
                   |> Pretty.to_ML |> ml_pretty
           end);
 
@@ -206,8 +207,8 @@ functor AddDataNameFun(
   val default_name : data * Nm.name
 )
 : NAME
-= struct 
-  structure Namer2 = 
+= struct
+  structure Namer2 =
     AddDataNamerFun(
       structure N = Nm.Namer;
       type data = data

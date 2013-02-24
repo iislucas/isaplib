@@ -20,7 +20,6 @@ sig
   val content_of: token -> string
   val check_content_of: token -> string
   val flatten: token list -> string
-  val report_token: token -> unit
   val keywords: string list
   val source: (Symbol.symbol, 'a) Source.source ->
     (token, (Symbol_Pos.T, Position.T * (Symbol.symbol, 'a) Source.source)
@@ -83,7 +82,7 @@ fun warn tok =
     Token (_, (Keyword, ":>")) =>
       warning ("Opaque signature matching (:>) fails to work with ML pretty printing --\n\
         \prefer non-opaque matching (:) possibly with abstype" ^
-        Position.str_of (pos_of tok))
+        Position.here (pos_of tok))
   | _ => ());
 
 fun check_content_of tok =
@@ -105,28 +104,30 @@ val flatten = implode o flatten_content;
 local
 
 val token_kind_markup =
- fn Keyword   => Markup.ML_keyword
-  | Ident     => Markup.ML_ident
-  | LongIdent => Markup.ML_ident
-  | TypeVar   => Markup.ML_tvar
-  | Word      => Markup.ML_numeral
-  | Int       => Markup.ML_numeral
-  | Real      => Markup.ML_numeral
-  | Char      => Markup.ML_char
-  | String    => Markup.ML_string
-  | Space     => Markup.empty
-  | Comment   => Markup.ML_comment
-  | Error _   => Markup.ML_malformed
-  | EOF       => Markup.empty;
+ fn Keyword   => (Markup.ML_keyword, "")
+  | Ident     => (Markup.empty, "")
+  | LongIdent => (Markup.empty, "")
+  | TypeVar   => (Markup.ML_tvar, "")
+  | Word      => (Markup.ML_numeral, "")
+  | Int       => (Markup.ML_numeral, "")
+  | Real      => (Markup.ML_numeral, "")
+  | Char      => (Markup.ML_char, "")
+  | String    => (Markup.ML_string, "")
+  | Space     => (Markup.empty, "")
+  | Comment   => (Markup.ML_comment, "")
+  | Error msg => (Markup.bad, msg)
+  | EOF       => (Markup.empty, "");
 
 fun token_markup kind x =
   if kind = Keyword andalso exists_string (not o Symbol.is_ascii_letter) x
-  then Markup.ML_delimiter
+  then (Markup.ML_delimiter, "")
   else token_kind_markup kind;
 
 in
 
-fun report_token (Token ((pos, _), (kind, x))) = Position.report pos (token_markup kind x);
+fun report_of_token (Token ((pos, _), (kind, x))) =
+  let val (markup, txt) = token_markup kind x
+  in ((pos, markup), txt) end;
 
 end;
 
@@ -136,7 +137,7 @@ end;
 
 open Basic_Symbol_Pos;
 
-fun !!! msg = Symbol_Pos.!!! ("SML lexical error: " ^ msg);
+fun !!! msg = Symbol_Pos.!!! (fn () => "SML lexical error: " ^ msg);
 
 
 (* blanks *)
@@ -236,9 +237,15 @@ in
 val scan_char =
   $$$ "#" @@@ $$$ "\"" @@@ scan_gaps @@@ scan_str @@@ scan_gaps @@@ $$$ "\"";
 
+val recover_char =
+  $$$ "#" @@@ $$$ "\"" @@@ scan_gaps @@@ Scan.optional (Scan.permissive scan_str @@@ scan_gaps) [];
+
 val scan_string =
   $$$ "\"" @@@ !!! "missing quote at end of string"
     ((Scan.repeat (scan_gap || scan_str) >> flat) @@@ $$$ "\"");
+
+val recover_string =
+  $$$ "\"" @@@ (Scan.repeat (scan_gap || Scan.permissive scan_str) >> flat);
 
 end;
 
@@ -266,8 +273,11 @@ val scan_ml =
 val scan_antiq = Antiquote.scan || scan_ml >> Antiquote.Text;
 
 fun recover msg =
-  Scan.many (((not o Symbol.is_blank) andf Symbol.is_regular) o Symbol_Pos.symbol)
-  >> (fn cs => [token (Error msg) cs]);
+ (recover_char ||
+  recover_string ||
+  Symbol_Pos.recover_comment ||
+  Scan.one (Symbol.not_eof o Symbol_Pos.symbol) >> single)
+  >> (single o token (Error msg));
 
 in
 
@@ -293,11 +303,11 @@ fun read pos txt =
         |> Source.source Symbol_Pos.stopper (Scan.bulk (!!! "bad input" scan_antiq))
           (SOME (false, fn msg => recover msg >> map Antiquote.Text))
         |> Source.exhaust
-        |> tap (List.app (Antiquote.report report_token))
+        |> tap (Position.reports_text o Antiquote.reports_of (single o report_of_token))
         |> tap Antiquote.check_nesting
         |> tap (List.app (fn Antiquote.Text tok => (check_content_of tok; warn tok) | _ => ())))
       handle ERROR msg =>
-        cat_error msg ("The error(s) above occurred in ML source" ^ Position.str_of pos);
+        cat_error msg ("The error(s) above occurred in ML source" ^ Position.here pos);
   in input @ termination end;
 
 end;

@@ -3,11 +3,11 @@
 ML_BASIC_SRC_FILES = $(shell find basics/ General/ project/ | grep ".ML$$")
 ML_NAMES_SRC_FILES = $(shell find names/ | grep ".ML$$")
 ML_GRAPH_SRC_FILES = $(shell find graph/ | grep ".ML$$")
+ML_UNIF_SRC_FILES = $(shell find unif/ | grep ".ML$$")
 ML_SEARCH_SRC_FILES = $(shell find search/ | grep ".ML$$")
 ML_PARSER_SRC_FILES = $(shell find parser/ | grep ".ML$$")
 ML_SYSTEM_FILES = $(shell find ML-Systems/ | grep ".ML$$")
-ML_ALL_FILES= ROOT.ML $(ML_SYSTEM_FILES) $(ML_PARSER_SRC_FILES) $(ML_GRAPH_SRC_FILES) $(ML_NAMES_SRC_FILES) $(ML_BASIC_SRC_FILES)
-
+ML_ALL_FILES= ROOT.ML $(ML_SYSTEM_FILES) $(ML_PARSER_SRC_FILES) $(ML_GRAPH_SRC_FILES) $(ML_UNIF_SRC_FILES) $(ML_NAMES_SRC_FILES) $(ML_BASIC_SRC_FILES)
 
 POLYML=poly
 POLYML_SYSTEM_HEAP=polyml.polyml-heap

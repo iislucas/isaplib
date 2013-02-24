@@ -24,14 +24,15 @@ sig
   val ml_store_thms: string * thm list -> unit
   val ml_store_thm: string * thm -> unit
   type antiq = Proof.context -> (Proof.context -> string * string) * Proof.context
-  val add_antiq: string -> (Position.T -> antiq context_parser) -> unit
+  val add_antiq: binding -> (Position.T -> antiq context_parser) -> theory -> theory
+  val intern_antiq: theory -> xstring -> string
+  val defined_antiq: theory -> string -> bool
   val trace_raw: Config.raw
   val trace: bool Config.T
   val eval_antiquotes: ML_Lex.token Antiquote.antiquote list * Position.T ->
     Context.generic option -> (ML_Lex.token list * ML_Lex.token list) * Context.generic option
   val eval: bool -> Position.T -> ML_Lex.token Antiquote.antiquote list -> unit
   val eval_text: bool -> Position.T -> Symbol_Pos.text -> unit
-  val eval_file: Path.T -> unit
   val eval_in: Proof.context option -> bool -> Position.T ->
     ML_Lex.token Antiquote.antiquote list -> unit
   val eval_text_in: Proof.context option -> bool -> Position.T -> Symbol_Pos.text -> unit
@@ -99,29 +100,26 @@ fun bind_thms (name, thms) = ml_store_thms (name, map Drule.export_without_conte
 
 type antiq = Proof.context -> (Proof.context -> string * string) * Proof.context;
 
-local
+structure Antiq_Parsers = Theory_Data
+(
+  type T = (Position.T -> antiq context_parser) Name_Space.table;
+  val empty : T = Name_Space.empty_table Markup.ML_antiquotationN;
+  val extend = I;
+  fun merge data : T = Name_Space.merge_tables data;
+);
 
-val global_parsers =
-  Unsynchronized.ref (Symtab.empty: (Position.T -> antiq context_parser) Symtab.table);
+fun add_antiq name scan thy = thy
+  |> Antiq_Parsers.map (Name_Space.define (Context.Theory thy) true (name, scan) #> snd);
 
-in
-
-fun add_antiq name scan = CRITICAL (fn () =>
-  Unsynchronized.change global_parsers (fn tab =>
-   (if not (Symtab.defined tab name) then ()
-    else warning ("Redefined ML antiquotation: " ^ quote name);
-    Symtab.update (name, scan) tab)));
+val intern_antiq = Name_Space.intern o #1 o Antiq_Parsers.get;
+val defined_antiq = Symtab.defined o #2 o Antiq_Parsers.get;
 
 fun antiquotation src ctxt =
-  let val ((name, _), pos) = Args.dest_src src in
-    (case Symtab.lookup (! global_parsers) name of
-      NONE => error ("Unknown ML antiquotation command: " ^ quote name ^ Position.str_of pos)
-    | SOME scan =>
-       (Context_Position.report ctxt pos (Markup.ML_antiq name);
-        Args.context_syntax "ML antiquotation" (scan pos) src ctxt))
-  end;
-
-end;
+  let
+    val thy = Proof_Context.theory_of ctxt;
+    val ((xname, _), pos) = Args.dest_src src;
+    val (_, scan) = Name_Space.check (Context.Proof ctxt) (Antiq_Parsers.get thy) (xname, pos);
+  in Args.context_syntax Markup.ML_antiquotationN (scan pos) src ctxt end;
 
 
 (* parsing and evaluation *)
@@ -132,7 +130,11 @@ val antiq =
   Parse.!!! (Parse.position Parse.xname -- Args.parse --| Scan.ahead Parse.eof)
   >> (fn ((x, pos), y) => Args.src ((x, y), pos));
 
-val begin_env = ML_Lex.tokenize "structure Isabelle =\nstruct\n";
+val begin_env0 = ML_Lex.tokenize "structure Isabelle =\nstruct\n";
+val begin_env =
+  ML_Lex.tokenize
+    "structure Isabelle =\nstruct\nval ML_context = ML_Context.the_local_context ();\n";
+
 val end_env = ML_Lex.tokenize "end;";
 val reset_env = ML_Lex.tokenize "structure Isabelle = struct end";
 
@@ -143,12 +145,12 @@ fun eval_antiquotes (ants, pos) opt_context =
     val opt_ctxt = Option.map (Context.Proof o Context.proof_of) opt_context;
     val ((ml_env, ml_body), opt_ctxt') =
       if forall Antiquote.is_text ants
-      then (([], map (fn Antiquote.Text tok => tok) ants), opt_ctxt)
+      then ((begin_env0, map (fn Antiquote.Text tok => tok) ants), opt_ctxt)
       else
         let
           val ctxt =
             (case opt_ctxt of
-              NONE => error ("No context -- cannot expand ML antiquotations" ^ Position.str_of pos)
+              NONE => error ("No context -- cannot expand ML antiquotations" ^ Position.here pos)
             | SOME ctxt => Context.proof_of ctxt);
 
           val lex = #1 (Keyword.get_lexicons ());
@@ -169,9 +171,9 @@ fun eval_antiquotes (ants, pos) opt_context =
                 (no_decl, (Stack.pop scope, background));
 
           val (decls, (_, ctxt')) = fold_map expand ants (Stack.init ctxt, ctxt);
-          val ml = decls |> map (fn decl => decl ctxt') |> split_list |> pairself flat;
-        in (ml, SOME (Context.Proof ctxt')) end;
-  in ((begin_env @ ml_env @ end_env, ml_body), opt_ctxt') end;
+          val (ml_env, ml_body) = decls |> map (fn decl => decl ctxt') |> split_list |> pairself flat;
+        in ((begin_env @ ml_env, ml_body), SOME (Context.Proof ctxt')) end;
+  in ((ml_env @ end_env, ml_body), opt_ctxt') end;
 
 val trace_raw = Config.declare "ML_trace" (fn _ => Config.Bool false);
 val trace = Config.bool trace_raw;
@@ -206,7 +208,6 @@ end;
 (* derived versions *)
 
 fun eval_text verbose pos txt = eval verbose pos (ML_Lex.read pos txt);
-fun eval_file path = eval_text true (Path.position path) (File.read path);
 
 fun eval_in ctxt verbose pos ants =
   Context.setmp_thread_data (Option.map Context.Proof ctxt) (fn () => eval verbose pos ants) ();

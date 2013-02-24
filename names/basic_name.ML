@@ -1,6 +1,6 @@
-(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (*  DESCRIPTION:
-    Basic things you want from names... name tables, name sets, 
+    Basic things you want from names... name tables, name sets,
     and simple tables, default names, ordering and pretty printing
 *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
@@ -17,20 +17,21 @@ signature BASIC_NAME
   structure Namer : NAMER
   sharing type Namer.name = name
 
-  structure NTab : BASIC_NAME_TAB 
+  structure NTab : BASIC_NAME_TAB
   sharing type NTab.name = name;
 
   structure NSet : BASIC_NAME_SET
   sharing NTab.NSet = NSet;
 
   structure Tab : TABLE
-  sharing NTab.Tab = Tab;
+  sharing type NTab.Tab.table = Tab.table;
+  sharing type NTab.Tab.key = Tab.key;
 
 (*   type nmap = name NTab.T *)
-  structure Rnm : BASIC_RENAMING 
+  structure Rnm : BASIC_RENAMING
   where type 'a nmap = 'a NTab.T
-  and type name = name 
-  and type nset = NSet.T 
+  and type name = name
+  and type nset = NSet.T
 
   val default_name : name
   val pretty_name : name -> Pretty.T
@@ -41,7 +42,7 @@ signature BASIC_NAME
 end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
-functor BasicNameFun(structure Namer : NAMER 
+functor BasicNameFun(structure Namer : NAMER
                      val default_name : Namer.name)
 : BASIC_NAME
 = struct
@@ -52,7 +53,7 @@ val print_name = Pretty.writeln o pretty_name;
 val name_ord = Namer.ord;
 fun name_eq ab = case (name_ord ab) of EQUAL => true | _ => false;
 val default_name = default_name;
-structure Namer = Namer; 
+structure Namer = Namer;
 structure NSet = BasicNameSetFun(Namer);
 structure NTab = BasicNameTabFun(structure NSet = NSet and Namer = Namer);
 structure Tab = NTab.Tab;
@@ -62,7 +63,7 @@ end;
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* basic names: strings, integers, and pairs of strings and ints     *)
-(* 
+(*
 structure BasicStrName : BASIC_NAME where type name = string
 = BasicNameFun(structure Namer = StrNamer val default_name = "a");
 

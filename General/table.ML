@@ -55,6 +55,8 @@ sig
   val make_list: (key * 'a) list -> 'a list table
   val dest_list: 'a list table -> (key * 'a) list
   val merge_list: ('a * 'a -> bool) -> 'a list table * 'a list table -> 'a list table
+  type set = unit table
+  val make_set: key list -> set                                        (*exception DUP*)
 end;
 
 functor Table(Key: KEY): TABLE =
@@ -394,7 +396,14 @@ fun dest_list tab = maps (fn (key, xs) => map (pair key) xs) (dest tab);
 fun merge_list eq = join (fn _ => Library.merge eq);
 
 
-(* ML pretty-printing -- requires Poly/ML 5.3.0 or later *)
+(* unit tables *)
+
+type set = unit table;
+
+fun make_set entries = fold (fn x => update_new (x, ())) entries empty;
+
+
+(* ML pretty-printing *)
 
 val _ =
   PolyML.addPrettyPrinter (fn depth => fn pretty => fn tab =>

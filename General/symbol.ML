@@ -10,7 +10,6 @@ sig
   val STX: symbol
   val DEL: symbol
   val space: symbol
-  val spaces: int -> string
   val is_char: symbol -> bool
   val is_utf8: symbol -> bool
   val is_symbolic: symbol -> bool
@@ -31,10 +30,13 @@ sig
   val is_ascii_quasi: symbol -> bool
   val is_ascii_blank: symbol -> bool
   val is_ascii_control: symbol -> bool
+  val is_ascii_letdig: symbol -> bool
   val is_ascii_lower: symbol -> bool
   val is_ascii_upper: symbol -> bool
   val to_ascii_lower: symbol -> symbol
   val to_ascii_upper: symbol -> symbol
+  val is_ascii_identifier: string -> bool
+  val scan_ascii_id: string list -> string * string list
   val is_raw: symbol -> bool
   val decode_raw: symbol -> string
   val encode_raw: string -> string
@@ -44,20 +46,22 @@ sig
   val decode: symbol -> sym
   datatype kind = Letter | Digit | Quasi | Blank | Other
   val kind: symbol -> kind
+  val is_letter_symbol: symbol -> bool
   val is_letter: symbol -> bool
   val is_digit: symbol -> bool
   val is_quasi: symbol -> bool
   val is_blank: symbol -> bool
+  val is_block_ctrl: symbol -> bool
   val is_quasi_letter: symbol -> bool
   val is_letdig: symbol -> bool
-  val is_ident: symbol list -> bool
   val beginning: int -> symbol list -> string
-  val scanner: string -> (string list -> 'a * string list) -> symbol list -> 'a
-  val scan_id: string list -> string * string list
   val source: (string, 'a) Source.source -> (symbol, (string, 'a) Source.source) Source.source
   val explode: string -> symbol list
   val esc: symbol -> string
   val escape: string -> string
+  val scanner: string -> (string list -> 'a * string list) -> symbol list -> 'a
+  val split_words: symbol list -> string list
+  val explode_words: string -> string list
   val strip_blanks: string -> string
   val bump_init: string -> string
   val bump_string: string -> string
@@ -91,15 +95,6 @@ val DEL = chr 127;
 
 val space = chr 32;
 
-local
-  val small_spaces = Vector.tabulate (65, fn i => Library.replicate_string i space);
-in
-  fun spaces k =
-    if k < 64 then Vector.sub (small_spaces, k)
-    else Library.replicate_string (k div 64) (Vector.sub (small_spaces, 64)) ^
-      Vector.sub (small_spaces, k mod 64);
-end;
-
 fun is_char s = size s = 1;
 
 fun is_utf8 s = size s > 0 andalso forall_string (fn c => ord c >= 128) s;
@@ -124,7 +119,10 @@ fun is_sync s = s = sync;
 
 fun is_regular s = not_eof s andalso s <> sync;
 
-fun is_malformed s = String.isPrefix "\\<" s andalso not (String.isSuffix ">" s);
+fun is_malformed s =
+  String.isPrefix "\\<" s andalso not (String.isSuffix ">" s)
+  orelse s = "\\<>" orelse s = "\\<^>";
+
 fun malformed_msg s = "Malformed symbolic character: " ^ quote s;
 
 
@@ -156,18 +154,27 @@ val is_ascii_blank =
 
 fun is_ascii_control s = is_char s andalso ord s < 32 andalso not (is_ascii_blank s);
 
+fun is_ascii_letdig s = is_ascii_letter s orelse is_ascii_digit s orelse is_ascii_quasi s;
+
 fun is_ascii_lower s = is_char s andalso (ord "a" <= ord s andalso ord s <= ord "z");
 fun is_ascii_upper s = is_char s andalso (ord "A" <= ord s andalso ord s <= ord "Z");
 
 fun to_ascii_lower s = if is_ascii_upper s then chr (ord s + ord "a" - ord "A") else s;
 fun to_ascii_upper s = if is_ascii_lower s then chr (ord s + ord "A" - ord "a") else s;
 
+fun is_ascii_identifier s =
+  size s > 0 andalso is_ascii_letter (String.substring (s, 0, 1)) andalso
+  forall_string is_ascii_letdig s;
+
+val scan_ascii_id = Scan.one is_ascii_letter ^^ (Scan.many is_ascii_letdig >> implode);
+
 
 (* encode_raw *)
 
 fun raw_chr c =
-  ord space <= ord c andalso ord c <= ord "~" andalso c <> "." andalso c <> ">"
-  orelse ord c >= 128;
+  is_char c andalso
+    (ord space <= ord c andalso ord c <= ord "~" andalso c <> "." andalso c <> ">"
+      orelse ord c >= 128);
 
 fun encode_raw "" = ""
   | encode_raw str =
@@ -175,7 +182,7 @@ fun encode_raw "" = ""
         val raw0 = enclose "\\<^raw:" ">";
         val raw1 = raw0 o implode;
         val raw2 = enclose "\\<^raw" ">" o string_of_int o ord;
-    
+
         fun encode cs = enc (take_prefix raw_chr cs)
         and enc ([], []) = []
           | enc (cs, []) = [raw1 cs]
@@ -230,191 +237,180 @@ fun decode s =
 
 (* standard symbol kinds *)
 
+local
+  val letter_symbols =
+    Symtab.make_set [
+      "\\<A>",
+      "\\<B>",
+      "\\<C>",
+      "\\<D>",
+      "\\<E>",
+      "\\<F>",
+      "\\<G>",
+      "\\<H>",
+      "\\<I>",
+      "\\<J>",
+      "\\<K>",
+      "\\<L>",
+      "\\<M>",
+      "\\<N>",
+      "\\<O>",
+      "\\<P>",
+      "\\<Q>",
+      "\\<R>",
+      "\\<S>",
+      "\\<T>",
+      "\\<U>",
+      "\\<V>",
+      "\\<W>",
+      "\\<X>",
+      "\\<Y>",
+      "\\<Z>",
+      "\\<a>",
+      "\\<b>",
+      "\\<c>",
+      "\\<d>",
+      "\\<e>",
+      "\\<f>",
+      "\\<g>",
+      "\\<h>",
+      "\\<i>",
+      "\\<j>",
+      "\\<k>",
+      "\\<l>",
+      "\\<m>",
+      "\\<n>",
+      "\\<o>",
+      "\\<p>",
+      "\\<q>",
+      "\\<r>",
+      "\\<s>",
+      "\\<t>",
+      "\\<u>",
+      "\\<v>",
+      "\\<w>",
+      "\\<x>",
+      "\\<y>",
+      "\\<z>",
+      "\\<AA>",
+      "\\<BB>",
+      "\\<CC>",
+      "\\<DD>",
+      "\\<EE>",
+      "\\<FF>",
+      "\\<GG>",
+      "\\<HH>",
+      "\\<II>",
+      "\\<JJ>",
+      "\\<KK>",
+      "\\<LL>",
+      "\\<MM>",
+      "\\<NN>",
+      "\\<OO>",
+      "\\<PP>",
+      "\\<QQ>",
+      "\\<RR>",
+      "\\<SS>",
+      "\\<TT>",
+      "\\<UU>",
+      "\\<VV>",
+      "\\<WW>",
+      "\\<XX>",
+      "\\<YY>",
+      "\\<ZZ>",
+      "\\<aa>",
+      "\\<bb>",
+      "\\<cc>",
+      "\\<dd>",
+      "\\<ee>",
+      "\\<ff>",
+      "\\<gg>",
+      "\\<hh>",
+      "\\<ii>",
+      "\\<jj>",
+      "\\<kk>",
+      "\\<ll>",
+      "\\<mm>",
+      "\\<nn>",
+      "\\<oo>",
+      "\\<pp>",
+      "\\<qq>",
+      "\\<rr>",
+      "\\<ss>",
+      "\\<tt>",
+      "\\<uu>",
+      "\\<vv>",
+      "\\<ww>",
+      "\\<xx>",
+      "\\<yy>",
+      "\\<zz>",
+      "\\<alpha>",
+      "\\<beta>",
+      "\\<gamma>",
+      "\\<delta>",
+      "\\<epsilon>",
+      "\\<zeta>",
+      "\\<eta>",
+      "\\<theta>",
+      "\\<iota>",
+      "\\<kappa>",
+      (*"\\<lambda>", sic!*)
+      "\\<mu>",
+      "\\<nu>",
+      "\\<xi>",
+      "\\<pi>",
+      "\\<rho>",
+      "\\<sigma>",
+      "\\<tau>",
+      "\\<upsilon>",
+      "\\<phi>",
+      "\\<chi>",
+      "\\<psi>",
+      "\\<omega>",
+      "\\<Gamma>",
+      "\\<Delta>",
+      "\\<Theta>",
+      "\\<Lambda>",
+      "\\<Xi>",
+      "\\<Pi>",
+      "\\<Sigma>",
+      "\\<Upsilon>",
+      "\\<Phi>",
+      "\\<Psi>",
+      "\\<Omega>",
+      "\\<^isub>",
+      "\\<^isup>"
+    ];
+in
+
+val is_letter_symbol = Symtab.defined letter_symbols;
+
+end;
+
 datatype kind = Letter | Digit | Quasi | Blank | Other;
 
-local
-  val symbol_kinds = Symtab.make
-   [("\\<A>", Letter),
-    ("\\<B>", Letter),
-    ("\\<C>", Letter),
-    ("\\<D>", Letter),
-    ("\\<E>", Letter),
-    ("\\<F>", Letter),
-    ("\\<G>", Letter),
-    ("\\<H>", Letter),
-    ("\\<I>", Letter),
-    ("\\<J>", Letter),
-    ("\\<K>", Letter),
-    ("\\<L>", Letter),
-    ("\\<M>", Letter),
-    ("\\<N>", Letter),
-    ("\\<O>", Letter),
-    ("\\<P>", Letter),
-    ("\\<Q>", Letter),
-    ("\\<R>", Letter),
-    ("\\<S>", Letter),
-    ("\\<T>", Letter),
-    ("\\<U>", Letter),
-    ("\\<V>", Letter),
-    ("\\<W>", Letter),
-    ("\\<X>", Letter),
-    ("\\<Y>", Letter),
-    ("\\<Z>", Letter),
-    ("\\<a>", Letter),
-    ("\\<b>", Letter),
-    ("\\<c>", Letter),
-    ("\\<d>", Letter),
-    ("\\<e>", Letter),
-    ("\\<f>", Letter),
-    ("\\<g>", Letter),
-    ("\\<h>", Letter),
-    ("\\<i>", Letter),
-    ("\\<j>", Letter),
-    ("\\<k>", Letter),
-    ("\\<l>", Letter),
-    ("\\<m>", Letter),
-    ("\\<n>", Letter),
-    ("\\<o>", Letter),
-    ("\\<p>", Letter),
-    ("\\<q>", Letter),
-    ("\\<r>", Letter),
-    ("\\<s>", Letter),
-    ("\\<t>", Letter),
-    ("\\<u>", Letter),
-    ("\\<v>", Letter),
-    ("\\<w>", Letter),
-    ("\\<x>", Letter),
-    ("\\<y>", Letter),
-    ("\\<z>", Letter),
-    ("\\<AA>", Letter),
-    ("\\<BB>", Letter),
-    ("\\<CC>", Letter),
-    ("\\<DD>", Letter),
-    ("\\<EE>", Letter),
-    ("\\<FF>", Letter),
-    ("\\<GG>", Letter),
-    ("\\<HH>", Letter),
-    ("\\<II>", Letter),
-    ("\\<JJ>", Letter),
-    ("\\<KK>", Letter),
-    ("\\<LL>", Letter),
-    ("\\<MM>", Letter),
-    ("\\<NN>", Letter),
-    ("\\<OO>", Letter),
-    ("\\<PP>", Letter),
-    ("\\<QQ>", Letter),
-    ("\\<RR>", Letter),
-    ("\\<SS>", Letter),
-    ("\\<TT>", Letter),
-    ("\\<UU>", Letter),
-    ("\\<VV>", Letter),
-    ("\\<WW>", Letter),
-    ("\\<XX>", Letter),
-    ("\\<YY>", Letter),
-    ("\\<ZZ>", Letter),
-    ("\\<aa>", Letter),
-    ("\\<bb>", Letter),
-    ("\\<cc>", Letter),
-    ("\\<dd>", Letter),
-    ("\\<ee>", Letter),
-    ("\\<ff>", Letter),
-    ("\\<gg>", Letter),
-    ("\\<hh>", Letter),
-    ("\\<ii>", Letter),
-    ("\\<jj>", Letter),
-    ("\\<kk>", Letter),
-    ("\\<ll>", Letter),
-    ("\\<mm>", Letter),
-    ("\\<nn>", Letter),
-    ("\\<oo>", Letter),
-    ("\\<pp>", Letter),
-    ("\\<qq>", Letter),
-    ("\\<rr>", Letter),
-    ("\\<ss>", Letter),
-    ("\\<tt>", Letter),
-    ("\\<uu>", Letter),
-    ("\\<vv>", Letter),
-    ("\\<ww>", Letter),
-    ("\\<xx>", Letter),
-    ("\\<yy>", Letter),
-    ("\\<zz>", Letter),
-    ("\\<alpha>", Letter),
-    ("\\<beta>", Letter),
-    ("\\<gamma>", Letter),
-    ("\\<delta>", Letter),
-    ("\\<epsilon>", Letter),
-    ("\\<zeta>", Letter),
-    ("\\<eta>", Letter),
-    ("\\<theta>", Letter),
-    ("\\<iota>", Letter),
-    ("\\<kappa>", Letter),
-    ("\\<lambda>", Other),      (*sic!*)
-    ("\\<mu>", Letter),
-    ("\\<nu>", Letter),
-    ("\\<xi>", Letter),
-    ("\\<pi>", Letter),
-    ("\\<rho>", Letter),
-    ("\\<sigma>", Letter),
-    ("\\<tau>", Letter),
-    ("\\<upsilon>", Letter),
-    ("\\<phi>", Letter),
-    ("\\<chi>", Letter),
-    ("\\<psi>", Letter),
-    ("\\<omega>", Letter),
-    ("\\<Gamma>", Letter),
-    ("\\<Delta>", Letter),
-    ("\\<Theta>", Letter),
-    ("\\<Lambda>", Letter),
-    ("\\<Xi>", Letter),
-    ("\\<Pi>", Letter),
-    ("\\<Sigma>", Letter),
-    ("\\<Upsilon>", Letter),
-    ("\\<Phi>", Letter),
-    ("\\<Psi>", Letter),
-    ("\\<Omega>", Letter),
-    ("\\<^isub>", Letter),
-    ("\\<^isup>", Letter),
-    ("\\<spacespace>", Blank)];
-in
-  fun kind s =
-    if is_ascii_letter s then Letter
-    else if is_ascii_digit s then Digit
-    else if is_ascii_quasi s then Quasi
-    else if is_ascii_blank s then Blank
-    else if is_char s then Other
-    else the_default Other (Symtab.lookup symbol_kinds s);
-end;
+fun kind s =
+  if is_ascii_letter s then Letter
+  else if is_ascii_digit s then Digit
+  else if is_ascii_quasi s then Quasi
+  else if is_ascii_blank s then Blank
+  else if is_char s then Other
+  else if is_letter_symbol s then Letter
+  else Other;
 
 fun is_letter s = kind s = Letter;
 fun is_digit s = kind s = Digit;
 fun is_quasi s = kind s = Quasi;
 fun is_blank s = kind s = Blank;
 
+val is_block_ctrl = member (op =) ["\\<^bsub>", "\\<^esub>", "\\<^bsup>", "\\<^esup>"];
+
 fun is_quasi_letter s = let val k = kind s in k = Letter orelse k = Quasi end;
 fun is_letdig s = let val k = kind s in k = Letter orelse k = Digit orelse k = Quasi end;
-
-fun is_ident [] = false
-  | is_ident (c :: cs) = is_letter c andalso forall is_letdig cs;
 
 
 
 (** symbol input **)
-
-(* scanning through symbols *)
-
-fun scanner msg scan chs =
-  let
-    fun message (cs, NONE) = (fn () => msg ^ ": " ^ quote (beginning 10 cs))
-      | message (cs, SOME msg') = (fn () => msg ^ ", " ^ msg' () ^ ": " ^ quote (beginning 10 cs));
-    val fin_scan = Scan.error (Scan.finite stopper (!! message scan));
-  in
-    (case fin_scan chs of
-      (result, []) => result
-    | (_, rest) => error (message (rest, NONE) ()))
-  end;
-
-val scan_id = Scan.one is_letter ^^ (Scan.many is_letdig >> implode);
-
 
 (* source *)
 
@@ -441,9 +437,9 @@ val scan_total =
   Scan.one is_plain ||
   Scan.one is_utf8 ::: Scan.many is_utf8_trailer >> implode_pseudo_utf8 ||
   scan_encoded_newline ||
-  ($$ "\\" ^^ $$ "<" ^^ (($$ "^" ^^ (scan_raw || scan_id) || scan_id) ^^ $$ ">")) ||
-  Scan.this_string "\\<^" ||
-  Scan.this_string "\\<" ||
+  ($$ "\\" ^^ $$ "<" ^^
+    (($$ "^" ^^ Scan.optional (scan_raw || scan_ascii_id) "" || Scan.optional scan_ascii_id "") ^^
+      Scan.optional ($$ ">") "")) ||
   Scan.one not_eof;
 
 in
@@ -483,6 +479,34 @@ val esc = fn s =>
 val escape = implode o map esc o sym_explode;
 
 
+
+(** scanning through symbols **)
+
+(* scanner *)
+
+fun scanner msg scan syms =
+  let
+    fun message (ss, NONE) = (fn () => msg ^ ": " ^ quote (beginning 10 ss))
+      | message (ss, SOME msg') = (fn () => msg ^ ", " ^ msg' () ^ ": " ^ quote (beginning 10 ss));
+    val finite_scan = Scan.error (Scan.finite stopper (!! message scan));
+  in
+    (case finite_scan syms of
+      (result, []) => result
+    | (_, rest) => error (message (rest, NONE) ()))
+  end;
+
+
+(* space-separated words *)
+
+val scan_word =
+  Scan.many1 is_ascii_blank >> K NONE ||
+  Scan.many1 (fn s => not (is_ascii_blank s) andalso not_eof s) >> (SOME o implode);
+
+val split_words = scanner "Bad text" (Scan.repeat scan_word >> map_filter I);
+
+val explode_words = split_words o sym_explode;
+
+
 (* blanks *)
 
 fun strip_blanks s =
@@ -494,7 +518,8 @@ fun strip_blanks s =
 
 (* bump string -- treat as base 26 or base 1 numbers *)
 
-fun symbolic_end (_ :: "\\<^isub>" :: _) = true
+fun symbolic_end (_ :: "\\<^sub>" :: _) = true
+  | symbolic_end (_ :: "\\<^isub>" :: _) = true
   | symbolic_end (_ :: "\\<^isup>" :: _) = true
   | symbolic_end (s :: _) = is_symbolic s
   | symbolic_end [] = false;
@@ -526,7 +551,6 @@ fun sym_len s =
   if not (is_printable s) then (0: int)
   else if String.isPrefix "\\<long" s then 2
   else if String.isPrefix "\\<Long" s then 2
-  else if s = "\\<spacespace>" then 2
   else 1;
 
 fun sym_length ss = fold (fn s => fn n => sym_len s + n) ss 0;

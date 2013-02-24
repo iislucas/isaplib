@@ -2,6 +2,8 @@
 (* TODO: move to isaplib: this is generic. *)
 signature TESTING = 
 sig 
+  structure Log : LOG;
+
   type failure = { file: string option,
                    test: string,
                    id: int,
@@ -45,7 +47,7 @@ type failure = { file: string option,
                  err_exn : exn };
 
 
-structure Log = Log(val init_level = 0);
+structure Log = Log(val init_level = 1);
 
 val tests_failed_ref = Unsynchronized.ref ([] : failure list);
 val test_num_ref = Unsynchronized.ref 0;
@@ -58,12 +60,12 @@ fun test testname f x =
                           of NONE => ""
                            | SOME s => " from file '"^s^"'"
         fun run_test () = let val result = f x in
-          Log.log 0 (test_text^" succeeded"); result
+          Log.log 1 (test_text^" succeeded"); result
         end
     in 
       (* do something with the current compiler-file line number? 
         (for quick knowledfe of which test raised an exception...) *)
-      Log.log 0 ("Running test: " ^ test_desc ^ file_text);
+      Log.log 1 ("Running test: " ^ test_desc ^ file_text);
       ((SOME (PolyML.exception_trace run_test)) handle e => 
              (Log.log 0 (test_text ^" failed: "^ (PolyML.makestring e));
               tests_failed_ref := (
@@ -85,7 +87,7 @@ fun make_test path_to_file =
     if !run_tests_ref then PolyML.Project.make path_to_file else ();
 
 exception assertion_failed_exp of string;
-fun assert msg true = ()
+fun assert _   true = ()
   | assert msg false = raise assertion_failed_exp ("Assertion '" ^ msg ^ "' failed")
 fun fassert msg f x = assert msg (f x)
     

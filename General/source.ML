@@ -20,13 +20,15 @@ sig
   val of_string: string -> (string, string list) source
   val of_string_limited: int -> string -> (string, substring) source
   val tty: TextIO.instream -> (string, unit) source
-  val raw_stream: (string -> bool) -> TextIO.instream -> (string, unit) source
   val source': 'a -> 'b Scan.stopper -> ('a * 'b list -> 'c list * ('a * 'b list)) ->
     (bool * (string -> 'a * 'b list -> 'c list * ('a * 'b list))) option ->
     ('b, 'e) source -> ('c, 'a * ('b, 'e) source) source
   val source: 'a Scan.stopper -> ('a list -> 'b list * 'a list) ->
     (bool * (string -> 'a list -> 'b list * 'a list)) option ->
     ('a, 'd) source -> ('b, ('a, 'd) source) source
+  (* <+++ *)
+  val raw_stream: (string -> bool) -> TextIO.instream -> (string, unit) source
+  (* +++> *)
 end;
 
 structure Source: SOURCE =
@@ -139,6 +141,7 @@ fun tty in_stream = make_source [] () default_prompt (fn prompt => fn () =>
       | NONE => (input, ()))
   end);
 
+(* <+++ *)
 fun raw_stream flush_on in_stream = make_source [] () ""
   (fn prompt => fn () =>
   let val input = slurp_input in_stream in
@@ -148,6 +151,7 @@ fun raw_stream flush_on in_stream = make_source [] () ""
         SOME ch => (input @ [String.implode [ch]], ())
       | NONE => (input, ()))
   end);
+(* +++> *)
 
 (** cascade sources **)
 
