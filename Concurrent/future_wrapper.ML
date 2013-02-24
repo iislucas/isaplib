@@ -13,7 +13,7 @@ terminated as well.
 *)
 
 (*The signature for the library*)
-signature MJB_SIMPLE_FUTURE =
+signature FUTURE_WRAPPER =
 sig
 	(*The type of a synchronised variable*)
 	type 'a var
@@ -192,7 +192,7 @@ sig
   val get_future_id : future_data -> int list
 end;
 
-structure MJB_Simple_Future :> MJB_SIMPLE_FUTURE =
+structure Future_Wrapper :> FUTURE_WRAPPER =
 struct
 	(*For synchronized access to variables:*)
 	type 'a var = 'a Synchronized.var

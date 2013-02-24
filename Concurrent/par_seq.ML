@@ -16,7 +16,7 @@ implementation. Hence, a wrapper structure named Safe_Parallel_Seq was created, 
 issues surrounding the passing in of future data, and the setting of parameters within the sequence.
 ****************************************************************************************************
 *)
-signature MJB_PARALLEL_SEQ =
+signature PARALLEL_SEQ =
 sig
   (*An empty sequence exception. This is raised when you demand the head or
   tail of an empty sequence*)
@@ -41,7 +41,7 @@ sig
   because the functions you pass in are modified. Hence, passing in a function
   of the form (unit -> 'a * 'a seq) is not helpful because the returned 'a cannot
   be modified without evaluating the entire function.*)
-  val make : (MJB_Simple_Future.future_data -> 'a) (*An element to add to the sequence*)
+  val make : (Future_Wrapper.future_data -> 'a) (*An element to add to the sequence*)
     -> 'a pseq (*An existing sequence*)
     -> 'a pseq (*A new sequence, with the element attached to the front of the passed in sequence*)
   (*Create the empty sequence.*)
@@ -52,7 +52,7 @@ sig
   Pulling from the same sequence twice (to return exactly the same element)
   can be especially painful since further values in the sequence may be
   re-evaluated too!*)
-  val pull : MJB_Simple_Future.future_data -> 'a pseq -> param -> ('a * 'a pseq) option
+  val pull : Future_Wrapper.future_data -> 'a pseq -> param -> ('a * 'a pseq) option
   (*Attach an element to the front of the sequence*)
   val cons : 'a -> 'a pseq -> 'a pseq
   (*Create a sequence with a single element*)
@@ -65,7 +65,7 @@ sig
   Raises empty sequence exception if there is no head
   Calling this on a sequence more than once may force evaluation of the head
   multiple times (dependent on whether or not it has begun evaluation).*)
-  val hd : MJB_Simple_Future.future_data -> 'a pseq  -> param -> 'a
+  val hd : Future_Wrapper.future_data -> 'a pseq  -> param -> 'a
   (*Return the tail of the sequence
   Raises empty sequence exception if there is no tail
   As with hd, calling this multiple times may incur a penalty.
@@ -74,12 +74,12 @@ sig
   the element dropped will not be evaluated unnecessarily.*)
   val tl : 'a pseq -> 'a pseq
   (*Return a list of the first n elements (evaluated) paired with the rest*)
-  val chop : MJB_Simple_Future.future_data -> int -> 'a pseq -> param -> (('a list) * ('a pseq))
+  val chop : Future_Wrapper.future_data -> int -> 'a pseq -> param -> (('a list) * ('a pseq))
   (*Take the first n elements of the sequence. (Forget the rest)*)
   val take : int -> 'a pseq -> 'a pseq
   (*Convert the sequence to a list of values.
   WARNING: This forces evaluation of the entire sequence!!*)
-  val list_of : MJB_Simple_Future.future_data -> 'a pseq -> param -> 'a list
+  val list_of : Future_Wrapper.future_data -> 'a pseq -> param -> 'a list
   (*Convert a list back into a sequence.*)
   val of_list : 'a list -> 'a pseq
   (*Join two sequences together (first appears in front)*)
@@ -94,23 +94,23 @@ sig
   val interleave: 'a pseq * 'a pseq -> 'a pseq
   (*Filter the values in a sequence. This is still lazy to a point.
   (See implementation details)*)
-  val filter : MJB_Simple_Future.future_data -> ('a -> bool) -> 'a pseq -> param -> 'a pseq
+  val filter : Future_Wrapper.future_data -> ('a -> bool) -> 'a pseq -> param -> 'a pseq
   (*Flatten (concatenate) a sequence of sequences. This too maintains
   laziness across the sequence of sequences and in each individual sequence*)
-  val flat : MJB_Simple_Future.future_data -> 'a pseq pseq -> param -> 'a pseq
+  val flat : Future_Wrapper.future_data -> 'a pseq pseq -> param -> 'a pseq
   (*Maps a function which produces a sequence
   for every element in the original sequence. It automatically
   appends all of the results*)
-  val maps : MJB_Simple_Future.future_data -> ('a -> 'b pseq) -> 'a pseq -> param -> 'b pseq
+  val maps : Future_Wrapper.future_data -> ('a -> 'b pseq) -> 'a pseq -> param -> 'b pseq
   (*Maps a filter function over the sequence. If the filter returns
   none, the element is dropped. If the filter returns SOME b then
   b is attached to the sequence.*)
-  val map_filter : MJB_Simple_Future.future_data -> ('a -> 'b option) -> 'a pseq -> param -> 'b pseq
+  val map_filter : Future_Wrapper.future_data -> ('a -> 'b option) -> 'a pseq -> param -> 'b pseq
   (*Apply a function over the sequence. The second element
   is paired with this function for every single value*)
   val lift : ('a -> 'b -> 'c) -> 'a pseq -> 'b -> 'c pseq
   (*Similar to lift but appends the results of the function*)
-  val lifts : MJB_Simple_Future.future_data -> ('a -> 'b -> 'c pseq) -> 'a pseq -> 'b -> param -> 'c pseq
+  val lifts : Future_Wrapper.future_data -> ('a -> 'b -> 'c pseq) -> 'a pseq -> 'b -> param -> 'c pseq
   (*Creates a singleton sequence element with the given value
   and future data*)
   val succeed : 'a -> 'a pseq
@@ -120,14 +120,14 @@ sig
   This is really for typing. The elements will still be processed
   in parallel if they were originally added to a parallel sequence.
   Elements added later are processed sequentially.*)
-  val sequential_seq_of : MJB_Simple_Future.future_data -> 'a pseq -> param -> 'a Seq.seq
+  val sequential_seq_of : Future_Wrapper.future_data -> 'a pseq -> param -> 'a Seq.seq
   (*Turn a parallel lazy sequence into a sequential lazy sequence
   with immediate effect. That means that, other than futures already started,
   further pulls to the sequence will not cause parallel evaluation generally.
   
   Warning: this is not guaranteed if there are inner parallelised parts
   of the sequence, or if you filtered across it.*)
-  val truly_sequential_seq_of : MJB_Simple_Future.future_data -> 'a pseq -> 'a Seq.seq
+  val truly_sequential_seq_of : Future_Wrapper.future_data -> 'a pseq -> 'a Seq.seq
   (*Turn a sequential lazy sequence into a parallel lazy sequence.
   Elements that were originally in the lazy sequence will continue
   to be processed sequentially, unless you apply any function across the sequence.
@@ -139,20 +139,20 @@ sig
   sequence containing the element in each resulting singleton list*)
   val singleton: ('a list -> 'b list pseq) -> 'a -> 'b pseq
   (*Print a sequence, up to the n elements as supplied*)
-  val print: MJB_Simple_Future.future_data ->
+  val print: Future_Wrapper.future_data ->
     (int -> 'a -> unit) -> int -> 'a pseq -> param -> unit
   (*Accumulating a function over a sequence; this is lazy.
   Apply the function to an element of the first
   sequence and the sequence produced by "this" to produce a new
   sequence.*)
-  val it_right: MJB_Simple_Future.future_data ->
+  val it_right: Future_Wrapper.future_data ->
     ('a * 'b pseq -> 'b pseq) -> 'a pseq * 'b pseq -> param -> 'b pseq
   (*Apply a function f to an element x to produce a sequence.
   Then apply g to every element in this sequence to produce
   a new sequence for each individual result, and then
   append the results*)
   val THEN: ('a -> 'b pseq) * ('b -> 'c pseq) ->
-    MJB_Simple_Future.future_data -> 'a -> param -> 'c pseq
+    Future_Wrapper.future_data -> 'a -> param -> 'c pseq
   (*Apply a function f to an element x to produce a sequence
   If the sequence is initially empty, then return g x instead*)
   val ORELSE: ('a -> 'b pseq) * ('a -> 'b pseq) -> 
@@ -165,7 +165,7 @@ sig
   (*For every function in the list, apply
   that function to each element in the sequence generated so far,
   and append the resulting sequences*)
-  val EVERY: MJB_Simple_Future.future_data ->
+  val EVERY: Future_Wrapper.future_data ->
     ('a -> 'a pseq) list -> 'a -> param -> 'a pseq
   (*Wait for the first function to return a non-empty sequence
   and return that sequence*)
@@ -178,11 +178,11 @@ sig
   sequence, a singleton sequence with x will be returned. Otherwise,
   f is then applied to every element in the produced sequence.
   This recurs.*)
-  val REPEAT: MJB_Simple_Future.future_data ->
+  val REPEAT: Future_Wrapper.future_data ->
     ('a -> 'a pseq) -> 'a -> param -> 'a pseq
   (*Apply the given function to the sequence first.
   Then repeat it across the resulting sequence.*)
-  val REPEAT1: MJB_Simple_Future.future_data ->
+  val REPEAT1: Future_Wrapper.future_data ->
     ('a -> 'a pseq) -> 'a -> param -> 'a pseq
   (*If the first integer is less than the second, this returns
   a singleton sequence with the element supplied. Otherwise,
@@ -190,12 +190,12 @@ sig
   This sequence is appended to a sequence formed recursively
   by reapplying Interval, reducing the second integer by 1, to
   every element produced in the first sequence.*)
-  val INTERVAL: MJB_Simple_Future.future_data ->
+  val INTERVAL: Future_Wrapper.future_data ->
     (int -> 'a -> 'a pseq) -> int -> int -> 'a -> param -> 'a pseq
   (*If the function returns the empty sequence, this will
   return the empty sequence. Otherwise it will return the frst
   element only of the resulting sequence*)
-  val DETERM: MJB_Simple_Future.future_data ->
+  val DETERM: Future_Wrapper.future_data ->
     ('a -> 'b pseq) -> 'a -> param -> 'b pseq
 end;
 
@@ -222,14 +222,13 @@ behave more sequentially. The overhead of system calls for the time
 is still significant however, so this parallel sequence should still
 be used carefully.
 *)
-structure MJB_Parallel_Seq :> MJB_PARALLEL_SEQ =
+structure Parallel_Seq :> PARALLEL_SEQ =
 struct
-  structure Future = MJB_Simple_Future;
-  structure Stopwatch = MJB_Stopwatch;
+  structure Future = Future_Wrapper;
   (*The type of an element in the sequence*)
   datatype 'a elem = Waiting of (Future.future_data -> 'a)
-                   | Started of ('a Future.future)
-                   | Done of 'a (*For speed*)
+                    | Started of ('a Future.future)
+                    | Done of 'a (*For speed*)
   (*An empty sequence exception. This is raised when you demand the head or
   tail of an empty sequence*)
   exception Empty_Parallel_Sequence of string
@@ -629,7 +628,7 @@ It also cuts out seemingly unnecessary future data and other parameter requireme
 
 IMPORTANT: when a function involves two sequences, the parameters of the first are given to the
 resulting sequence. In flattening, the outer parameters are kept*)
-signature MJB_SAFE_PARALLEL_SEQ =
+signature SAFE_PARALLEL_SEQ =
 sig
   exception Empty_Parallel_Sequence of string
   type 'a PSeq
@@ -662,51 +661,51 @@ sig
   exception Parallel_Lazy_Sequence_Params of string
   
   (*Return the future data in use by this sequence*)
-  val get_future_data : 'a PSeq -> MJB_Simple_Future.future_data
+  val get_future_data : 'a PSeq -> Future_Wrapper.future_data
   (*Set the future data to be used by this sequence (generally avoid doing this
   - especially mid computation!)*)
-  val set_future_data : MJB_Simple_Future.future_data -> 'a PSeq -> 'a PSeq
-  val make : (MJB_Simple_Future.future_data -> 'a) -> 'a PSeq -> 'a PSeq
+  val set_future_data : Future_Wrapper.future_data -> 'a PSeq -> 'a PSeq
+  val make : (Future_Wrapper.future_data -> 'a) -> 'a PSeq -> 'a PSeq
   (*Create a new empty sequence, which will begin by using the passed in future data*)
-  val empty : MJB_Simple_Future.future_data -> 'a PSeq
+  val empty : Future_Wrapper.future_data -> 'a PSeq
   val pull : 'a PSeq -> ('a * 'a PSeq) option
   val cons : 'a -> 'a PSeq -> 'a PSeq
-  val single : MJB_Simple_Future.future_data -> 'a -> 'a PSeq
-  val try : MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b) -> 'a -> 'b PSeq
+  val single : Future_Wrapper.future_data -> 'a -> 'a PSeq
+  val try : Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'b) -> 'a -> 'b PSeq
   val hd : 'a PSeq -> 'a
   val tl : 'a PSeq -> 'a PSeq
   val chop : int -> 'a PSeq -> (('a list) * ('a PSeq))
   val take : int -> 'a PSeq -> 'a PSeq
   val list_of : 'a PSeq -> 'a list
-  val of_list : MJB_Simple_Future.future_data -> 'a list -> 'a PSeq
+  val of_list : Future_Wrapper.future_data -> 'a list -> 'a PSeq
   val append : 'a PSeq -> 'a PSeq -> 'a PSeq
-  val map : (MJB_Simple_Future.future_data -> 'a -> 'b) -> 'a PSeq -> 'b PSeq
-  val mapp : (MJB_Simple_Future.future_data -> 'a -> 'b) -> 'a PSeq -> 'b PSeq -> 'b PSeq
+  val map : (Future_Wrapper.future_data -> 'a -> 'b) -> 'a PSeq -> 'b PSeq
+  val mapp : (Future_Wrapper.future_data -> 'a -> 'b) -> 'a PSeq -> 'b PSeq -> 'b PSeq
   val interleave: 'a PSeq * 'a PSeq -> 'a PSeq
-  val filter : (MJB_Simple_Future.future_data -> 'a -> bool) -> 'a PSeq -> 'a PSeq
+  val filter : (Future_Wrapper.future_data -> 'a -> bool) -> 'a PSeq -> 'a PSeq
   val flat : 'a PSeq PSeq -> 'a PSeq
-  val maps : (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) -> 'a PSeq -> 'b PSeq
-  val map_filter : (MJB_Simple_Future.future_data -> 'a -> 'b option) -> 'a PSeq -> 'b PSeq
-  val lift : (MJB_Simple_Future.future_data -> 'a -> 'b -> 'c) -> 'a PSeq -> 'b -> 'c PSeq
-  val lifts : (MJB_Simple_Future.future_data -> 'a -> 'b -> 'c PSeq) -> 'a PSeq -> 'b -> 'c PSeq
-  val succeed : MJB_Simple_Future.future_data -> 'a -> 'a PSeq
-  val fail : MJB_Simple_Future.future_data -> 'a -> 'b PSeq
+  val maps : (Future_Wrapper.future_data -> 'a -> 'b PSeq) -> 'a PSeq -> 'b PSeq
+  val map_filter : (Future_Wrapper.future_data -> 'a -> 'b option) -> 'a PSeq -> 'b PSeq
+  val lift : (Future_Wrapper.future_data -> 'a -> 'b -> 'c) -> 'a PSeq -> 'b -> 'c PSeq
+  val lifts : (Future_Wrapper.future_data -> 'a -> 'b -> 'c PSeq) -> 'a PSeq -> 'b -> 'c PSeq
+  val succeed : Future_Wrapper.future_data -> 'a -> 'a PSeq
+  val fail : Future_Wrapper.future_data -> 'a -> 'b PSeq
   val sequential_seq_of : 'a PSeq -> 'a Seq.seq
   val truly_sequential_seq_of : 'a PSeq -> 'a Seq.seq
-  val of_sequential_seq : MJB_Simple_Future.future_data -> 'a Seq.seq -> 'a PSeq
-  val singleton: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a list -> 'b list PSeq) -> 'a -> 'b PSeq
-  val print: (MJB_Simple_Future.future_data -> int -> 'a -> unit) -> int -> 'a PSeq -> unit
-  val it_right: (MJB_Simple_Future.future_data -> 'a * 'b PSeq -> 'b PSeq) -> 'a PSeq * 'b PSeq -> 'b PSeq
-  val THEN: (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) * (MJB_Simple_Future.future_data -> 'b -> 'c PSeq) -> MJB_Simple_Future.future_data -> 'a -> param -> 'c PSeq
-  val ORELSE: (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) * (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) -> MJB_Simple_Future.future_data -> 'a -> param -> 'b PSeq
-  val APPEND: (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) * (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) -> MJB_Simple_Future.future_data -> 'a -> param -> 'b PSeq
-  val EVERY: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a PSeq) list -> 'a -> param -> 'a PSeq
-  val FIRST: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) list -> 'a -> param -> 'b PSeq
-  val TRY: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a PSeq) -> 'a -> param -> 'a PSeq
-  val REPEAT: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a PSeq) -> 'a -> param -> 'a PSeq
-  val REPEAT1: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'a PSeq) -> 'a -> param -> 'a PSeq
-  val INTERVAL: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> int -> 'a -> 'a PSeq) -> int -> int -> 'a -> param -> 'a PSeq
-  val DETERM: MJB_Simple_Future.future_data -> (MJB_Simple_Future.future_data -> 'a -> 'b PSeq) -> 'a -> param -> 'b PSeq
+  val of_sequential_seq : Future_Wrapper.future_data -> 'a Seq.seq -> 'a PSeq
+  val singleton: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a list -> 'b list PSeq) -> 'a -> 'b PSeq
+  val print: (Future_Wrapper.future_data -> int -> 'a -> unit) -> int -> 'a PSeq -> unit
+  val it_right: (Future_Wrapper.future_data -> 'a * 'b PSeq -> 'b PSeq) -> 'a PSeq * 'b PSeq -> 'b PSeq
+  val THEN: (Future_Wrapper.future_data -> 'a -> 'b PSeq) * (Future_Wrapper.future_data -> 'b -> 'c PSeq) -> Future_Wrapper.future_data -> 'a -> param -> 'c PSeq
+  val ORELSE: (Future_Wrapper.future_data -> 'a -> 'b PSeq) * (Future_Wrapper.future_data -> 'a -> 'b PSeq) -> Future_Wrapper.future_data -> 'a -> param -> 'b PSeq
+  val APPEND: (Future_Wrapper.future_data -> 'a -> 'b PSeq) * (Future_Wrapper.future_data -> 'a -> 'b PSeq) -> Future_Wrapper.future_data -> 'a -> param -> 'b PSeq
+  val EVERY: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'a PSeq) list -> 'a -> param -> 'a PSeq
+  val FIRST: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'b PSeq) list -> 'a -> param -> 'b PSeq
+  val TRY: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'a PSeq) -> 'a -> param -> 'a PSeq
+  val REPEAT: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'a PSeq) -> 'a -> param -> 'a PSeq
+  val REPEAT1: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'a PSeq) -> 'a -> param -> 'a PSeq
+  val INTERVAL: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> int -> 'a -> 'a PSeq) -> int -> int -> 'a -> param -> 'a PSeq
+  val DETERM: Future_Wrapper.future_data -> (Future_Wrapper.future_data -> 'a -> 'b PSeq) -> 'a -> param -> 'b PSeq
 end;
 
 (*The safer way to use the parallel sequence, which manages the future data considerably for you.
@@ -720,7 +719,7 @@ Warning: an adjustment to the functions passed in to EVERY and FIRST means
 a simple map must be computed over the list, so it is not entirely lazy.
 A direct implementation of what is below might be able to avoid this, but it is unlikely
 the mapping will take any significant amount of time.*)
-structure MJB_Safe_Parallel_Seq :> MJB_SAFE_PARALLEL_SEQ =
+structure Safe_Parallel_Seq :> SAFE_PARALLEL_SEQ =
 struct
   (*The number of cores available with this machine*)
   fun num_cores() = Multithreading.max_threads_value();
@@ -738,8 +737,8 @@ struct
   exception Empty_Parallel_Sequence of string
   (*An exception raised when parameters are set poorly*)
   exception Parallel_Lazy_Sequence_Params of string
-  structure Future = MJB_Simple_Future;
-  structure Par_Seq = MJB_Parallel_Seq;
+  structure Future = Future_Wrapper;
+  structure Par_Seq = Parallel_Seq;
   (*Parameters are tagged onto the end*)
   type param = (int option * int * int)
   type 'a PSeq = ('a Par_Seq.pseq) * Future.future_data * param

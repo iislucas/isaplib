@@ -4,7 +4,7 @@
 The stopwatch structure is designed just to make timing functions simpler and hopefully
 more intuitive.
 *)
-signature MJB_STOPWATCH =
+signature STOPWATCH =
 sig
   type T; (*The type of the stop watch*)
   (*The direction of the stop watch
@@ -43,7 +43,7 @@ sig
 end;
 
 (*The structure to implement the stopwatch:*)
-structure MJB_Stopwatch :> MJB_STOPWATCH =
+structure Stopwatch :> STOPWATCH =
 struct
   datatype Direction = UP | DOWN (*The direction of the stop watch*)
   (*(is timing,the time on the stop watch,the time since the last reading, the direction)*)

@@ -4,9 +4,9 @@ local
   (*************************************************)
   
   (*Some fake future data*)
-  fun fd() = MJB_Simple_Future.new_future_data NONE;
+  fun fd() = Future_Wrapper.new_future_data NONE;
   
-  structure Par_Seq = MJB_Safe_Parallel_Seq;
+  structure Par_Seq = Safe_Parallel_Seq;
   (*Here are the unit tests for the parallel lazy sequence. These check that
   the results are always the same as with the regular sequential lazy sequence, which is assumed
   to have the correct desired behaviour*)
@@ -17,9 +17,9 @@ local
   (*Test the setting of future data*)
   val _ = Testing.test "Par_Tree: testing future data setting" (fn () =>
     let
-      val fd = MJB_Simple_Future.new_future_data (SOME "Hello world")
+      val fd = Future_Wrapper.new_future_data (SOME "Hello world")
       val par_seq = Par_Seq.empty fd;
-      val _ = if ((MJB_Simple_Future.get_message (Par_Seq.get_future_data par_seq))=(SOME "Hello world")) then () else
+      val _ = if ((Future_Wrapper.get_message (Par_Seq.get_future_data par_seq))=(SOME "Hello world")) then () else
               raise ERROR "Par_Seq: failed future data setting";
     in
       ()
@@ -704,17 +704,15 @@ in
   (*These are held in an additional structure since they should not be run at
   compile time*)
   
-  structure MJB_Par_Seq_Speed_Test =
+  structure Test_ParallelSeqSpeed =
   struct
-    structure Par_Seq = MJB_Safe_Parallel_Seq;
-    structure Stopwatch = MJB_Stopwatch;
-    structure Future = MJB_Simple_Future;
-    structure File = MJB_File;
+    structure Par_Seq = Safe_Parallel_Seq;
+    structure Future = Future_Wrapper;
+    structure File = SimpleFileIO;
     
     (*A structure for handling the file used during testing*)
     structure File_Aux =
     struct
-      structure File = MJB_File;
       (*The default file to use*)
       val file = Unsynchronized.ref "../../isaplib/Concurrent/test/par_seq-results.txt";
       (*Open the file and be ready to append it...*)
@@ -751,7 +749,6 @@ in
     
     structure Help =
     struct
-      structure File = MJB_File;
       (*List helper functions*)
       
       (*Create a list of numbers between the specified range*)
@@ -861,7 +858,7 @@ in
       fun random_list low high len = gen_list len (gen_func (random low high)) (fn _ => (gen_func (random low high)))
       
       (*Some fake future data*)
-      fun fd() = MJB_Simple_Future.new_future_data NONE;
+      fun fd() = Future_Wrapper.new_future_data NONE;
       
       (*Returns the amount of time it took f to run
       in microseconds (LargeInt)*)
@@ -877,7 +874,7 @@ in
       
       (*Wrap a function so that it will accept future data*)
       val wrap_fd = (fn f => (fn _ => f))
-        : ('a -> 'b) -> (MJB_Simple_Future.future_data -> 'a -> 'b)
+        : ('a -> 'b) -> (Future_Wrapper.future_data -> 'a -> 'b)
       
       (*Time the expensive functions*)
       fun time_expensive hardness =
@@ -1058,7 +1055,7 @@ in
         Future.join 'a future -> 'a
         *)
         local
-        structure Future = MJB_Simple_Future
+        structure Future = Future_Wrapper
         (*Split a list into two halves*)
         fun split' _ ls [] = (ls,[])
           | split' 0 ls rs = (ls,rs)
