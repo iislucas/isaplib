@@ -438,8 +438,10 @@ fun json_source instream =
   |> Source.set_prompt ""
 
 fun read_file file = let
+  val get_one_json = Source.get_single o json_source
+  fun catch f s = (Scan.catch f s) handle Fail m => raise parse_exn m
   val ins = TextIO.openIn file
-  val (json_out, _) = the (Source.get_single (json_source ins))
+  val (json_out, _) = the (catch get_one_json ins)
   val _ = TextIO.closeIn ins
 in json_out
 end
