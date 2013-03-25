@@ -4,7 +4,7 @@
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
 
-    Name mappings (injective): (not-necessarily-isomorphic) functions over
+    Name mappings: (not-necessarily-isomorphic) functions over
     finite sets of names
 
     Note: not necessarily surjective (inverse set is not always
