@@ -97,6 +97,7 @@ PolyML.Project.make "Concurrent/par_tree.ML";
 PolyML.Project.use_root "names/ROOT.ML";
 PolyML.Project.use_root "unif/ROOT.ML";
 PolyML.Project.use_root "graph/ROOT.ML";
+PolyML.Project.use_root "maps/ROOT.ML";
 
 (* Other basic top level things *)
 PolyML.Project.make "basics/collection.ML";
