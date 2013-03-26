@@ -5,6 +5,7 @@ sig
   
   type 'a rep
   type 'a T = (name, 'a, 'a rep) Map.amap
+  val empty: 'a T
   
   val lookup : 'a T -> name -> 'a option
   val get : 'a T -> name -> 'a
@@ -14,10 +15,18 @@ sig
   val add : 'a -> 'a T -> (name * 'a T)
   val doadd : 'a -> 'a T -> 'a T
   
+  (* inherited from Map.Util *)
+  val fold : (name * 'a -> 'b -> 'b) -> 'a T -> 'b -> 'b
+  val exists : (name * 'a -> bool) -> 'a T -> bool
+  val forall : (name * 'a -> bool) -> 'a T -> bool
+  val find : (name * 'a -> bool) -> 'a T -> (name * 'a) option
+  
+  (* composition with other abstract maps *)
   val compose  : ('a,'b,'y) Map.amap -> (name,'a,'x) Map.amap -> 'b T
   val compose3 : ('b,'c,'z) Map.amap -> ('a,'b,'y) Map.amap -> (name,'a,'x) Map.amap -> 'c T
   
-  val empty: 'a T
+  (* try to convert an amap to a name table. Throws an exception if unsuccessful. *)
+  val coerce : (name,'a,'b) Map.amap -> 'a T
 end
 
 functor NameTable(
@@ -38,12 +47,17 @@ struct
   structure Tab = Table(type key = name val ord = ord);
 
   datatype 'a rep = Rep of {names : NSet.T, tab : 'a Tab.table}
-  fun update_names f (Rep r, gf) = (Rep {names=f(#names r),tab= #tab r}, gf)
-  fun update_tab f (Rep r, gf) = (Rep {names= #names r,tab=f(#tab r)}, gf)
-  val set_names = update_names o K
-  val set_tab = update_tab o K
-  fun get_names (Rep r, _) = #names r
-  fun get_tab (Rep r, _) = #tab r
+  
+  fun update_rep_names f (Rep r) = Rep {names=f(#names r),tab= #tab r}
+  fun update_rep_tab f (Rep r) = Rep {names= #names r,tab=f(#tab r)}
+  fun get_rep_names (Rep r) = #names r
+  fun get_rep_tab   (Rep r) = #tab r
+  val update_names = Map.update_rep o update_rep_names
+  val update_tab   = Map.update_rep o update_rep_tab
+  val set_names    = update_names o K
+  val set_tab      = update_tab o K
+  val get_names    = get_rep_names o Map.get_rep
+  val get_tab      = get_rep_tab o Map.get_rep
   
   val empty_rep = Rep { names=NSet.empty, tab=Tab.empty }
   
@@ -72,15 +86,20 @@ struct
   
   fun doadd v m = snd (add v m)
   
-  fun graph_of rep = let
-    fun di x = [get_from_tab (get_tab rep) x]
-    fun dom () = NSet.list_of (get_names rep)
-    fun cod () = map (get_from_tab (get_tab rep)) (dom ())
-  in Map.MG { dom = dom, cod = cod, di = di }
+  fun graph_of_rep rep = let
+    fun di x = [get_from_tab (get_rep_tab rep) x]
+    fun dom () = NSet.list_of (get_rep_names rep)
+    fun cod () = map (get_from_tab (get_rep_tab rep)) (dom ())
+  in Map.mk_graph (dom, cod, di)
   end
   
-  val empty = (empty_rep, graph_of)
+  val empty = Map.mk (empty_rep, graph_of_rep)
   fun of_graph gr = Map.fold_graph update_no_overwrite gr empty
+  
+  open Map.Util
+  
+  val coerce = of_graph o Map.graph_of
+  
   fun compose m2 m1 = of_graph (Map.compose_graphs (Map.graph_of m2) (Map.graph_of m1))
   fun compose3 m3 m2 m1 = of_graph (
     Map.compose_graphs (Map.graph_of m2)
