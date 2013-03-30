@@ -105,13 +105,17 @@ struct
     case get_opt mp x of SOME y' => Cod.name_eq(y,y') | NONE => false
   
   (* throws an exception if setting value would make map no longer injective *)
-  fun set (x,y) mp =
+  fun set (x,y) mp = let
+    val oldy_opt = get_opt mp x
+  in
     if (CodSet.contains (get_cod_set mp) y) then raise Map.duplicate_exp ()
     else mp |> update_dom_set (DomSet.add x)
+            |> update_cod_set (case oldy_opt of SOME oldy => CodSet.delete oldy | NONE => I)
             |> update_cod_set (CodSet.add y)
             |> update_tab (Tab.update (x,y))
-            |> update_itab (case get_opt mp x of SOME oldy => ITab.delete oldy | NONE => I)
+            |> update_itab (case oldy_opt of SOME oldy => ITab.delete oldy | NONE => I)
             |> update_itab (ITab.update (y,x))
+  end
   
   fun add (x,y) mp = 
     if (DomSet.contains (get_dom_set mp) x) then raise Map.duplicate_exp ()
@@ -128,7 +132,9 @@ struct
     fun inv_delete y mp = case inv_get_opt mp y of NONE => mp | SOME x => delete_pair (x,y) mp
   end
   
-  fun unmap (x,_) mp = delete x mp
+  fun unmap (x,y) mp = case get_opt mp x 
+                         of SOME y1 => if Cod.name_eq (y,y1) then delete x mp else mp
+                          | NONE => mp
   
   val empty_rep : rep = { tab = Tab.empty, itab = ITab.empty,
                           dom_set = DomSet.empty, cod_set = CodSet.empty }
