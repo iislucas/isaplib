@@ -24,6 +24,9 @@ sig
   type 'a T = (name, 'a, 'a rep) Map.amap
   val empty: 'a T
   
+  val size : 'a T -> int
+  val is_empty : 'a T -> bool
+  
   (* forward lookup *)
   val get : 'a T -> name -> 'a
   val get_opt : 'a T -> name -> 'a option
@@ -97,6 +100,9 @@ struct
 
   type 'a T = (name, 'a, 'a rep) Map.amap
   
+  fun size mp = NSet.cardinality (get_names mp)
+  fun is_empty mp = NSet.is_empty (get_names mp)
+  
   fun get_opt mp = Tab.lookup (get_tab mp)
   fun get mp = get_from_tab (get_tab mp)
 
@@ -123,8 +129,7 @@ struct
   fun graph_of_rep rep = let
     fun di x = [get_from_tab (get_rep_tab rep) x]
     fun dom () = NSet.list_of (get_rep_names rep)
-    fun cod () = map (get_from_tab (get_rep_tab rep)) (dom ())
-  in Map.mk_graph (dom, cod, di)
+  in Map.mk_graph (dom, di)
   end
   
   val empty = Map.MAP (empty_rep, graph_of_rep)
@@ -136,6 +141,8 @@ struct
   val find = Map.find
   
   fun coerce abs_map = fold add abs_map empty
+  handle Map.duplicate_exp () => raise Map.multiple_values_exp ()
+  
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)
   

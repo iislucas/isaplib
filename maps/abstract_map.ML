@@ -9,7 +9,7 @@ sig
 
   (* the graph of a mapping *)
   type ('a,'b) amapgraph
-  val mk_graph : (unit -> 'a list) * (unit -> 'b list) * ('a -> 'b list) -> ('a,'b) amapgraph
+  val mk_graph : (unit -> 'a list) * ('a -> 'b list) -> ('a,'b) amapgraph
 
   (* store a representation and a means of converting to/from graphs *)
   datatype ('a,'b,'c) amap = MAP of 'c * ('c -> ('a,'b) amapgraph)
@@ -50,8 +50,8 @@ struct
   exception duplicate_exp of unit
 
   datatype ('a,'b) amapgraph = MAPG of {
-    dom: unit -> 'a list, cod: unit -> 'b list, di: 'a -> 'b list }
-  fun mk_graph (dom,cod,di) = MAPG { dom=dom, cod=cod, di=di }
+    dom: unit -> 'a list, di: 'a -> 'b list }
+  fun mk_graph (dom,di) = MAPG { dom=dom, di=di }
 
   datatype ('a,'b,'c) amap = MAP of 'c * ('c -> ('a,'b) amapgraph)
   fun mk x = MAP x
@@ -86,9 +86,9 @@ struct
 
   fun compose_graphs (g2, g1) =
   let
-    val MAPG { dom=dom1, cod=cod1, di=di1 } = g1
-    val MAPG { dom=dom2, cod=cod2, di=di2 } = g2
-  in MAPG { dom = dom1, cod = cod2, di = maps di2 o di1 }
+    val MAPG { dom=dom1, di=di1 } = g1
+    val MAPG { dom=_, di=di2 } = g2
+  in MAPG { dom = dom1, di = maps di2 o di1 }
   end
   
   fun compose (m2,m1) = of_graph (compose_graphs (graph_of m2, graph_of m1))

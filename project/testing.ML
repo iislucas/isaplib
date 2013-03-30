@@ -87,8 +87,9 @@ fun make_test path_to_file =
     if !run_tests_ref then PolyML.Project.make path_to_file else ();
 
 exception assertion_failed_exp of string;
-fun assert _   true = ()
-  | assert msg false = raise assertion_failed_exp ("Assertion '" ^ msg ^ "' failed")
+fun assert msg true = Log.log 1 ("  - " ^ msg ^ " [OK]")
+  | assert msg false = (Log.log 1 ("  - " ^ msg ^ " [FAILED]");
+      raise assertion_failed_exp ("Assertion '" ^ msg ^ "' failed"))
 fun fassert msg f x = assert msg (f x)
     
 end;
