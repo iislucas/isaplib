@@ -78,25 +78,38 @@ struct
   fun name_eq (a, b) = (ord (a,b) = EQUAL)
 
   structure Tab = Table(type key = name val ord = ord);
-
-  datatype 'a rep = Rep of {names : NSet.T, tab : 'a Tab.table}
   
-  fun update_rep_names f (Rep r) = Rep {names=f(#names r),tab= #tab r}
-  fun update_rep_tab f (Rep r) = Rep {names= #names r,tab=f(#tab r)}
-  fun get_rep_names (Rep r) = #names r
-  fun get_rep_tab   (Rep r) = #tab r
-  fun update_names f = Map.update_rep (update_rep_names f)
-  fun update_tab f   = Map.update_rep (update_rep_tab f)
-  fun set_names x    = update_names (K x)
-  fun set_tab x      = update_tab (K x)
-  fun get_names m    = get_rep_names (Map.get_rep m)
-  fun get_tab m      = get_rep_tab (Map.get_rep m)
-  
-  
-  (* private: do gets directly on a table, throw exception if not found *)
+  (* do gets directly on a table, throw exception if not found *)
   fun get_from_tab tab k =
     case Tab.lookup tab k of SOME v => v
        | NONE => raise Map.no_such_elem_exp ()
+
+  datatype 'a rep = Rep of {names : NSet.T, tab : 'a Tab.table}
+  
+  local
+    fun update_rep_names f (Rep r) = Rep {names=f(#names r),tab= #tab r}
+    fun update_rep_tab f (Rep r) = Rep {names= #names r,tab=f(#tab r)}
+    fun get_rep_names (Rep r) = #names r
+    fun get_rep_tab   (Rep r) = #tab r
+  in
+  
+    fun update_names f = Map.update_rep (update_rep_names f)
+    fun update_tab f   = Map.update_rep (update_rep_tab f)
+    fun set_names x    = update_names (K x)
+    fun set_tab x      = update_tab (K x)
+    fun get_names m    = get_rep_names (Map.get_rep m)
+    fun get_tab m      = get_rep_tab (Map.get_rep m)
+         
+    fun graph_of_rep rep = let
+      fun di x = [get_from_tab (get_rep_tab rep) x]
+      fun dom () = NSet.list_of (get_rep_names rep)
+    in Map.mk_graph (dom, di)
+    end
+  
+  end
+  
+  
+  
 
   type 'a T = (name, 'a, 'a rep) Map.amap
   
@@ -126,12 +139,6 @@ struct
        |> update_tab (Tab.delete_safe n)
   
   val empty_rep = Rep { names=NSet.empty, tab=Tab.empty }
-  fun graph_of_rep rep = let
-    fun di x = [get_from_tab (get_rep_tab rep) x]
-    fun dom () = NSet.list_of (get_rep_names rep)
-  in Map.mk_graph (dom, di)
-  end
-  
   val empty = Map.MAP (empty_rep, graph_of_rep)
   fun of_graph gr = Map.fold_graph add gr empty
   

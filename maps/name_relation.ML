@@ -29,8 +29,8 @@ sig
   
   val size : T -> int (* number of mapped pairs (a,b). i.e. max(domsize,codsize) *)
   
-  val get_dom_set : DomSet.T (* set of elements in domain *)
-  val get_cod_set : CodSet.T (* set of elements in codomain *)
+  val get_dom_set : T -> DomSet.T (* set of elements in domain *)
+  val get_cod_set : T -> CodSet.T (* set of elements in codomain *)
   
   (*** FORWARD LOOKUP FUNCTIONS ***)
   
