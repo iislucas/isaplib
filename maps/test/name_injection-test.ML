@@ -67,6 +67,7 @@ local
   
   val _ = test "An injection after override" (fn () => (
       assert "should still have size 2" (ABInj.size inj = 2);
+      assert "should still have codomain size 2" (B.NSet.cardinality (ABInj.get_cod_set inj) = 2);
       assert "should return new element" (B.name_eq (ABInj.get inj a2, b3));
       assert "should return NONE for old codomain" (is_none (ABInj.inv_get_opt inj b2));
     ())) ()
@@ -75,6 +76,7 @@ local
   
   val _ = test "An injection after deletion" (fn () => (
       assert "should have size 1" (ABInj.size inj = 1);
+      assert "should have codomain size 1" (B.NSet.cardinality (ABInj.get_cod_set inj) = 1);
       assert "should return NONE for deleted element" (is_none (ABInj.get_opt inj a1));
     ())) ()
   
