@@ -2,8 +2,8 @@ local
   open Testing
   structure StrTab = NameTable(structure Dom = SStrName)
   
-  fun catch_multi_fail f = (f (); false)
-  handle Map.multiple_values_exp () => true
+  fun catch_coerce_fail f = (f (); false)
+  handle Map.bad_coercion_exp () => true
   
   (* some names *)
   val a = SStrName.mk "a"
@@ -61,8 +61,8 @@ local
     ())) ()
   
   val _ = test "A bad coercion" (fn () => (
-      assert "should raise multiple_values_exp for multi-valued graph"
-        (catch_multi_fail (fn () => StrTab.coerce bad_abs_tab));
+      assert "should raise bad_coercion_exp for multi-valued graph"
+        (catch_coerce_fail (fn () => StrTab.coerce bad_abs_tab));
     ())) ()
   
 in

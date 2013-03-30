@@ -148,7 +148,7 @@ struct
   val find = Map.find
   
   fun coerce abs_map = fold add abs_map empty
-  handle Map.duplicate_exp () => raise Map.multiple_values_exp ()
+  handle _ => raise Map.bad_coercion_exp ()
   
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)

@@ -24,10 +24,8 @@ signature NAME_INJECTION =
 sig
   include NAME_RELATION
   
-  type irep
-  type iT = (cod,dom,irep) Map.amap
   
-  val inverse_of : iT -> T
+  val inverse_of : (cod,dom,'a) Map.amap -> T
 end
 
 functor NameInjection(
@@ -112,6 +110,7 @@ struct
     else mp |> update_dom_set (DomSet.add x)
             |> update_cod_set (CodSet.add y)
             |> update_tab (Tab.update (x,y))
+            |> update_itab (case get_opt mp x of SOME oldy => ITab.delete oldy | NONE => I)
             |> update_itab (ITab.update (y,x))
   
   fun add (x,y) mp = 
@@ -143,27 +142,21 @@ struct
   val find = Map.find
   
   fun coerce abs_map = fold add abs_map empty
-  handle Map.duplicate_exp () => raise Map.multiple_values_exp ()
+  handle _ => raise Map.bad_coercion_exp ()
   
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)
   
   val pretty = Map.pretty "NameInjection" Dom.pretty_name Cod.pretty_name
   
-  type irep = {
+  (*type irep = {
     tab : dom ITab.table,
     itab : cod Tab.table,
     dom_set : CodSet.T,
     cod_set : DomSet.T
   }
   
-  type iT = (cod,dom,irep) Map.amap
+  type iT = (cod,dom,irep) Map.amap*)
   
-  fun inverse_of (mp:iT) = let
-    val {tab,itab,dom_set,cod_set} = Map.get_rep mp
-    val r : rep = {tab=itab,itab=tab,dom_set=cod_set,cod_set=dom_set}
-  in Map.mk (r, graph_of_rep)
-  end
-  
-
+  fun inverse_of mp = Map.fold (fn (y,x) => add (x,y)) mp empty
 end

@@ -22,6 +22,7 @@ sig
   exception no_such_elem_exp of unit
   exception multiple_values_exp of unit
   exception duplicate_exp of unit
+  exception bad_coercion_exp of unit
 
   val graph_of : ('a,'b,'c) amap -> ('a,'b) amapgraph
   val fold_graph : ('a * 'b -> 'c -> 'c) -> ('a,'b) amapgraph -> 'c -> 'c
@@ -48,6 +49,7 @@ struct
   exception no_such_elem_exp of unit
   exception multiple_values_exp of unit
   exception duplicate_exp of unit
+  exception bad_coercion_exp of unit
 
   datatype ('a,'b) amapgraph = MAPG of {
     dom: unit -> 'a list, di: 'a -> 'b list }
