@@ -112,3 +112,12 @@ local
 in
   val _ = assert_no_failed_tests ()
 end
+
+functor Test (
+    structure AR : NAME_RELATION
+    structure BR : NAME_RELATION
+    sharing type AR.dom = BR.dom
+  ) =
+  struct
+  
+  end

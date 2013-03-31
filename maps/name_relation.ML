@@ -23,7 +23,11 @@ sig
   
   (* the internal representation *)
   type rep
-  type T = (dom, cod, rep) Map.amap
+  
+  (* the main type. To enable coercions, this should be
+     (dom,cod,rep) Map.amap and you should use transparent
+     ascription *)
+  type T(* = (dom, cod, rep) Map.amap*)
   val empty: T
   val is_empty : T -> bool
   
