@@ -106,7 +106,9 @@ PolyML.Project.make "basics/toplevel.ML";
 
 (* PolyML.Project.use_root "parser/ROOT.ML"; *)
 
-if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap" then ()
+if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap"
+then
+  PolyML.Project.ensure_at_latest_heap ()
 else
  (PolyML.Project.ensure_at_latest_heap ();
   PolyML.Project.save_project_child_state "heaps/all_child.heap");

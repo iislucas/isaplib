@@ -24,6 +24,11 @@ local
     structure Cod = C
   )
   
+  structure ACFn = NameFunction(
+    structure Dom = A
+    structure Cod = C
+  )
+  
   (* for testing renaming-style compositions *)
   structure AAInj = NameInjection(
     structure Dom = A
@@ -46,7 +51,7 @@ local
   handle Map.duplicate_exp () => true
   
   (* some names *)
-  val (a1,a2,a3) = (A.mk "a1", A.mk "a2", A.mk "a3")
+  val (a1,a2,a3,a4,a5) = (A.mk "a1", A.mk "a2", A.mk "a3", A.mk "a4", A.mk "a5")
   val (b1,b2,b3) = (B.mk "b1", B.mk "b2", B.mk "b3")
   val (c1,c2,c3) = (C.mk "c1", C.mk "c2", C.mk "c3")
   
@@ -134,20 +139,19 @@ local
   
   (*** coercion tests ***)
   
-  fun di x = case A.dest x of "a1" => [b1] | "a2" => [b2] | _ => []
+  fun di x = case A.dest x of "a1" => [b1] | "a2" => [b2] | "a3" => [b2] | _ => []
   fun multi_di x = case A.dest x of "a1" => [b1] | "a2" => [b2,b3] | _ => []
-  fun non_ff_di x = case A.dest x of "a1" => [b1] | "a2" => [b1] | _ => []
-  fun dom () = [a1,a2]
+  fun dom () = [a1,a2,a3]
   val abs_ff = Map.mk (Map.mk_graph (dom,di), I)
   val multi_abs = Map.mk (Map.mk_graph (dom,multi_di), I)
-  val non_ff_abs = Map.mk (Map.mk_graph (dom,non_ff_di), I)
   val coerced_ff = ABFn.coerce abs_ff
   
   val _ = test "A coerced map" (fn () => (
-      assert "should have size 2" (ABFn.size coerced_ff = 2);
+      assert "should have size 3" (ABFn.size coerced_ff = 3);
       assert "should contain the correct values" (
         (B.name_eq (ABFn.get coerced_ff a1, b1)) andalso
-        (B.name_eq (ABFn.get coerced_ff a2, b2)));
+        (B.name_eq (ABFn.get coerced_ff a2, b2)) andalso
+        (B.name_eq (ABFn.get coerced_ff a3, b2)));
     ())) ()
   
   val _ = test "A bad coercion" (fn () => (
@@ -155,27 +159,63 @@ local
         (catch_coerce_fail (fn () => ABFn.coerce multi_abs));
     ())) ()
   
-  (*** inverses and composition ***)
-  (*val ff = ABFn.empty |> ABFn.add (a1,b1) |> ABFn.add (a2,b2)
-  val inv_ff = BAInj.inverse_of ff
+  (*** composition ***)
+  val ff = ABFn.empty  |> ABFn.add (a1,b1) |> ABFn.add (a2,b2)
+                       |> ABFn.add (a3,b3) |> ABFn.add (a4,b2)
+  val ff2 = BCFn.empty |> BCFn.add (b1,c2) |> BCFn.add (b2,c1)
+                       |> BCFn.add (b3,c2)
   
-  val _ = test "The inverse of an ffection with two elements" (fn () => (
-      assert "should have size 2" (ABFn.size ff = 2);
-      assert "should return correct value for b1" (A.name_eq (BAInj.get inv_ff b1, a1));
-      assert "should return correct value for b2" (A.name_eq (BAInj.get inv_ff b2, a2));
-      assert "should return correct inverse-value for a1" (B.name_eq (BAInj.inv_get inv_ff a1, b1));
-      assert "should return correct inverse-value for a2" (B.name_eq (BAInj.inv_get inv_ff a2, b2));
+  (* ff2 o ff :: a1 |-> c2, a2 |-> c1, a3 |-> c2, a4 |-> c1 *)
+                       
+  val ff_cmp = ACFn.compose (ff2,ff)
+  
+  val _ = test "A composed function" (fn () => (
+      assert "should have size 4" (ACFn.size ff_cmp = 4);
+      assert "should have codomain size 2" (C.NSet.cardinality (ACFn.get_cod_set ff_cmp) = 2);
+      assert "should return correct value for a1" (C.name_eq (ACFn.get ff_cmp a1, c2));
+      assert "should return correct value for a2" (C.name_eq (ACFn.get ff_cmp a2, c1));
+      assert "should return correct value for a3" (C.name_eq (ACFn.get ff_cmp a3, c2));
+      assert "should return correct value for a4" (C.name_eq (ACFn.get ff_cmp a4, c1));
+      assert "should return correct inverse image for c1"
+        (A.NSet.eq (ACFn.inv_img ff_cmp c1) (A.NSet.of_list [a2,a4]));
+      assert "should return correct inverse image for c2"
+        (A.NSet.eq (ACFn.inv_img ff_cmp c2) (A.NSet.of_list [a1,a3]));
     ())) ()
   
-  val comp_ff = AAInj.compose (inv_ff, ff)
+  (* A renaming-like scenario. Suppose we take ff as above and rename its elements with: *)
+  val rn_dom = AAInj.empty |> AAInj.add (a1,a5)
+                           |> AAInj.add (a2,a2)
+                           |> AAInj.add (a3,a1)
+                           |> AAInj.add (a4,a3)
+  val rn_cod = BBInj.empty |> BBInj.add (b1,b2)
+                           |> BBInj.add (b2,b3)
+                           |> BBInj.add (b3,b1)
+  (* Note that renamings are performed all at once, so the codomain no longer needs to
+     be fresh in the domain. *)
   
-  val _ = test "The composite of an ffection with its inverse" (fn () => (
-      assert "should have size 2" (AAInj.size comp_ff = 2);
-      assert "should be identity on a1" (A.name_eq (AAInj.get comp_ff a1, a1));
-      assert "should be identity on a2" (A.name_eq (AAInj.get comp_ff a2, a2));
-      assert "should be identity on inverse of a1" (A.name_eq (AAInj.inv_get comp_ff a1, a1));
-      assert "should be identity on inverse of a2" (A.name_eq (AAInj.inv_get comp_ff a2, a2));
-    ())) ()*)
+  
+  (* The renamed function of:
+       ff  :: a1 |-> b1, a2 |-> b2, a3 |-> b3, a4 |-> b2
+    
+     is computed as (rn_cod o ff o rn_dom^-1). It should be:
+       ff' :: a5 |-> b2, a2 |-> b3, a1 |-> b1, a3 |-> b3 *)
+  
+  val ff' = ABFn.compose3 (rn_cod, ff, AAInj.inverse_of rn_dom)
+  
+  val _ = test "A renamed function" (fn () => (
+      assert "should have size 4" (ABFn.size ff' = 4);
+      assert "should have codomain size 2" (B.NSet.cardinality (ABFn.get_cod_set ff') = 3);
+      assert "should return correct value for a5" (B.name_eq (ABFn.get ff' a5, b2));
+      assert "should return correct value for a2" (B.name_eq (ABFn.get ff' a2, b3));
+      assert "should return correct value for a1" (B.name_eq (ABFn.get ff' a1, b1));
+      assert "should return correct value for a3" (B.name_eq (ABFn.get ff' a3, b3));
+      assert "should return correct inverse image for b1"
+        (A.NSet.eq (ABFn.inv_img ff' b1) (A.NSet.of_list [a1]));
+      assert "should return correct inverse image for b2"
+        (A.NSet.eq (ABFn.inv_img ff' b2) (A.NSet.of_list [a5]));
+      assert "should return correct inverse image for b3"
+        (A.NSet.eq (ABFn.inv_img ff' b3) (A.NSet.of_list [a2,a3]));
+    ())) ()
   
 in
   val _ = assert_no_failed_tests ()
