@@ -62,7 +62,7 @@ local
   (*** typical mapping tests ***)
   
   val _ = test "An empty function" (fn () => (
-      assert "should have size 0" (ABFn.size ff = 0);
+      assert "should have size 0" (ABFn.dom_size ff = 0);
       assert "should report true for is_empy" (ABFn.is_empty ff);
       assert "should return NONE for get_opt" (is_none (ABFn.get_opt ff a1));
     ())) ()
@@ -72,8 +72,8 @@ local
   val ff = ff |> ABFn.set (a3, b2)
   
   val _ = test "A function mapping three elements" (fn () => (
-      assert "should have size 3" (ABFn.size ff = 3);
-      assert "should have codomain size 2" (B.NSet.cardinality (ABFn.get_cod_set ff) = 2);
+      assert "should have size 3" (ABFn.dom_size ff = 3);
+      assert "should have codomain size 2" (ABFn.cod_size ff = 2);
       assert "should return correct value for a1" (B.name_eq (ABFn.get ff a1, b1));
       assert "should return correct value for a2" (B.name_eq (ABFn.get ff a2, b2));
       assert "should return correct value for a3" (B.name_eq (ABFn.get ff a3, b2));
@@ -94,8 +94,8 @@ local
   val ff = ff |> ABFn.set (a3, b3)
   
   val _ = test "A function after override 1" (fn () => (
-      assert "should still have size 3" (ABFn.size ff = 3);
-      assert "should have codomain size 3" (B.NSet.cardinality (ABFn.get_cod_set ff) = 3);
+      assert "should still have size 3" (ABFn.dom_size ff = 3);
+      assert "should have codomain size 3" (ABFn.cod_size ff = 3);
       assert "should return new element" (B.name_eq (ABFn.get ff a3, b3));
       assert "should return correct inverse image for b2"
         (A.NSet.eq (ABFn.inv_img ff b2) (A.NSet.of_list [a2]));
@@ -106,8 +106,8 @@ local
   val ff = ff |> ABFn.set (a2, b3)
   
   val _ = test "A function after override 2" (fn () => (
-      assert "should still have size 3" (ABFn.size ff = 3);
-      assert "should have codomain size 2" (B.NSet.cardinality (ABFn.get_cod_set ff) = 2);
+      assert "should still have size 3" (ABFn.dom_size ff = 3);
+      assert "should have codomain size 2" (ABFn.cod_size ff = 2);
       assert "should return new element" (B.name_eq (ABFn.get ff a2, b3));
       assert "should return empty inverse image for b2"
         (A.NSet.eq (ABFn.inv_img ff b2) (A.NSet.of_list []));
@@ -118,9 +118,9 @@ local
   val ff = ff |> ABFn.delete a2
   
   val _ = test "A function after deletion 1" (fn () => (
-      assert "should have size 2" (ABFn.size ff = 2);
+      assert "should have size 2" (ABFn.dom_size ff = 2);
       assert "should still have codomain size 2"
-        (B.NSet.cardinality (ABFn.get_cod_set ff) = 2);
+        (ABFn.cod_size ff = 2);
       assert "should return correct inverse image for b3"
         (A.NSet.eq (ABFn.inv_img ff b3) (A.NSet.of_list [a3]));
       assert "should return NONE for deleted element" (is_none (ABFn.get_opt ff a2));
@@ -129,9 +129,9 @@ local
   val ff = ff |> ABFn.delete a3
   
   val _ = test "A function after deletion 2" (fn () => (
-      assert "should have size 1" (ABFn.size ff = 1);
+      assert "should have size 1" (ABFn.dom_size ff = 1);
       assert "should have codomain size 1"
-        (B.NSet.cardinality (ABFn.get_cod_set ff) = 1);
+        (ABFn.cod_size ff = 1);
       assert "should return empty inverse image for b3"
         (A.NSet.eq (ABFn.inv_img ff b3) (A.NSet.of_list []));
       assert "should return NONE for deleted element" (is_none (ABFn.get_opt ff a3));
@@ -147,7 +147,7 @@ local
   val coerced_ff = ABFn.coerce abs_ff
   
   val _ = test "A coerced map" (fn () => (
-      assert "should have size 3" (ABFn.size coerced_ff = 3);
+      assert "should have size 3" (ABFn.dom_size coerced_ff = 3);
       assert "should contain the correct values" (
         (B.name_eq (ABFn.get coerced_ff a1, b1)) andalso
         (B.name_eq (ABFn.get coerced_ff a2, b2)) andalso
@@ -170,8 +170,8 @@ local
   val ff_cmp = ACFn.compose (ff2,ff)
   
   val _ = test "A composed function" (fn () => (
-      assert "should have size 4" (ACFn.size ff_cmp = 4);
-      assert "should have codomain size 2" (C.NSet.cardinality (ACFn.get_cod_set ff_cmp) = 2);
+      assert "should have size 4" (ACFn.dom_size ff_cmp = 4);
+      assert "should have codomain size 2" (ACFn.cod_size ff_cmp = 2);
       assert "should return correct value for a1" (C.name_eq (ACFn.get ff_cmp a1, c2));
       assert "should return correct value for a2" (C.name_eq (ACFn.get ff_cmp a2, c1));
       assert "should return correct value for a3" (C.name_eq (ACFn.get ff_cmp a3, c2));
@@ -203,8 +203,8 @@ local
   val ff' = ABFn.compose3 (rn_cod, ff, AAInj.inverse_of rn_dom)
   
   val _ = test "A renamed function" (fn () => (
-      assert "should have size 4" (ABFn.size ff' = 4);
-      assert "should have codomain size 2" (B.NSet.cardinality (ABFn.get_cod_set ff') = 3);
+      assert "should have size 4" (ABFn.dom_size ff' = 4);
+      assert "should have codomain size 2" (ABFn.cod_size ff' = 3);
       assert "should return correct value for a5" (B.name_eq (ABFn.get ff' a5, b2));
       assert "should return correct value for a2" (B.name_eq (ABFn.get ff' a2, b3));
       assert "should return correct value for a1" (B.name_eq (ABFn.get ff' a1, b1));

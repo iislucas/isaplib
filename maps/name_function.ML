@@ -6,7 +6,7 @@ end
 functor NameFunction(
   structure Dom : NAME
   structure Cod : NAME
-) =
+) : NAME_FUNCTION =
 struct
 
   type dom = Dom.name
@@ -65,7 +65,8 @@ struct
   end
   
   val is_empty = DomSet.is_empty o get_dom_set
-  val size = DomSet.cardinality o get_dom_set
+  val dom_size = DomSet.cardinality o get_dom_set
+  val cod_size = CodSet.cardinality o get_cod_set
   
   val get = get_from_tab o get_tab
   val get_opt = Tab.lookup o get_tab

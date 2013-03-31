@@ -24,7 +24,6 @@ signature NAME_INJECTION =
 sig
   include NAME_RELATION
   
-  
   val inverse_of : (cod,dom,'a) Map.amap -> T
 end
 
@@ -90,7 +89,8 @@ struct
   end
   
   val is_empty = DomSet.is_empty o get_dom_set
-  val size = DomSet.cardinality o get_dom_set
+  val dom_size = DomSet.cardinality o get_dom_set
+  val cod_size = CodSet.cardinality o get_cod_set (* should always = dom_size *)
   
   val get = get_from_tab o get_tab
   val get_opt = Tab.lookup o get_tab
@@ -164,5 +164,10 @@ struct
   
   type iT = (cod,dom,irep) Map.amap*)
   
+  (*
+   Linear-time inversion. This could be done in constant time on another Injection
+   by interchanging dom/cod and tab/itab. Unfortunately, poly can't quite figure
+   out that ABInj.Tab.table should be the same as BAInj.ITab.table. Ideas?
+   *)
   fun inverse_of mp = Map.fold (fn (y,x) => add (x,y)) mp empty
 end

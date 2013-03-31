@@ -24,7 +24,10 @@ sig
   type 'a T = (name, 'a, 'a rep) Map.amap
   val empty: 'a T
   
-  val size : 'a T -> int
+  val get_dom_set : 'a T -> NSet.T
+  
+  val dom_size : 'a T -> int (* cardinality(dom_set) *)
+  val size : 'a T -> int (* alias for dom_size *)
   val is_empty : 'a T -> bool
   
   (* forward lookup *)
@@ -98,7 +101,11 @@ struct
 
   type 'a T = (name, 'a, 'a rep) Map.amap
   
-  fun size mp = NSet.cardinality (get_names mp)
+  val get_dom_set = get_names
+  
+  fun dom_size mp = NSet.cardinality (get_names mp)
+  val size = dom_size
+  
   fun is_empty mp = NSet.is_empty (get_names mp)
   
   fun get_opt mp = Tab.lookup (get_tab mp)
