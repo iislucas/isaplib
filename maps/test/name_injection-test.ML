@@ -61,6 +61,8 @@ local
       assert "should return correct inverse-value for b1" (A.name_eq (ABInj.inv_get inj b1, a1));
       assert "should return correct inverse-value for b2" (A.name_eq (ABInj.inv_get inj b2, a2));
       assert "should return SOME (elem) for get_opt" (B.name_eq (the (ABInj.get_opt inj a1), b1));
+      assert "should fail on duplicate_exp for duplicate add"
+        (catch_dup_fail (fn () => inj |> ABInj.add (a1,b2)));
     ())) ()
   
   val inj = inj |> ABInj.set (a2, b3)

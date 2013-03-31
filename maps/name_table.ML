@@ -30,17 +30,6 @@ sig
   (* forward lookup *)
   val get : 'a T -> name -> 'a
   val get_opt : 'a T -> name -> 'a option
-  (*val img : T -> dom -> CodSet.T*)
-  (*val img_of_set : T -> DomSet.T -> CodSet.T*)
-  
-  (* inverse lookup *)
-  (*val inv_get : T -> cod -> dom*)
-  (*val inv_get_opt : T -> cod -> dom option*)
-  (*val inv_img : T -> cod -> DomSet.T*)
-  (*val inv_img_of_set : T -> CodSet.T -> DomSet.T*)
-  
-  (* relation lookup *)
-  (*val is_mapped : T -> (dom * cod) -> bool*)
   
   (* updaters *)
   val set : (name * 'a) -> 'a T -> 'a T
@@ -48,8 +37,6 @@ sig
   val store : 'a -> 'a T -> (name * 'a T)
   val store_anon : 'a -> 'a T -> 'a T
   val delete : name -> 'a T -> 'a T
-  (*val inv_delete : cod -> T -> T*)
-  (*val unmap : dom * cod -> T -> T*)
   
   (* inherited from Map.Util *)
   val fold : (name * 'a -> 'b -> 'b) -> 'a T -> 'b -> 'b
@@ -107,8 +94,6 @@ struct
     end
   
   end
-  
-  
   
 
   type 'a T = (name, 'a, 'a rep) Map.amap

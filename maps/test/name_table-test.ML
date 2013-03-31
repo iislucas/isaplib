@@ -5,6 +5,12 @@ local
   fun catch_coerce_fail f = (f (); false)
   handle Map.bad_coercion_exp () => true
   
+  (*fun catch_multi_fail f = (f (); false)
+  handle Map.multiple_values_exp () => true*)
+  
+  fun catch_dup_fail f = (f (); false)
+  handle Map.duplicate_exp () => true
+  
   (* some names *)
   val a = SStrName.mk "a"
   val b = SStrName.mk "b"
@@ -22,6 +28,8 @@ local
       assert "should have size 1" (StrTab.size tab = 1);
       assert "should return correct element" (StrTab.get tab a = 42);
       assert "should return SOME (elem) for get_opt" (StrTab.get_opt tab a = SOME 42);
+      assert "should fail on duplicate_exp for duplicate add"
+        (catch_dup_fail (fn () => tab |> StrTab.add (a,100)));
     ())) ()
   
   val tab = tab |> StrTab.set (a, 43)
