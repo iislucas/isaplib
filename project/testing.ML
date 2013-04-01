@@ -1,3 +1,6 @@
+(*infixr 5 -->
+infixr 5 ===*)
+
 (* Generic testing *)
 (* TODO: move to isaplib: this is generic. *)
 signature TESTING = 
@@ -9,6 +12,7 @@ sig
                    id: int,
                    err_exn : exn };
 
+  
   (* errors so far *)
   val tests_failed_ref : failure list Unsynchronized.ref;
 
@@ -29,6 +33,8 @@ sig
   val assert : string -> bool -> unit;
   (* raises assertion_failed_exp with the string arg if the function returns false *)
   val fassert : string -> ('a -> bool) -> 'a -> unit;
+
+  
 
   (* *)
   exception failed_tests_exp of failure list;

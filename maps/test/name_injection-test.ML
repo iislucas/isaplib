@@ -1,46 +1,6 @@
 local
 in
-  open Testing
-  (* create two distinct kinds of names *)
-  structure ABNames :> sig
-    structure A : SSTR_NAME
-    structure B : SSTR_NAME
-  end =
-  struct
-    structure A = SStrName
-    structure B = SStrName
-  end
-  
-  open ABNames
-  
-  structure ABInj = NameInjection(
-    structure Dom = A
-    structure Cod = B
-  )
-  
-  structure BAInj = NameInjection(
-    structure Dom = B
-    structure Cod = A
-  )
-  
-  structure AAInj = NameInjection(
-    structure Dom = A
-    structure Cod = A
-  )
-  
-  
-  fun catch_coerce_fail f = (f (); false)
-  handle Map.bad_coercion_exp () => true
-  
-  fun catch_dup_fail f = (f (); false)
-  handle Map.duplicate_exp () => true
-  
-  (* some names *)
-  val a1 = A.mk "a1"
-  val a2 = A.mk "a2"
-  val b1 = B.mk "b1"
-  val b2 = B.mk "b2"
-  val b3 = B.mk "b3"
+  open TestMapsUtil
   
   val inj = ABInj.empty
   

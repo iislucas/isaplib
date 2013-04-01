@@ -91,7 +91,7 @@ struct
     fun get_tab m      = get_rep_tab (Map.get_rep m)
          
     fun graph_of_rep rep = let
-      fun di x = [get_from_tab (get_rep_tab rep) x]
+      fun di x = case Tab.lookup (get_rep_tab rep) x of SOME y => [y] | NONE => []
       fun dom () = NSet.list_of (get_rep_names rep)
     in Map.mk_graph (dom, di)
     end

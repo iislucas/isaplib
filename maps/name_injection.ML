@@ -83,7 +83,7 @@ struct
   end
   
   fun graph_of_rep (r:rep) = let
-    fun di x = [get_from_tab (#tab r) x]
+    fun di x = case Tab.lookup (#tab r) x of SOME y => [y] | NONE => []
     fun dom () = DomSet.list_of (#dom_set r)
   in Map.mk_graph (dom, di)
   end

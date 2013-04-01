@@ -159,7 +159,7 @@ struct
   end
   
   fun graph_of_rep (r:rep) = let
-    fun di x = CodSet.list_of (get_from_tab (#tab r) x)
+    fun di x = case Tab.lookup (#tab r) x of SOME ys => CodSet.list_of ys | NONE => []
     fun dom () = DomSet.list_of (#dom_set r)
   in Map.mk_graph (dom, di)
   end
@@ -228,7 +228,7 @@ struct
   val find = Map.find
   
   fun coerce abs_map = fold add abs_map empty
-  handle _ => raise Map.bad_coercion_exp ()
+  handle Map.duplicate_exp () => raise Map.bad_coercion_exp ()
   
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)
