@@ -37,9 +37,12 @@ sig
   (* updaters *)
   val set : (name * 'a) -> 'a T -> 'a T
   val add : (name * 'a) -> 'a T -> 'a T
+  val delete : name -> 'a T -> 'a T
+  
+  (* table-specific updaters *)
   val store : 'a -> 'a T -> (name * 'a T)
   val store_anon : 'a -> 'a T -> 'a T
-  val delete : name -> 'a T -> 'a T
+  val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T
   
   (* inherited from Map.Util *)
   val fold : (name * 'a -> 'b -> 'b) -> 'a T -> 'b -> 'b
@@ -118,6 +121,8 @@ struct
   fun add (k,v) m =
     if (NSet.contains (get_names m) k) then raise Map.duplicate_exp ()
     else set (k,v) m
+    
+  fun map_entry f k = update_tab (Tab.map_entry k f)
   
   fun store v mp = let
     val (fresh,names) = NSet.add_new Dom.default_name (get_names mp)

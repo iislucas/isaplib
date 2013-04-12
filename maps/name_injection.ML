@@ -25,6 +25,10 @@ sig
   include NAME_RELATION
   
   val inverse_of : (cod,dom,'a) Map.amap -> T
+  
+  (* extend the injection to the given set, using the given function to
+     provide codomain values *)
+  val extend_to : (dom -> cod) -> DomSet.T -> T -> T
 end
 
 functor NameInjection(
@@ -170,4 +174,6 @@ struct
    out that ABInj.Tab.table should be the same as BAInj.ITab.table. Ideas?
    *)
   fun inverse_of mp = Map.fold (fn (y,x) => add (x,y)) mp empty
+  fun extend_to f new_dom mp = DomSet.fold
+    (fn x => if (DomSet.contains (get_dom_set mp) x) then I else add (x, f x)) new_dom mp
 end
