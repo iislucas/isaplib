@@ -5,8 +5,13 @@
                 Initially written 31 Mar 2013                          *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
-    An injective function with fast inverse-lookup and map inversion.
-    Aka. a bidirectional map, or BidiMap.
+    An injective endofunction with fast inverse-lookup and constant-time
+    map inversion. These are used for renaming.
+    
+    Note there is a great deal of code replication with name injections.
+    This seems to be difficult to get around without two-level functors
+    since Tab != Tab. As substition is BY FAR the most used case,
+    it seems wasteful to obfuscate the code to share more with injections.
     
     NOTE: 'set (x,y)' will overwrite a value if x is already in the
     domain, and raise duplicate_exp if mapping x to y would break
@@ -17,43 +22,36 @@
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
-signature NAME_INJECTION =
+signature NAME_SUBSTITUTION =
 sig
   include NAME_RELATION
-  
-  val inverse_of : (cod,dom,'a) Map.amap -> T
-  
-  (* extend the injection to the given set, using the given function to
-     provide codomain values *)
-  (*val extend_to : (dom -> cod) -> DomSet.T -> T -> T*)
+  sharing type dom = cod
+  sharing DomSet = CodSet
+  val inverse_of : T -> T
+  val extend_to : DomSet.T -> T -> T
 end
 
-functor NameInjection(
-  structure Dom : NAME
-  structure Cod : NAME
-) : NAME_INJECTION =
+functor NameSubstitution(
+  structure Name : NAME
+) : NAME_SUBSTITUTION =
 struct
 
-  type dom = Dom.name
-  type cod = Cod.name
-  structure DomSet = Dom.NSet
-  structure CodSet = Cod.NSet
+  type dom = Name.name
+  type cod = Name.name
+  structure DomSet = Name.NSet
+  structure CodSet = Name.NSet
   
-  structure Tab = Table(type key = dom val ord = Dom.name_ord)
-  structure ITab = Table(type key = cod val ord = Cod.name_ord)
+  structure Tab = Table(type key = dom val ord = Name.name_ord)
   
   (* do gets directly on a table, throw exception if not found *)
   fun get_from_tab tab k =
     case Tab.lookup tab k of SOME v => v
        | NONE => raise Map.no_such_elem_exp ()
-  fun get_from_itab tab k =
-    case ITab.lookup tab k of SOME v => v
-       | NONE => raise Map.no_such_elem_exp ()
   
   (* the internal representation *)
   type rep = {
     tab : cod Tab.table,
-    itab : dom ITab.table,
+    itab : dom Tab.table,
     dom_set : DomSet.T,
     cod_set : CodSet.T
   }
@@ -97,13 +95,13 @@ struct
   val get_opt = Tab.lookup o get_tab
   fun img mp x = case get_opt mp x of SOME y => CodSet.single y | NONE => CodSet.empty
   fun img_of_set mp xs = DomSet.fold (CodSet.union_merge o (img mp)) xs CodSet.empty
-  val inv_get = get_from_itab o get_itab
-  val inv_get_opt = ITab.lookup o get_itab
+  val inv_get = get_from_tab o get_itab
+  val inv_get_opt = Tab.lookup o get_itab
   fun inv_img mp x = case inv_get_opt mp x of SOME y => DomSet.single y | NONE => DomSet.empty
   fun inv_img_of_set mp xs = CodSet.fold (DomSet.union_merge o (inv_img mp)) xs DomSet.empty
   
   fun is_mapped mp (x,y) =
-    case get_opt mp x of SOME y' => Cod.name_eq(y,y') | NONE => false
+    case get_opt mp x of SOME y' => Name.name_eq(y,y') | NONE => false
   
   (* throws an exception if setting value would make map no longer injective *)
   fun set (x,y) mp = let
@@ -114,8 +112,8 @@ struct
             |> update_cod_set (case oldy_opt of SOME oldy => CodSet.delete oldy | NONE => I)
             |> update_cod_set (CodSet.add y)
             |> update_tab (Tab.update (x,y))
-            |> update_itab (case oldy_opt of SOME oldy => ITab.delete oldy | NONE => I)
-            |> update_itab (ITab.update (y,x))
+            |> update_itab (case oldy_opt of SOME oldy => Tab.delete oldy | NONE => I)
+            |> update_itab (Tab.update (y,x))
   end
   
   fun add (x,y) mp = 
@@ -127,17 +125,17 @@ struct
       mp |> update_dom_set (DomSet.delete x)
          |> update_tab (Tab.delete x)
          |> update_cod_set (CodSet.delete y)
-         |> update_itab (ITab.delete y)
+         |> update_itab (Tab.delete y)
   in
     fun delete x mp = case get_opt mp x of NONE => mp | SOME y => delete_pair (x,y) mp
     fun inv_delete y mp = case inv_get_opt mp y of NONE => mp | SOME x => delete_pair (x,y) mp
   end
   
   fun unmap (x,y) mp = case get_opt mp x 
-                         of SOME y1 => if Cod.name_eq (y,y1) then delete x mp else mp
+                         of SOME y1 => if Name.name_eq (y,y1) then delete x mp else mp
                           | NONE => mp
   
-  val empty_rep : rep = { tab = Tab.empty, itab = ITab.empty,
+  val empty_rep : rep = { tab = Tab.empty, itab = Tab.empty,
                           dom_set = DomSet.empty, cod_set = CodSet.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
@@ -154,10 +152,10 @@ struct
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)
   
-  val pretty = Map.pretty "NameInjection" Dom.pretty_name Cod.pretty_name
+  val pretty = Map.pretty "NameSubstitution" Name.pretty_name Name.pretty_name
   
   (*type irep = {
-    tab : dom ITab.table,
+    tab : dom Tab.table,
     itab : cod Tab.table,
     dom_set : CodSet.T,
     cod_set : DomSet.T
@@ -166,12 +164,15 @@ struct
   type iT = (cod,dom,irep) Map.amap*)
   
   (*
-   Linear-time inversion. This could be done in constant time on another Injection
-   by interchanging dom/cod and tab/itab. Unfortunately, poly can't quite figure
-   out that ABInj.Tab.table should be the same as BAInj.ITab.table. Ideas?
+   Constant-time inversion.
    *)
-  fun inverse_of mp = Map.fold (fn (y,x) => add (x,y)) mp empty
-  (*fun extend_to f new_dom mp = DomSet.fold
-    (fn x => if (DomSet.contains (get_dom_set mp) x) then I else add (x, f x)) new_dom mp*)
+  fun inverse_of mp =
+    mp |> set_cod_set (get_dom_set mp)
+       |> set_dom_set (get_cod_set mp)
+       |> set_tab (get_itab mp)
+       |> set_itab (get_tab mp)
+  
+  (* extend domain to include new_dom, mapping items to themselves if not mapped *)
+  fun extend_to new_dom mp = DomSet.fold
+    (fn x => if (DomSet.contains (get_dom_set mp) x) then I else add (x, x)) new_dom mp
 end
-
