@@ -14,20 +14,32 @@
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 
+signature NAME_RELATION_SHARING =
+sig
+  type dom
+  type cod
+  type rep
+  structure DomSet : NAME_SET_SHARING sharing type DomSet.name = dom
+  structure CodSet : NAME_SET_SHARING sharing type CodSet.name = cod
+end
+
 signature NAME_RELATION =
 sig
   type dom
   type cod
-  structure DomSet : NAME_SET sharing type DomSet.name = dom
-  structure CodSet : NAME_SET sharing type CodSet.name = cod
+  type rep (* the internal representation *)
+  structure DomSet : NAME_SET
+  structure CodSet : NAME_SET
+  type T = (dom, cod, rep) Map.amap (* the main type *)
   
-  (* the internal representation *)
-  type rep
+  structure Sharing : NAME_RELATION_SHARING
+  sharing type Sharing.dom = dom
+  sharing type Sharing.cod = cod
+  sharing type Sharing.rep = rep
+  sharing Sharing.DomSet = DomSet.Sharing
+  sharing Sharing.CodSet = CodSet.Sharing
   
-  (* the main type. To enable coercions, this should be
-     (dom,cod,rep) Map.amap and you should use transparent
-     ascription *)
-  type T(* = (dom, cod, rep) Map.amap*)
+  
   val empty: T
   val is_empty : T -> bool
   
@@ -234,7 +246,17 @@ struct
   fun compose3 ms = coerce (Map.compose3 ms)
   
   val pretty = Map.pretty "NameFunction" Dom.pretty_name Cod.pretty_name
+  
+  structure Sharing =
+  struct
+    type dom = dom
+    type cod = cod
+    type rep = rep
+    structure DomSet = DomSet.Sharing
+    structure CodSet = CodSet.Sharing
+  end
 end
+
 
 
 

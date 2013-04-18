@@ -173,5 +173,14 @@ struct
   fun inverse_of mp = Map.fold (fn (y,x) => add (x,y)) mp empty
   (*fun extend_to f new_dom mp = DomSet.fold
     (fn x => if (DomSet.contains (get_dom_set mp) x) then I else add (x, f x)) new_dom mp*)
+
+  structure Sharing =
+  struct
+    type dom = dom
+    type cod = cod
+    type rep = rep
+    structure DomSet = DomSet.Sharing
+    structure CodSet = CodSet.Sharing
+  end
 end
 

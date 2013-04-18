@@ -150,5 +150,14 @@ struct
   fun compose3 ms = coerce (Map.compose3 ms)
   
   val pretty = Map.pretty "NameFunction" Dom.pretty_name Cod.pretty_name
+  
+  structure Sharing =
+  struct
+    type dom = dom
+    type cod = cod
+    type rep = rep
+    structure DomSet = DomSet.Sharing
+    structure CodSet = CodSet.Sharing
+  end
 end
 
