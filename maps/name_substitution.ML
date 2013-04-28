@@ -27,11 +27,17 @@ sig
   include NAME_RELATION
   sharing type dom = cod
   sharing DomSet = CodSet
+  
+  (* CAREFUL: inverse_of o inverse_of != I, because avoids info gets lost *)
   val inverse_of : T -> T
   val extend_to : DomSet.T -> T -> T
   val get_cod_avoids : T -> CodSet.T
   val avoid_in_cod : cod -> T -> T
   val avoid_set_in_cod : CodSet.T -> T -> T
+  val clear_avoids : T -> T
+  
+  val add_fresh : dom -> T -> (cod * T)
+  val add_fresh_anon : dom -> T -> T
 end
 
 functor NameSubstitution(
@@ -57,7 +63,6 @@ struct
     itab : dom Tab.table,
     dom_set : DomSet.T,
     cod_set : CodSet.T,
-    dom_avoids : DomSet.T,
     cod_avoids : CodSet.T
   }
   
@@ -65,31 +70,29 @@ struct
   
   (* record accessors *)
   local
-    fun update_rep_tab f (r : rep) = {tab=f(#tab r),itab= #itab r,dom_set= #dom_set r,cod_set= #cod_set r,dom_avoids= #dom_avoids r,cod_avoids= #cod_avoids r}
-    fun update_rep_itab f (r : rep) = {tab= #tab r,itab=f(#itab r),dom_set= #dom_set r,cod_set= #cod_set r,dom_avoids= #dom_avoids r,cod_avoids= #cod_avoids r}
-    fun update_rep_dom_set f (r : rep) = {tab= #tab r,itab= #itab r,dom_set=f(#dom_set r),cod_set= #cod_set r,dom_avoids= #dom_avoids r,cod_avoids= #cod_avoids r}
-    fun update_rep_cod_set f (r : rep) = {tab= #tab r,itab= #itab r,dom_set= #dom_set r,cod_set=f(#cod_set r),dom_avoids= #dom_avoids r,cod_avoids= #cod_avoids r}
-    fun update_rep_dom_avoids f (r : rep) = {tab= #tab r,itab= #itab r,dom_set= #dom_set r,cod_set= #cod_set r,dom_avoids=f(#dom_avoids r),cod_avoids= #cod_avoids r}
-    fun update_rep_cod_avoids f (r : rep) = {tab= #tab r,itab= #itab r,dom_set= #dom_set r,cod_set= #cod_set r,dom_avoids= #dom_avoids r,cod_avoids=f(#cod_avoids r)}
+    fun update_rep_tab f (r : rep) = {tab=f(#tab r),itab= #itab r,dom_set= #dom_set r,cod_set= #cod_set r,cod_avoids= #cod_avoids r}
+    fun update_rep_itab f (r : rep) = {tab= #tab r,itab=f(#itab r),dom_set= #dom_set r,cod_set= #cod_set r,cod_avoids= #cod_avoids r}
+    fun update_rep_dom_set f (r : rep) = {tab= #tab r,itab= #itab r,dom_set=f(#dom_set r),cod_set= #cod_set r,cod_avoids= #cod_avoids r}
+    fun update_rep_cod_set f (r : rep) = {tab= #tab r,itab= #itab r,dom_set= #dom_set r,cod_set=f(#cod_set r),cod_avoids= #cod_avoids r}
+    fun update_rep_cod_avoids f (r : rep) = {tab= #tab r,itab= #itab r,dom_set= #dom_set r,cod_set= #cod_set r,cod_avoids=f(#cod_avoids r)}
   in
     fun update_tab        f (mp:T) = Map.update_rep (update_rep_tab        f) mp
     fun update_itab       f (mp:T) = Map.update_rep (update_rep_itab       f) mp
     fun update_dom_set    f (mp:T) = Map.update_rep (update_rep_dom_set    f) mp
     fun update_cod_set    f (mp:T) = Map.update_rep (update_rep_cod_set    f) mp
-    fun update_dom_avoids f (mp:T) = Map.update_rep (update_rep_dom_avoids f) mp
     fun update_cod_avoids f (mp:T) = Map.update_rep (update_rep_cod_avoids f) mp
     
-    fun get_tab        (mp:T) = #tab     (Map.get_rep mp)
-    fun get_itab       (mp:T) = #itab    (Map.get_rep mp)
-    fun get_dom_set    (mp:T) = #dom_set (Map.get_rep mp)
-    fun get_cod_set    (mp:T) = #cod_set (Map.get_rep mp)
-    fun get_dom_avoids (mp:T) = #dom_avoids (Map.get_rep mp)
+    fun get_tab        (mp:T) = #tab        (Map.get_rep mp)
+    fun get_itab       (mp:T) = #itab       (Map.get_rep mp)
+    fun get_dom_set    (mp:T) = #dom_set    (Map.get_rep mp)
+    fun get_cod_set    (mp:T) = #cod_set    (Map.get_rep mp)
     fun get_cod_avoids (mp:T) = #cod_avoids (Map.get_rep mp)
     
-    fun set_tab     x = update_tab     (K x)
-    fun set_itab    x = update_itab    (K x)
-    fun set_dom_set x = update_dom_set (K x)
-    fun set_cod_set x = update_cod_set (K x)
+    fun set_tab        x = update_tab        (K x)
+    fun set_itab       x = update_itab       (K x)
+    fun set_dom_set    x = update_dom_set    (K x)
+    fun set_cod_set    x = update_cod_set    (K x)
+    fun set_cod_avoids x = update_cod_avoids (K x)
   end
   
   fun graph_of_rep (r:rep) = let
@@ -151,11 +154,20 @@ struct
   
   fun avoid_in_cod n = update_cod_avoids (CodSet.add n)
   fun avoid_set_in_cod nset = update_cod_avoids (CodSet.union_merge nset)
+  fun clear_avoids mp = mp |> set_cod_avoids CodSet.empty
+  
+  fun add_fresh old_n mp = let
+    val avoid = CodSet.union_merge (get_cod_avoids mp) (get_cod_set mp)
+    val new_n = CodSet.new avoid old_n
+  in (new_n, mp |> add (old_n, new_n))
+  end
+  
+  val add_fresh_anon = snd oo add_fresh
   
   
   val empty_rep : rep = { tab = Tab.empty, itab = Tab.empty,
                           dom_set = DomSet.empty, cod_set = CodSet.empty,
-                          dom_avoids = DomSet.empty, cod_avoids = CodSet.empty }
+                          cod_avoids = CodSet.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
   fun of_graph gr = Map.fold_graph add gr empty
