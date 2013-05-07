@@ -167,10 +167,10 @@ val empty =
               avoids = NSet.empty,
               nmap = NTab.empty };
 
-fun mk_from_nmap nmap = 
+fun mk_from_nmap nmap =
     Renaming {ignore = NSet.empty,
               new = NSet.empty,
-              avoids = NTab.get_nameset nmap,
+              avoids = NTab.fold (fn (_,n) => NSet.add n) nmap NSet.empty,
               nmap = nmap};
 
 fun update_newnames f (Renaming rep) =
