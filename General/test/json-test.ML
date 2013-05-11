@@ -6,6 +6,9 @@ local
   in
     json_str
   end;
+  fun assert_parse_error json =
+    (Json.of_string json; raise ERROR "Expected parse error")
+    handle Json.parse_exn _ => ();
   fun assert_string_val exp json =
     case json
       of Json.String s => (if s = exp then () else
@@ -221,12 +224,13 @@ val _ = Testing.test "JSON parsing: complex object" (fn _ =>
   in () end) ();
 
 val _ = Testing.test "JSON parsing: array with invalid escaped string"
-  (fn _ => let
-    val json_str = "[\"\\x\"]"
-   in
-    (Json.of_string json_str; raise ERROR "Invalid JSON accepted")
-    handle Json.parse_exn _ => ()
-   end) ()
+  assert_parse_error "[\"\\x\"]";
+
+val _ = Testing.test "JSON parsing: object notation in array"
+  assert_parse_error "[\"x\":\"y\"]";
+
+val _ = Testing.test "JSON parsing: mixed array/object notation in array"
+  assert_parse_error "[\"c\",\"x\":\"y\"]";
 
 val _ = Testing.assert_no_failed_tests ();
 end;
