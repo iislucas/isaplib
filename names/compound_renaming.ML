@@ -1,3 +1,23 @@
+(* COMPOUND_RENAMING:
+ *
+ * A compound renaming applies a renaming to a structure that contains a
+ * collection of named items.  The structure needs to have a way of
+ * getting the set of existing names, and a function that attempts to
+ * rename one of the elements (which is expected to succeed unless there
+ * is a clash).
+ *
+ * Typical usage is to create a renaming that contains some initial constraints
+ * (such as a set of names you want to avoid), and pass it to rename to do the
+ * actual renaming.
+ *
+ * mk_renaming will extend an initial renaming to a renaming on the whole
+ * collection, which can then be passed do_renaming to actually perform the
+ * renaming.  Just using rename is more efficient, however.
+ *
+ * Due to the way compound renaming works, you need to make sure that the domain
+ * and range of nmap are disjoint, and that both are subsets of avoids.
+ *)
+
 (* basic things needed for renaming names within another datatype;
    allows separation of name spaces *)
 signature COMPOUND_RENAMABLE =
@@ -12,8 +32,8 @@ val get_nameset : obj -> Nm.NSet.T
 val try_rename1 : Nm.name -> Nm.name -> obj -> obj option 
 end;
 
-(* IMPROVE: 
-  ADD: can also make compount renaming from pairwise compound renamings. 
+(* IMPROVE:
+  ADD: can also make compound renaming from pairwise compound renamings.
   ADD: could also write a version based on a name-mapfold operation on obj
 *)
 
@@ -25,7 +45,7 @@ end;
    renamed to "c". While such a renaming is in theory ok, the implementation
    doesn't allow it. What you should be doing is making "b" part of the ignore
    and avoids sets. Thus "a" will be directly renamed to "c", and "b" will be
-   ignored.   
+   ignored.
 *)
 signature COMPOUND_RENAMING =
 sig

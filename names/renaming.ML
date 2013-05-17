@@ -5,16 +5,12 @@
                 30 May 2008   *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
-
-Note: This is essentially isomorphisms on a finite set of names.  We
-do not store the inverse name function and thus this does not allow
-efficient renaming. Efficient renaming can be done using the
-change_names structure.
-
-Generic renaming with a set of ignored names, a set of names to be
-avoided, and a table of renamings. 
-
-*)
+ *
+ * See BASIC_RENAMING documentation.
+ *
+ * This adds a compound renaming that updates a renaming to account for the
+ * precomposition of another renaming.
+ *)
 
 (* Renamings which can themselves be renamed *)
 signature RENAMING 

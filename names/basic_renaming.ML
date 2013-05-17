@@ -5,16 +5,33 @@
                 10 Jan 2010   *)
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *) 
 (*  DESCRIPTION:
-
-Note: This is essentially isomorphisms on a finite set of names.  We
-do not store the inverse name function and thus this does not allow
-efficient renaming. Efficient renaming can be done using the
-change_names structure.
-
-Generic renaming with a set of ignored names, a set of names to be
-avoided, and a table of renamings. 
-
-*)
+ *
+ * A renaming provides a controlled method of generating fresh names for
+ * named items.  It can be told what cannot be used as a fresh name
+ * (avoids), what things should not be renamed (ignore) and be given
+ * explicit values for some renames (nmap).
+ *
+ * Note that this structure only generates the new names.  To actually do
+ * the renaming, you want a COMPOUND_RENAMING.
+ *
+ * The main function is rename1, which tells you whether something should be
+ * renamed and, if so, what it should be renamed to.  If the name is in ignores,
+ * or it is not in the domain of nmap and not in avoids, it will indicate that
+ * it should be left alone (by returning NONE). Otherwise, if it has an entry in
+ * nmap, the mapped-to name will be returned.  Finally, if it is not ignored
+ * and not already mapped, but is in the set of names to avoid, it will
+ * generate a fresh name (ie: one not already in
+ * avoids) and return that, in addition to storing it in nmap.
+ *
+ * To guarantee that the final nmap is injective, the range of the initial nmap
+ * must be a subset of avoids.  The ignore set should also be a subset of avoids
+ * for a similar reason, as it is meant to represent the identity part of the
+ * renaming map.  If you want to be able to do a sequential (as opposed to
+ * simultaneous) renaming on the actual set of names, you will also want the
+ * domain of nmap to be a subset of avoids as well.  Note that rename1 will
+ * preserve all these properties.
+ *
+ *)
 signature BASIC_RENAMING
 = sig
 
@@ -150,10 +167,10 @@ val empty =
               avoids = NSet.empty,
               nmap = NTab.empty };
 
-fun mk_from_nmap nmap = 
+fun mk_from_nmap nmap =
     Renaming {ignore = NSet.empty,
               new = NSet.empty,
-              avoids = NTab.get_nameset nmap,
+              avoids = NTab.fold (fn (_,n) => NSet.add n) nmap NSet.empty,
               nmap = nmap};
 
 fun update_newnames f (Renaming rep) =
