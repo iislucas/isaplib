@@ -49,6 +49,9 @@ sig
   val dom_size : T -> int (* cardinality(dom_set) *)
   val cod_size : T -> int (* cardinality(cod_set) *)
   
+  val dom_contains : T -> dom -> bool
+  val cod_contains : T -> cod -> bool
+  
   (*** FORWARD LOOKUP FUNCTIONS ***)
   
   (* these will both throw multiple_values_exp if multiple values returned *)
@@ -179,6 +182,8 @@ struct
   val is_empty = DomSet.is_empty o get_dom_set
   val dom_size = DomSet.cardinality o get_dom_set
   val cod_size = CodSet.cardinality o get_cod_set
+  val dom_contains = DomSet.contains o get_dom_set
+  val cod_contains = CodSet.contains o get_cod_set
   
   fun get_opt mp x =
     case Tab.lookup (get_tab mp) x

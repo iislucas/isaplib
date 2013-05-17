@@ -102,7 +102,16 @@ PolyML.Project.use_root "maps/ROOT.ML";
 (* Other basic top level things *)
 PolyML.Project.make "basics/collection.ML";
 PolyML.Project.make "basics/polym_table.ML";
+
+if PolyML.Project.state_is_Changed ()
+then TextIO.print "state changed\n"
+else TextIO.print "state unchanged\n";
+
 PolyML.Project.make "basics/toplevel.ML";
+
+if PolyML.Project.state_is_Changed ()
+then TextIO.print "state changed\n"
+else TextIO.print "state unchanged\n";
 
 (* PolyML.Project.use_root "parser/ROOT.ML"; *)
 
@@ -112,3 +121,8 @@ then
 else
  (PolyML.Project.ensure_at_latest_heap ();
   PolyML.Project.save_project_child_state "heaps/all_child.heap");
+
+if PolyML.Project.state_is_Changed ()
+then TextIO.print "state changed\n"
+else TextIO.print "state unchanged\n";
+

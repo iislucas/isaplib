@@ -28,6 +28,9 @@ sig
   
   val dom_size : 'a T -> int (* cardinality(dom_set) *)
   val size : 'a T -> int (* alias for dom_size *)
+  
+  val dom_contains : 'a T -> name -> bool
+  
   val is_empty : 'a T -> bool
   
   (* forward lookup *)
@@ -108,6 +111,8 @@ struct
   
   fun dom_size mp = NSet.cardinality (get_names mp)
   val size = dom_size
+  fun dom_contains mp = NSet.contains (get_dom_set mp)
+  
   
   fun is_empty mp = NSet.is_empty (get_names mp)
   
