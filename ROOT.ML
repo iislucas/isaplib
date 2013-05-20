@@ -103,19 +103,14 @@ PolyML.Project.use_root "maps/ROOT.ML";
 PolyML.Project.make "basics/collection.ML";
 PolyML.Project.make "basics/polym_table.ML";
 
-if PolyML.Project.state_is_Changed ()
-then TextIO.print "state changed\n"
-else TextIO.print "state unchanged\n";
+
 
 PolyML.Project.make "basics/toplevel.ML";
 
-if PolyML.Project.state_is_Changed ()
-then TextIO.print "state changed\n"
-else TextIO.print "state unchanged\n";
 
 (* PolyML.Project.use_root "parser/ROOT.ML"; *)
 
-if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap"
+(*if PolyML.Project.heap_is_newer_than_edits "heaps/all_child.heap"
 then
   PolyML.Project.ensure_at_latest_heap ()
 else
@@ -126,3 +121,4 @@ if PolyML.Project.state_is_Changed ()
 then TextIO.print "state changed\n"
 else TextIO.print "state unchanged\n";
 
+*)
