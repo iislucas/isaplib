@@ -104,7 +104,6 @@ PolyML.Project.make "basics/collection.ML";
 PolyML.Project.make "basics/polym_table.ML";
 
 
-
 PolyML.Project.make "basics/toplevel.ML";
 
 
@@ -119,6 +118,5 @@ else
 
 if PolyML.Project.state_is_Changed ()
 then TextIO.print "state changed\n"
-else TextIO.print "state unchanged\n";
+else TextIO.print "state unchanged\n";*)
 
-*)
