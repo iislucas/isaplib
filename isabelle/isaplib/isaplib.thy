@@ -41,6 +41,14 @@ uses
 "../../graph/pregraph.ML"
 "../../graph/rgraph.ML"
 
+(* maps *)
+ "../../maps/abstract_map.ML"
+ "../../maps/name_table.ML"
+ "../../maps/name_relation.ML"
+ "../../maps/name_function.ML"
+ "../../maps/name_injection.ML"
+ "../../maps/name_substitution.ML"
+
 (* search *)
 "../../search/gsearch.ML"
 "../../search/msearch.ML"
