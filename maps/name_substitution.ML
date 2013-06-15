@@ -30,7 +30,15 @@ sig
   
   (* CAREFUL: inverse_of o inverse_of != I, because avoids info gets lost *)
   val inverse_of : T -> T
+  
+  (* try to extend the domain to include every element of this set, where
+   * unmapped elements go to themselves *)
   val extend_to : DomSet.T -> T -> T
+
+  (* extend the domain to the given set, where unmapped elements are mapped to
+   * new fresh names *)
+  val extend_fresh : DomSet.T -> T -> T
+
   val get_cod_avoids : T -> CodSet.T
   val avoid_in_cod : cod -> T -> T
   val avoid_set_in_cod : CodSet.T -> T -> T
@@ -166,6 +174,9 @@ struct
   
   val add_fresh_anon = snd oo add_fresh
   
+  fun extend_fresh nset mp =
+    DomSet.fold (fn n => if dom_contains mp n then I else add_fresh_anon n) nset mp
+
   
   val empty_rep : rep = { tab = Tab.empty, itab = Tab.empty,
                           dom_set = DomSet.empty, cod_set = CodSet.empty,
