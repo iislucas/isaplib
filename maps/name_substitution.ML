@@ -33,7 +33,7 @@ sig
   
   (* try to extend the domain to include every element of this set, where
    * unmapped elements go to themselves *)
-  val extend_to : DomSet.T -> T -> T
+  val extend_fixed : DomSet.T -> T -> T
 
   (* extend the domain to the given set, where unmapped elements are mapped to
    * new fresh names *)
@@ -43,6 +43,8 @@ sig
   val avoid_in_cod : cod -> T -> T
   val avoid_set_in_cod : CodSet.T -> T -> T
   val clear_avoids : T -> T
+
+  val mk_from_avoids : CodSet.T -> T
   
   val add_fresh : dom -> T -> (cod * T)
   val add_fresh_anon : dom -> T -> T
@@ -165,7 +167,7 @@ struct
   fun avoid_in_cod n = update_cod_avoids (CodSet.add n)
   fun avoid_set_in_cod nset = update_cod_avoids (CodSet.union_merge nset)
   fun clear_avoids mp = mp |> set_cod_avoids CodSet.empty
-  
+
   fun add_fresh old_n mp = let
     val avoid = CodSet.union_merge (get_cod_avoids mp) (get_cod_set mp)
     val new_n = CodSet.new avoid old_n
@@ -183,6 +185,8 @@ struct
                           cod_avoids = CodSet.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
+  fun mk_from_avoids nset = empty |> avoid_set_in_cod nset
+
   fun of_graph gr = Map.fold_graph add gr empty
   
   val fold = Map.fold
@@ -217,7 +221,7 @@ struct
        |> set_itab (get_tab mp)
   
   (* extend domain to include new_dom, mapping items to themselves if not mapped *)
-  fun extend_to new_dom mp = DomSet.fold
+  fun extend_fixed new_dom mp = DomSet.fold
     (fn x => if (DomSet.contains (get_dom_set mp) x) then I else add (x, x)) new_dom mp
   
   structure Sharing =

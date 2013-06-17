@@ -30,6 +30,9 @@ sig
   val size : 'a T -> int (* alias for dom_size *)
   
   val dom_contains : 'a T -> name -> bool
+
+  (* given the comparison function for values, return true if tables are identical *)
+  val tab_eq : ('a * 'a -> bool) -> 'a T * 'a T -> bool
   
   val is_empty : 'a T -> bool
   
@@ -113,7 +116,6 @@ struct
   val size = dom_size
   fun dom_contains mp = NSet.contains (get_dom_set mp)
   
-  
   fun is_empty mp = NSet.is_empty (get_names mp)
   
   fun get_opt mp = Tab.lookup (get_tab mp)
@@ -142,12 +144,21 @@ struct
   
   val empty_rep = Rep { names=NSet.empty, tab=Tab.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
+  
   fun of_graph gr = Map.fold_graph add gr empty
   
   val fold = Map.fold
   val forall = Map.forall
   val exists = Map.exists
   val find = Map.find
+
+  fun tab_eq val_eq (tab1,tab2) =
+    if dom_size tab1 = dom_size tab2
+    then fold (fn (k,v) => fn sofar => (sofar andalso
+      case get_opt tab2 k
+        of SOME v' => val_eq (v,v')
+         | NONE => false)) tab1 true
+    else false
   
   fun coerce abs_map = fold add abs_map empty
   handle _ => raise Map.bad_coercion_exp ()
