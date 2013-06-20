@@ -49,6 +49,9 @@ sig
   val store : 'a -> 'a T -> (name * 'a T)
   val store_anon : 'a -> 'a T -> 'a T
   val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T
+  val map_default : ('a -> 'a) -> 'a -> name -> 'a T -> 'a T
+
+  val of_list : (name * 'a) list -> 'a T
   
   (* inherited from Map.Util *)
   val fold : (name * 'a -> 'b -> 'b) -> 'a T -> 'b -> 'b
@@ -128,8 +131,10 @@ struct
   fun add (k,v) m =
     if (NSet.contains (get_names m) k) then raise Map.duplicate_exp ()
     else set (k,v) m
-    
-  fun map_entry f k = update_tab (Tab.map_entry k f)
+
+  fun map_entry f k m = update_tab (Tab.map_entry k f) m
+                        handle Tab.SAME => m
+  fun map_default f x k = update_tab (Tab.map_default (k,x) f)
   
   fun store v mp = let
     val (fresh,names) = NSet.add_new Dom.default_name (get_names mp)
@@ -146,6 +151,7 @@ struct
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
   fun of_graph gr = Map.fold_graph add gr empty
+  fun of_list lst = fold add lst empty
   
   val fold = Map.fold
   val forall = Map.forall
