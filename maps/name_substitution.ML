@@ -14,10 +14,8 @@
     it seems wasteful to obfuscate the code to share more with injections.
     
     NOTE: 'set (x,y)' will overwrite a value if x is already in the
-    domain, and raise duplicate_exp if mapping x to y would break
-    injectivity. 'add (x,y)' is the preferred way to add elements,
-    as it will throw duplicate_exp if x is in the domain *or* if y
-    is in the codomain.
+    domain, and raise name_clash_exp if mapping x to y would break
+    injectivity.
 *)
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
@@ -27,16 +25,39 @@ sig
   include NAME_RELATION
   sharing type dom = cod
   sharing DomSet = CodSet
+
+  (*
+   * All updaters maintain two invariants:
+   *  1. the underlying map is injective
+   *  2. cod_set (intersect) cod_avoids = empty
+   * 
+   * If an updater would break this invariants, name_clash_exp is thrown. This happens in
+   * three cases:
+   *  1. (SOME a, SOME b, c) : client wants to add a mapping [b |-> c], but there already exists
+   *                           a mapping [a |-> c].
+   *  2. (SOME a, NONE, c)   : client wants to add c to "avoids" set, but there already exists a
+   *                           mapping [a |-> c].
+   *  3. (NONE, SOME b)      : client wants to add a mapping [b |-> c], but c is already in the
+   *                           "avoids" set
+   *)
+  exception name_clash_exp of dom option * dom option * cod
   
-  (* CAREFUL: inverse_of o inverse_of != I, because avoids info gets lost *)
+  (* CAREFUL: inverse_of o inverse_of != I, because avoids info gets lost. This is not a problem
+   * in practice, because typically inverses are created local to a renaming function then thrown
+   * away. *)
   val inverse_of : T -> T
+
+  (*
+   * Typically substitutions are created by setting an "avoids" set, then extending the domain of
+   * the substitution with "extend_fixed" and "extend_fresh"
+   *)
   
-  (* try to extend the domain to include every element of this set, where
-   * unmapped elements go to themselves *)
+  (* try to extend the domain to include every element of this set, where unmapped elements
+   * go to themselves. This can fail with name_clash_exp. *)
   val extend_fixed : DomSet.T -> T -> T
 
-  (* extend the domain to the given set, where unmapped elements are mapped to
-   * new fresh names *)
+  (* extend the domain to the given set, where unmapped elements are mapped to new fresh names.
+   * This will never fail. *)
   val extend_fresh : DomSet.T -> T -> T
 
   val get_cod_avoids : T -> CodSet.T
@@ -61,6 +82,8 @@ struct
   structure CodSet = Name.NSet
   
   structure Tab = Table(type key = dom val ord = Name.name_ord)
+
+  exception name_clash_exp of dom option * dom option * cod
   
   (* do gets directly on a table, throw exception if not found *)
   fun get_from_tab tab k =
@@ -133,13 +156,17 @@ struct
   fun set (x,y) mp = let
     val oldy_opt = get_opt mp x
   in
-    if (CodSet.contains (get_cod_set mp) y) then raise Map.duplicate_exp ()
-    else mp |> update_dom_set (DomSet.add x)
-            |> update_cod_set (case oldy_opt of SOME oldy => CodSet.delete oldy | NONE => I)
-            |> update_cod_set (CodSet.add y)
-            |> update_tab (Tab.update (x,y))
-            |> update_itab (case oldy_opt of SOME oldy => Tab.delete oldy | NONE => I)
-            |> update_itab (Tab.update (y,x))
+    if (CodSet.contains (get_cod_set mp) y)
+    then raise name_clash_exp (SOME (inv_get mp y), SOME x, y)
+    else
+      if (CodSet.contains (get_cod_avoids mp) y)
+      then raise name_clash_exp (NONE, SOME x, y)
+      else mp |> update_dom_set (DomSet.add x)
+              |> update_cod_set (case oldy_opt of SOME oldy => CodSet.delete oldy | NONE => I)
+              |> update_cod_set (CodSet.add y)
+              |> update_tab (Tab.update (x,y))
+              |> update_itab (case oldy_opt of SOME oldy => Tab.delete oldy | NONE => I)
+              |> update_itab (Tab.update (y,x))
   end
   
   fun add (x,y) mp = 
@@ -164,8 +191,13 @@ struct
   
   (***** avoids and freshness *****)
   
-  fun avoid_in_cod n = update_cod_avoids (CodSet.add n)
-  fun avoid_set_in_cod nset = update_cod_avoids (CodSet.union_merge nset)
+  fun avoid_in_cod n mp =
+    if CodSet.contains (get_cod_set mp) n
+    then raise name_clash_exp (SOME (inv_get mp n), NONE, n)
+    else update_cod_avoids (CodSet.add n) mp
+
+
+  fun avoid_set_in_cod nset = CodSet.fold avoid_in_cod nset
   fun clear_avoids mp = mp |> set_cod_avoids CodSet.empty
 
   fun add_fresh old_n mp = let
@@ -185,7 +217,7 @@ struct
                           cod_avoids = CodSet.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
-  fun mk_from_avoids nset = empty |> avoid_set_in_cod nset
+  fun mk_from_avoids nset = empty |> set_cod_avoids nset
 
   fun of_graph gr = Map.fold_graph add gr empty
   
