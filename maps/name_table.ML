@@ -52,6 +52,7 @@ sig
   val map_default : ('a -> 'a) -> 'a -> name -> 'a T -> 'a T
 
   val of_list : (name * 'a) list -> 'a T
+  val list_of : 'a T -> (name * 'a) list
   
   (* inherited from Map.Util *)
   val fold : (name * 'a -> 'b -> 'b) -> 'a T -> 'b -> 'b
@@ -150,13 +151,15 @@ struct
   val empty_rep = Rep { names=NSet.empty, tab=Tab.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
-  fun of_graph gr = Map.fold_graph add gr empty
-  fun of_list lst = fold add lst empty
-  
   val fold = Map.fold
   val forall = Map.forall
   val exists = Map.exists
   val find = Map.find
+
+  fun of_graph gr = Map.fold_graph add gr empty
+  fun of_list lst = Basics.fold add lst empty
+  fun list_of m = fold cons m []
+
 
   fun tab_eq val_eq (tab1,tab2) =
     if dom_size tab1 = dom_size tab2
