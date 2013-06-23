@@ -67,6 +67,7 @@ sig
   (* try to convert an amap to a name table. Throws an exception if unsuccessful. *)
   val coerce : (name,'a,'b) Map.amap -> 'a T
   
+  val pretty_key : name -> Pretty.T
   val pretty : ('a -> Pretty.T) -> 'a T -> Pretty.T
 end
 
@@ -175,6 +176,7 @@ struct
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)
   
+  val pretty_key = Dom.pretty_name
   fun pretty pretty_val = Map.pretty "NameTable" Dom.pretty_name pretty_val
   
 end

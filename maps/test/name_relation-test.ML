@@ -1,4 +1,21 @@
-local
+functor TestNameRelation(
+  structure ABRel : NAME_RELATION
+      where type dom = TestMapsUtil.A.name
+        and type DomSet.T = TestMapsUtil.A.NSet.T
+        and type cod = TestMapsUtil.B.name
+        and type CodSet.T = TestMapsUtil.B.NSet.T
+  structure BCRel : NAME_RELATION
+      where type dom = TestMapsUtil.B.name
+        and type DomSet.T = TestMapsUtil.B.NSet.T
+        and type cod = TestMapsUtil.C.name
+        and type CodSet.T = TestMapsUtil.C.NSet.T
+  structure ACRel : NAME_RELATION
+      where type dom = TestMapsUtil.A.name
+        and type DomSet.T = TestMapsUtil.A.NSet.T
+        and type cod = TestMapsUtil.C.name
+        and type CodSet.T = TestMapsUtil.C.NSet.T
+) =
+struct
   open TestMapsUtil
   
   (* naming convention: for arbitrary name-relations, use letters typical for
@@ -192,6 +209,15 @@ local
       assert "should return correct image for a3"
         (B.NSet.eq (ABRel.img rel' a3) (B.NSet.of_list [b1]));
     ())) ()
-in
-  val _ = assert_no_failed_tests ()
+ 
+end
+
+local
+  open TestMapsUtil
+  structure Test_ABRel =
+    TestNameRelation(
+      structure ABRel = ABRel
+      structure BCRel = BCRel
+      structure ACRel = ACRel)
+in val _ = assert_no_failed_tests ()
 end

@@ -66,6 +66,11 @@ struct
     structure Dom = A
     structure Cod = C
   )
+
+  structure ASub = NameSubstitution(structure Name = A)
+  structure BSub = NameSubstitution(structure Name = B)
+  structure CSub = NameSubstitution(structure Name = C)
+
   
   
   fun catch_coerce_fail f = (f (); false)

@@ -1,5 +1,4 @@
 local
-in
   open TestMapsUtil
   
   val inj = ABInj.empty
@@ -90,6 +89,6 @@ in
       assert "should be identity on inverse of a2" (A.name_eq (AAInj.inv_get comp_inj a2, a2));
     ())) ()
   
-(*in*)
+in
   val _ = assert_no_failed_tests ()
 end

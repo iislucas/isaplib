@@ -123,70 +123,62 @@ functor NameRelation(
   structure Cod : NAME
 ) : NAME_RELATION =
 struct
-
   type dom = Dom.name
   type cod = Cod.name
   structure DomSet = Dom.NSet
   structure CodSet = Cod.NSet
+  structure DomTab = NameTable(structure Dom = Dom)
+  structure CodTab = NameTable(structure Dom = Cod)
   
-  structure Tab = Table(type key = dom val ord = Dom.name_ord)
-  structure ITab = Table(type key = cod val ord = Cod.name_ord)
+  (*structure Tab = Table(type key = dom val ord = Dom.name_ord)
+  structure ITab = Table(type key = cod val ord = Cod.name_ord)*)
   
   (* do gets directly on a table, throw exception if not found *)
-  fun get_from_tab tab k =
+  (*fun get_from_tab tab k =
     case Tab.lookup tab k of SOME v => v
        | NONE => raise Map.no_such_elem_exp ()
   fun get_from_itab tab k =
     case ITab.lookup tab k of SOME v => v
-       | NONE => raise Map.no_such_elem_exp ()
+       | NONE => raise Map.no_such_elem_exp ()*)
   
   (* the internal representation *)
   type rep = {
-    tab : CodSet.T Tab.table,
-    itab : DomSet.T ITab.table,
-    dom_set : DomSet.T,
-    cod_set : CodSet.T
+    tab : CodSet.T DomTab.T,
+    itab : DomSet.T CodTab.T
   }
   
   type T = (dom, cod, rep) Map.amap
   
   (* record accessors *)
   local
-    fun update_rep_tab     f (r:rep) = {tab=f(#tab r),itab= #itab r,dom_set= #dom_set r,cod_set= #cod_set r}
-    fun update_rep_itab    f (r:rep) = {tab= #tab r,itab=f(#itab r),dom_set= #dom_set r,cod_set= #cod_set r}
-    fun update_rep_dom_set f (r:rep) = {tab= #tab r,itab= #itab r,dom_set=f(#dom_set r),cod_set= #cod_set r}
-    fun update_rep_cod_set f (r:rep) = {tab= #tab r,itab= #itab r,dom_set= #dom_set r,cod_set=f(#cod_set r)}
+    fun update_rep_tab     f (r:rep) = {tab=f(#tab r),itab= #itab r}
+    fun update_rep_itab    f (r:rep) = {tab= #tab r,itab=f(#itab r)}
   in
-    fun update_tab     f (mp:T) = Map.update_rep (update_rep_tab     f) mp
-    fun update_itab    f (mp:T) = Map.update_rep (update_rep_itab    f) mp
-    fun update_dom_set f (mp:T) = Map.update_rep (update_rep_dom_set f) mp
-    fun update_cod_set f (mp:T) = Map.update_rep (update_rep_cod_set f) mp
-    
-    fun get_tab     (mp:T) = #tab     (Map.get_rep mp)
-    fun get_itab    (mp:T) = #itab    (Map.get_rep mp)
-    fun get_dom_set (mp:T) = #dom_set (Map.get_rep mp)
-    fun get_cod_set (mp:T) = #cod_set (Map.get_rep mp)
-    
-    fun set_tab     x = update_tab     (K x)
-    fun set_itab    x = update_itab    (K x)
-    fun set_dom_set x = update_dom_set (K x)
-    fun set_cod_set x = update_cod_set (K x)
+    fun update_tab  f (mp:T) = Map.update_rep (update_rep_tab  f) mp
+    fun update_itab f (mp:T) = Map.update_rep (update_rep_itab f) mp
+    fun get_tab       (mp:T) = #tab     (Map.get_rep mp)
+    fun get_itab      (mp:T) = #itab    (Map.get_rep mp)
+    fun set_tab  x           = update_tab     (K x)
+    fun set_itab x           = update_itab    (K x)
   end
+
+  fun get_dom_set mp = DomTab.get_dom_set (get_tab mp)
+  fun get_cod_set mp = CodTab.get_dom_set (get_itab mp)
   
   fun graph_of_rep (r:rep) = let
-    fun di x = case Tab.lookup (#tab r) x of SOME ys => CodSet.list_of ys | NONE => []
-    fun dom () = DomSet.list_of (#dom_set r)
+    fun di x = case DomTab.get_opt (#tab r) x of SOME ys => CodSet.list_of ys | NONE => []
+    fun dom () = DomSet.list_of (DomTab.get_dom_set (#tab r))
   in Map.mk_graph (dom, di)
   end
   
-  val is_empty = DomSet.is_empty o get_dom_set
-  val dom_size = DomSet.cardinality o get_dom_set
-  val cod_size = CodSet.cardinality o get_cod_set
+  val is_empty = DomTab.is_empty o get_tab
+  val dom_size = DomTab.dom_size o get_tab
+  val cod_size = CodTab.dom_size o get_itab
   val dom_contains = DomSet.contains o get_dom_set
   val cod_contains = CodSet.contains o get_cod_set
   
   fun get_opt mp x =
-    case Tab.lookup (get_tab mp) x
+    case DomTab.get_opt (get_tab mp) x
       of SOME ys => (case CodSet.tryget_singleton ys of SOME y => SOME y
                         | NONE => raise Map.multiple_values_exp ())
        | NONE => NONE
@@ -194,11 +186,11 @@ struct
   fun get mp x = case get_opt mp x of SOME y => y
                     | NONE => raise Map.no_such_elem_exp ()
   
-  fun img mp x = case Tab.lookup (get_tab mp) x of SOME ys => ys | NONE => CodSet.empty
+  fun img mp x = case DomTab.get_opt (get_tab mp) x of SOME ys => ys | NONE => CodSet.empty
   fun img_of_set mp xs = DomSet.fold (CodSet.union_merge o (img mp)) xs CodSet.empty
   
   fun inv_get_opt mp x =
-    case ITab.lookup (get_itab mp) x
+    case CodTab.get_opt (get_itab mp) x
       of SOME ys => (case DomSet.tryget_singleton ys of SOME y => SOME y
                         | NONE => raise Map.multiple_values_exp ())
        | NONE => NONE
@@ -206,16 +198,14 @@ struct
   fun inv_get mp y = case inv_get_opt mp y of SOME x => x
                         | NONE => raise Map.no_such_elem_exp ()
   
-  fun inv_img mp y = case ITab.lookup (get_itab mp) y of SOME xs => xs | NONE => DomSet.empty
+  fun inv_img mp y = case CodTab.get_opt (get_itab mp) y of SOME xs => xs | NONE => DomSet.empty
   fun inv_img_of_set mp ys = CodSet.fold (DomSet.union_merge o (inv_img mp)) ys DomSet.empty
   
   fun is_mapped mp (x,y) = CodSet.contains (img mp x) y
   
   fun add (x,y) mp =
-    mp |> update_dom_set (DomSet.add x)
-       |> update_cod_set (CodSet.add y)
-       |> update_tab (Tab.update (x,CodSet.add y (img mp x)))
-       |> update_itab (ITab.update (y,DomSet.add x (inv_img mp y)))
+    mp |> update_tab (DomTab.set (x,CodSet.add y (img mp x)))
+       |> update_itab (CodTab.set (y,DomSet.add x (inv_img mp y)))
   
   val set = add
   
@@ -223,18 +213,17 @@ struct
     val ix = img mp x |> CodSet.delete y
     val iy = inv_img mp y |> DomSet.delete x
   in mp |> (if CodSet.is_empty ix
-            then update_tab (Tab.delete x) o update_dom_set (DomSet.delete x)
-            else update_tab (Tab.update (x,ix)))
+            then update_tab (DomTab.delete x)
+            else update_tab (DomTab.set (x,ix)))
         |> (if DomSet.is_empty iy
-            then update_itab (ITab.delete y) o update_cod_set (CodSet.delete y)
-            else update_itab (ITab.update (y,iy)))
+            then update_itab (CodTab.delete y)
+            else update_itab (CodTab.set (y,iy)))
   end
   
   fun delete x mp = CodSet.fold (fn y => unmap (x,y)) (img mp x) mp
   fun inv_delete y mp = DomSet.fold (fn x => unmap (x,y)) (inv_img mp y) mp
   
-  val empty_rep : rep = { tab = Tab.empty, itab = ITab.empty,
-                          dom_set = DomSet.empty, cod_set = CodSet.empty }
+  val empty_rep : rep = { tab = DomTab.empty, itab = CodTab.empty }
   val empty = Map.MAP (empty_rep, graph_of_rep)
   
   fun of_graph gr = Map.fold_graph add gr empty
@@ -250,7 +239,7 @@ struct
   fun compose ms = coerce (Map.compose ms)
   fun compose3 ms = coerce (Map.compose3 ms)
   
-  val pretty = Map.pretty "NameFunction" Dom.pretty_name Cod.pretty_name
+  val pretty = Map.pretty "NameFunction" DomTab.pretty_key CodTab.pretty_key
   
   structure Sharing =
   struct
