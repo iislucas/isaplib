@@ -152,12 +152,18 @@ struct
   fun is_mapped mp (x,y) =
     case get_opt mp x of SOME y' => Name.name_eq(y,y') | NONE => false
   
-  (* throws an exception if setting value would make map no longer injective *)
+  (* raises an exception if setting value would make map no longer injective or break
+   * avoids constraint *)
   fun set (x,y) mp = let
     val oldy_opt = get_opt mp x
   in
     if (CodSet.contains (get_cod_set mp) y)
-    then raise name_clash_exp (SOME (inv_get mp y), SOME x, y)
+    then
+      let
+        val x' = inv_get mp y
+      in if Name.name_eq (x,x') then mp
+         else raise name_clash_exp (SOME x', SOME x, y)
+      end
     else
       if (CodSet.contains (get_cod_avoids mp) y)
       then raise name_clash_exp (NONE, SOME x, y)
