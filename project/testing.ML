@@ -107,6 +107,7 @@ fun fassert msg f x = assert msg (f x)
 end;
 
 (* small example usage: *)
+(*
 local 
   (* define some basic values*)
   val a = "a";
@@ -126,3 +127,4 @@ in
      failed tests *)
   val _ = Testing.assert_no_failed_tests();
 end; (* ends local namespace used for testing *)
+*)
