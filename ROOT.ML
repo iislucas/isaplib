@@ -6,6 +6,16 @@ use "basics/log.ML";
 use "project/project.ML";
 use "project/testing.ML";
 
+if List.exists (fn s => s = "--disable-tests") (CommandLine.arguments())
+then Testing.run_tests_ref := false
+else Testing.run_tests_ref := true;
+case List.find (String.isPrefix "--test-log-level=") (CommandLine.arguments())
+  of SOME s =>
+    (case Int.fromString (String.extract (s,17,NONE))
+       of SOME i => Testing.Log.level_ref := i
+        | NONE => Testing.Log.level_ref := 1)
+   | NONE => Testing.Log.level_ref := 1;
+
 (* For debugging Project turn on logging:
    PolyML.Project.Log.level_ref := 5;
 *)
