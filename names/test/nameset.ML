@@ -3,7 +3,7 @@ structure N = StrNSet;
 structure N2 = StrIntNSet;
 structure N3 = IntNSet;
 in 
-val _ = let 
+val _ = Testing.test "NSet tests" (fn () => let 
 (* 
  install_pp (make_pp ["N", "T"] (Pretty.pprint o N.pretty_struct));
 *)
@@ -82,7 +82,7 @@ val tr2 =
       |> N.add_range ("conjEj","conjEk")
       |> N.add_range ("conjEg","conjEh")
       |> assert_correct;
-val _ = N.print_full tr2;
+(*val _ = N.print_full tr2;*)
 
 (* causes major rebalance... *)
 val tr3 = tr2 |> N.add "conjEl";
@@ -128,27 +128,29 @@ val s2 = N3.empty |> N3.add_range (111,111);
 
 val (v as (b,t)) = (111,111);
 open N3;
-val (tr as Br (d,v2 as (b2,t2),l,r)) = s;
+val _ = case s
+          of (tr as Br (d,v2 as (b2,t2),l,r)) => ()
+           | _ => raise ERROR "s wrong"
 
 val _ = N3.union_merge s2 s |> N3.assert_correct;;
 
 (* --- renaming --- *)
 
 val s = N3.of_list [1,2,3];
-val _ = N3.print s;
+(*val _ = N3.print s;*)
 val s = s |> N3.add 5;
-val _ = N3.print s;
-val (SOME s) = s |> N3.try_rename1 5 4;
-val _ = case s |> N3.try_rename1 4 2 of SOME _ => raise ERROR "N3.try_rename1 4 2: failed :( " | _ => ();
-val _ = N3.print s;
+(*val _ = N3.print s;*)
+val s = the (s |> N3.try_rename1 5 4)
+val _ = case s |> N3.try_rename1 4 2
+          of SOME _ => raise ERROR "N3.try_rename1 4 2: failed :( "
+           | _ => ();
+(*val _ = N3.print s;*)
 
 
-in 
-  Pretty.writeln (Pretty.str "FNameTab tests passed.") (* big let *)
-end (* let *)
-    handle _ => raise ERROR "test/fnamer.ML: test failed! horrible monsters!";
-end
-; (* local *)
+in () end (* let *)
+) ()
+val _ = Testing.assert_no_failed_tests();
+end (* local *)
 
 
 
