@@ -50,6 +50,7 @@ sig
   val store_anon : 'a -> 'a T -> 'a T
   val map_entry : ('a -> 'a) -> name -> 'a T -> 'a T
   val map_default : ('a -> 'a) -> 'a -> name -> 'a T -> 'a T
+  val map_all : ('a -> 'b) -> 'a T -> 'b T
 
   val of_list : (name * 'a) list -> 'a T
   val list_of : 'a T -> (name * 'a) list
@@ -137,6 +138,8 @@ struct
   fun map_entry f k m = update_tab (Tab.map_entry k f) m
                         handle Tab.SAME => m
   fun map_default f x k = update_tab (Tab.map_default (k,x) f)
+  fun map_all f (Map.MAP (Rep {names=names,tab=tab}, _)) =
+    Map.MAP (Rep { names = names, tab = Tab.map (K f) tab }, graph_of_rep)
   
   fun store v mp = let
     val (fresh,names) = NSet.add_new Dom.default_name (get_names mp)
