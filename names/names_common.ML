@@ -15,7 +15,7 @@ signature SSTR_NAME = SNAME where type src = string;
 structure SStrName :> SSTR_NAME
 = struct
   structure S = NameFun(structure Namer = StrSNamer 
-                         val default_name = StrSNamer.StrName("",1));
+                         val default_name = StrSNamer.mk "");
   open S;
   type src = string;
   val mk = StrSNamer.mk;

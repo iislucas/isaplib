@@ -28,7 +28,7 @@ alpha. If not alpha, we add an "a" to the end of it. *)
 (* names are string * int - int is incremeneted and represents 
    the last lower-case alpha part of the string *)
 structure StrSNamer 
-(* : SNAMER *) (* where type src = string *)
+ : SNAMER where type src = string
 = struct
 
 type src = string 
