@@ -55,6 +55,7 @@ structure SIntName :> SINT_NAME
   val dest = I;
 end;
 
+
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* Lifting into FreshNamers *)
 structure IntNSet = IntName.NSet;

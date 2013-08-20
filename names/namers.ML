@@ -263,3 +263,32 @@ structure IntNamer : NAMER
   fun pretty x = Pretty.str (Int.toString x);
   fun eq n1n2 = (case ord n1n2 of EQUAL => true | _ => false);
 end;
+
+(* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
+functor SumNamer(
+  structure Namer1 : NAMER
+  structure Namer2 : NAMER
+) =
+struct
+  datatype name = IN1 of Namer1.name | IN2 of Namer2.name
+  type src = name
+  fun suc (IN1 n) = IN1 (Namer1.suc n)
+    | suc (IN2 n) = IN2 (Namer2.suc n)
+
+  fun pred (IN1 n) = Option.map IN1 (Namer1.pred n)
+    | pred (IN2 n) = Option.map IN2 (Namer2.pred n)
+
+  fun ord (IN1 n1, IN1 n2) = Namer1.ord (n1,n2)
+    | ord (IN2 n1, IN2 n2) = Namer2.ord (n1,n2)
+    | ord (IN1 _, IN2 _) = GREATER
+    | ord (IN2 _, IN1 _) = LESS
+
+  fun eq ns = (ord ns = EQUAL)
+
+  fun pretty (IN1 n) = Pretty.block [Pretty.str "IN1(", Namer1.pretty n, Pretty.str ")"]
+    | pretty (IN2 n) = Pretty.block [Pretty.str "IN2(", Namer2.pretty n, Pretty.str ")"]
+
+  val mk = I
+  val dest = I
+end
+
