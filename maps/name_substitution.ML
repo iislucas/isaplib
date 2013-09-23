@@ -47,6 +47,9 @@ sig
    * away. *)
   val inverse_of : T -> T
 
+  val restrict_dom : DomSet.T -> T -> T
+  val filter_dom : (dom -> bool) -> T -> T
+
   (*
    * Typically substitutions are created by setting an "avoids" set, then extending the domain of
    * the substitution with "extend_fixed" and "extend_fresh"
@@ -194,7 +197,7 @@ struct
                          of SOME y1 => if Name.name_eq (y,y1) then delete x mp else mp
                           | NONE => mp
   
-  
+
   (***** avoids and freshness *****)
   
   fun avoid_in_cod n mp =
@@ -240,6 +243,13 @@ struct
   
   val pretty = Map.pretty "NameSubstitution" Name.pretty_name Name.pretty_name
   
+  (* TODO: maybe this should be in RELATION *)
+  fun restrict_dom set mp =
+    DomSet.fold (fn x => add (x, get mp x)) set empty
+  fun filter_dom f mp = 
+    DomSet.fold (fn x => if f x then add (x, get mp x) else I) (get_dom_set mp) empty
+
+
   (*type irep = {
     tab : dom Tab.table,
     itab : cod Tab.table,
