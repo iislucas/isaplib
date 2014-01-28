@@ -47,8 +47,10 @@ sig
    * away. *)
   val inverse_of : T -> T
 
+  (* TODO: maybe these should be in RELATION signature, and implemented everywhere *)
   val restrict_dom : DomSet.T -> T -> T
   val filter_dom : (dom -> bool) -> T -> T
+  (*val is_monotone : T -> bool*)
 
   (*
    * Typically substitutions are created by setting an "avoids" set, then extending the domain of
@@ -197,6 +199,18 @@ struct
                          of SOME y1 => if Name.name_eq (y,y1) then delete x mp else mp
                           | NONE => mp
   
+  (*fun is_monotone mp =
+    let
+      fun mono dset cset =
+        case (DomSet.get_min dset, CodSet.get_min cset)
+          of (SOME d, SOME c) => Name.name_eq (get mp d,c) andalso
+                                 mono (DomSet.delete d dset) (CodSet.delete c cset)
+           | (NONE,NONE) => true
+           | _ => false
+    in mono (get_dom_set mp) (get_cod_set mp)
+    end*)
+
+
 
   (***** avoids and freshness *****)
   
@@ -243,7 +257,6 @@ struct
   
   val pretty = Map.pretty "NameSubstitution" Name.pretty_name Name.pretty_name
   
-  (* TODO: maybe this should be in RELATION *)
   fun restrict_dom set mp =
     DomSet.fold (fn x => add (x, get mp x)) set empty
   fun filter_dom f mp = 

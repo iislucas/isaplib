@@ -22,6 +22,10 @@ sig
   include NAME_RELATION
   
   val inverse_of : (cod,dom,'a) Map.amap -> T
+
+  val restrict_dom : DomSet.T -> T -> T
+  val filter_dom : (dom -> bool) -> T -> T
+  val is_monotone : T -> bool
   
   (* extend the injection to the given set, using the given function to
      provide codomain values *)
@@ -157,6 +161,22 @@ struct
   fun compose3 ms = coerce (Map.compose3 ms)
   
   val pretty = Map.pretty "NameInjection" Dom.pretty_name Cod.pretty_name
+
+  fun is_monotone mp =
+    let
+      fun mono dset cset =
+        case (DomSet.get_min dset, CodSet.get_min cset)
+          of (SOME d, SOME c) => Cod.name_eq (get mp d,c) andalso
+                                 mono (DomSet.delete d dset) (CodSet.delete c cset)
+           | (NONE,NONE) => true
+           | _ => false
+    in mono (get_dom_set mp) (get_cod_set mp)
+    end
+
+  fun restrict_dom set mp =
+    DomSet.fold (fn x => add (x, get mp x)) set empty
+  fun filter_dom f mp = 
+    DomSet.fold (fn x => if f x then add (x, get mp x) else I) (get_dom_set mp) empty
   
   (*type irep = {
     tab : dom ITab.table,
