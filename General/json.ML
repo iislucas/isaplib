@@ -152,6 +152,11 @@ sig
    * Read in a file containing JSON
    *)
   val read_file : string -> json
+
+  (**
+   * Write JSON out to a file
+   *)
+  val write_file : string -> json -> unit
 end
 
 structure Json =
@@ -445,6 +450,11 @@ fun read_file file = let
   val (json_out, _) = the (catch get_one_json ins)
   val _ = TextIO.closeIn ins
 in json_out
+end
+
+fun write_file file json = let
+  val outs = TextIO.openOut file
+in TextIO.outputSubstr (outs, Substring.full (string_of json)) 
 end
 
 fun enc_kv (k, v) = (encode (String k)) ^ ":" ^ (encode v)
