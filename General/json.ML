@@ -454,7 +454,9 @@ end
 
 fun write_file file json = let
   val outs = TextIO.openOut file
-in TextIO.outputSubstr (outs, Substring.full (string_of json)) 
+  val _ = TextIO.outputSubstr (outs, Substring.full (string_of json)) 
+  val _ = TextIO.closeOut outs
+in ()
 end
 
 fun enc_kv (k, v) = (encode (String k)) ^ ":" ^ (encode v)
