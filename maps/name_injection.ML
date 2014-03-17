@@ -173,10 +173,9 @@ struct
     in mono (get_dom_set mp) (get_cod_set mp)
     end
 
-  fun restrict_dom set mp =
-    DomSet.fold (fn x => add (x, get mp x)) set empty
   fun filter_dom f mp = 
     DomSet.fold (fn x => if f x then add (x, get mp x) else I) (get_dom_set mp) empty
+  fun restrict_dom set = filter_dom (DomSet.contains set)
   
   (*type irep = {
     tab : dom ITab.table,
