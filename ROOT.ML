@@ -85,6 +85,7 @@ PolyML.Project.make "General/url.ML";
 PolyML.Project.make "General/file.ML";
 PolyML.Project.make "General/yxml.ML";
 PolyML.Project.make "General/json.ML";
+PolyML.Project.make "General/text_socket.ML";
 
 (*MJB*)
 Testing.make_test "General/test/json-test.ML";
