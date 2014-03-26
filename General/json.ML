@@ -40,6 +40,9 @@ sig
   
   (** An empty JSON Object *)
   val empty_obj : jobj
+
+  (** Test whether object is empty **)
+  val is_empty_obj : jobj -> bool
   
   (** Make a JSON object, given key/json value pairs *)
   val mk_object : (string * json) list -> json
@@ -190,6 +193,7 @@ fun lookup (tab,_) k = (case JObj.lookup tab (k,~1)
 fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 
 val empty_obj = (JObj.empty,0)
+fun is_empty_obj (tab,_) = JObj.is_empty tab
 
 fun mk_record xs = Object (fold_rev (fn (k,v) => update (k, String v)) xs empty_obj)
 fun mk_object xs = Object (fold_rev (fn (k,v) => update (k, v)) xs empty_obj)
