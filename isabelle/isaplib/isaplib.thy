@@ -1,59 +1,58 @@
 theory isaplib
 imports Main
-uses
+begin
+
 (* basic logging, testing and project tools. *)
-"../../basics/log.ML" 
-"../../project/project.ML" 
-"../../project/testing.ML" 
+SML_file "../../basics/log.ML" 
+SML_file "../../project/project.ML" 
+SML_file "../../project/testing.ML" 
 
 (* names *)
-"../../names/namer.ML" 
-"../../names/namers.ML"  (* instances of namer, StrName, etc *)
-"../../names/basic_nameset.ML" (* basic sets of names *)  
-"../../names/basic_nametab.ML" (* name tables which provide fresh names *)
-"../../names/basic_renaming.ML" (* renaming, based on tables and sets *)
+SML_file "../../names/namer.ML" 
+SML_file "../../names/namers.ML"  (* instances of namer, StrName, etc *)
+SML_file "../../names/basic_nameset.ML" (* basic sets of names *)  
+SML_file "../../names/basic_nametab.ML" (* name tables which provide fresh names *)
+SML_file "../../names/basic_renaming.ML" (* renaming, based on tables and sets *)
 
 (* generic Name structure; provies nametables, namesets and collections *)
-"../../names/basic_name.ML"
-"../../names/compound_renaming.ML" (* renaming within datatypes *)
-"../../names/renaming.ML" (* renamings which can be renamed *)
+SML_file "../../names/basic_name.ML"
+SML_file "../../names/compound_renaming.ML" (* renaming within datatypes *)
+SML_file "../../names/renaming.ML" (* renamings which can be renamed *)
 (* as above, but with renaming *)
-"../../names/nameset.ML" 
-"../../names/nametab.ML" 
+SML_file "../../names/nameset.ML" 
+SML_file "../../names/nametab.ML" 
 
 (* names + renaming for them, their tables, sets, and renamings *)
-"../../names/names.ML"
+SML_file "../../names/names.ML"
 
 
 (* Binary Relations of finite name sets: good for dependencies *)
-"../../names/name_map.ML" (* functions/mappings on names *)
-"../../names/name_inj.ML" (* name iso-morphisms *)
-"../../names/name_injendo.ML" (* name auto-morphisms (name iso where dom = cod) *)
-"../../names/name_binrel.ML" (* bin relations on names *)
+SML_file "../../names/name_map.ML" (* functions/mappings on names *)
+SML_file "../../names/name_inj.ML" (* name iso-morphisms *)
+SML_file "../../names/name_injendo.ML" (* name auto-morphisms (name iso where dom = cod) *)
+SML_file "../../names/name_binrel.ML" (* bin relations on names *)
 
-"../../names/names_common.ML"
+SML_file "../../names/names_common.ML"
 
 (* unif stuff *)
-"../../unif/unif_data.ML"
-"../../unif/umorph.ML"
+SML_file "../../unif/unif_data.ML"
+SML_file "../../unif/umorph.ML"
 
 (* graphs *)
-"../../graph/pregraph.ML"
-"../../graph/rgraph.ML"
+SML_file "../../graph/pregraph.ML"
+SML_file "../../graph/rgraph.ML"
 
 (* search *)
-"../../search/gsearch.ML"
-"../../search/msearch.ML"
-"../../search/lsearch.ML"
+SML_file "../../search/gsearch.ML"
+SML_file "../../search/msearch.ML"
+SML_file "../../search/lsearch.ML"
 
-"../../General/source.ML"
-"../../General/json.ML"
+SML_file "../../General/source.ML"
+SML_file "../../General/json.ML"
 
 (* Other basic top level things *)
-"../../basics/collection.ML"
-"../../basics/polym_table.ML"
-"../../basics/toplevel.ML"
-
-begin
+SML_file "../../basics/collection.ML"
+SML_file "../../basics/polym_table.ML"
+SML_file "../../basics/toplevel.ML"
 
 end
