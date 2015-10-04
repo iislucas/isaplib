@@ -312,15 +312,8 @@ functor BasicNameTabFun(
                Tab {names = names2, tab = Tab.delete n (#tab rep)}));
 
   (* pull out the biggest/smallest element (log time) *)
-  fun lookup_biggest (tb as Tab rep) = 
-      (case Tab.max_key (#tab rep) 
-        of NONE => NONE
-         | SOME n => SOME (n,get tb n));
-
-  fun lookup_smallest (tb as Tab rep) = 
-      (case Tab.min_key (#tab rep) 
-        of NONE => NONE
-         | SOME n => SOME (n,get tb n));
+  fun lookup_biggest (tb as Tab rep) = Tab.max (#tab rep);
+  fun lookup_smallest (tb as Tab rep) = Tab.min (#tab rep);
 
   (* pop off the biggest/smallest element (log time) *)
   fun pull_biggest tb = 
