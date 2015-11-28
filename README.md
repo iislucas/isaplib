@@ -12,10 +12,15 @@ This is for when you do not have Isabelle installed. e.g. for Quantomatic. Assum
 
 ## Building on top of Isabelle
 
-This is for when you have Isabelle installed (see http://www.cl.cam.ac.uk/research/hvg/isabelle/index.html) and you want to load up isaplib's additional libraries.
-1. Place the isaplib directory in Isabelle's contrib directory, or just clone the isaplib repository at that location with the command:  
+This is for when you have [Isabelle](http://www.cl.cam.ac.uk/research/hvg/isabelle/index.html) 
+installed and you want to load up isaplib's additional libraries.
+
+  1. Place the isaplib directory in Isabelle's contrib directory, or just clone the isaplib 
+     repository at that location with the command: 
+     ```
 git clone git@github.com:iislucas/isaplib.git
-2. New theories you develop can then inherrit from "~~/contrib/isaplib/isabelle/isaplib"
+```
+  2. New theories you develop can then inherrit from `"~~/contrib/isaplib/isabelle/isaplib"`
 
 ## LICENCE and DISCLAIMER
 
