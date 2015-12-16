@@ -18,7 +18,7 @@ isaplib's additional libraries.
 
  2. You can then have new theories inherrit from:
     ```
-    Develop can then inherrit from "~~/contrib/isaplib/IsapLibPure"
+    Develop can then inherrit from "~~/contrib/isaplib/pure_isaplib"
     ```
 
 ## LICENCE and DISCLAIMER

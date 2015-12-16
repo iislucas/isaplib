@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-HERE=$(dirname $0)
-make -f ${HERE}/../Makefile run-isap
