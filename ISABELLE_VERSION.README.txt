@@ -1,1 +1,0 @@
-This is the master branch, it is intended to be related to roughly the last stable release of Isabelle. 
