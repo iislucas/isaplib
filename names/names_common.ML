@@ -15,7 +15,7 @@ signature SSTR_NAME = SNAME where type src = string;
 structure SStrName :> SSTR_NAME
 = struct
   structure S = NameFun(structure Namer = StrSNamer 
-                         val default_name = StrSNamer.StrName("",1));
+                         val default_name = StrSNamer.mk "s0");
   open S;
   type src = string;
   val mk = StrSNamer.mk;
@@ -54,6 +54,7 @@ structure SIntName :> SINT_NAME
   val mk = I;
   val dest = I;
 end;
+
 
 (* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- *)
 (* Lifting into FreshNamers *)

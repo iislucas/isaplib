@@ -40,6 +40,9 @@ sig
   
   (** An empty JSON Object *)
   val empty_obj : jobj
+
+  (** Test whether object is empty **)
+  val is_empty_obj : jobj -> bool
   
   (** Make a JSON object, given key/json value pairs *)
   val mk_object : (string * json) list -> json
@@ -152,6 +155,11 @@ sig
    * Read in a file containing JSON
    *)
   val read_file : string -> json
+
+  (**
+   * Write JSON out to a file
+   *)
+  val write_file : string -> json -> unit
 end
 
 structure Json =
@@ -185,6 +193,7 @@ fun lookup (tab,_) k = (case JObj.lookup tab (k,~1)
 fun get obj k = case lookup obj k of SOME v => v | NONE => raise notfound_exn k
 
 val empty_obj = (JObj.empty,0)
+fun is_empty_obj (tab,_) = JObj.is_empty tab
 
 fun mk_record xs = Object (fold_rev (fn (k,v) => update (k, String v)) xs empty_obj)
 fun mk_object xs = Object (fold_rev (fn (k,v) => update (k, v)) xs empty_obj)
@@ -438,10 +447,20 @@ fun json_source instream =
   |> Source.set_prompt ""
 
 fun read_file file = let
+  val get_one_json = Source.get_single o json_source
+  fun catch f s = (Scan.catch f s)
+    handle Fail m => raise parse_exn (m^" in file "^file)
   val ins = TextIO.openIn file
-  val (json_out, _) = the (Source.get_single (json_source ins))
+  val (json_out, _) = the (catch get_one_json ins)
   val _ = TextIO.closeIn ins
 in json_out
+end
+
+fun write_file file json = let
+  val outs = TextIO.openOut file
+  val _ = TextIO.outputSubstr (outs, Substring.full (string_of json)) 
+  val _ = TextIO.closeOut outs
+in ()
 end
 
 fun enc_kv (k, v) = (encode (String k)) ^ ":" ^ (encode v)
