@@ -2,6 +2,10 @@ theory pure_isaplib
 imports Pure
 begin
 
+(* basic logging, testing and project tools. *)
+ML_file "basics/log.ML"
+ML_file "project/testing.ML"
+
 (* names *)
 ML_file "names/namer.ML"
 ML_file "names/namers.ML"  (* instances of namer, StrName, etc *)
@@ -20,7 +24,6 @@ ML_file "names/nametab.ML"
 (* names + renaming for them, their tables, sets, and renamings *)
 ML_file "names/names.ML"
 
-
 (* Binary Relations of finite name sets: good for dependencies *)
 ML_file "names/name_map.ML" (* functions/mappings on names *)
 ML_file "names/name_inj.ML" (* name iso-morphisms *)
@@ -37,6 +40,14 @@ ML_file "unif/umorph.ML"
 ML_file "graph/pregraph.ML"
 ML_file "graph/rgraph.ML"
 
+(* maps *)
+ML_file "maps/abstract_map.ML"
+ML_file "maps/name_table.ML"
+ML_file "maps/name_relation.ML"
+ML_file "maps/name_function.ML"
+ML_file "maps/name_injection.ML"
+ML_file "maps/name_substitution.ML"
+
 (* search *)
 ML_file "search/gsearch.ML"
 ML_file "search/msearch.ML"
@@ -45,6 +56,9 @@ ML_file "search/lsearch.ML"
 (* Other basic top level things *)
 ML_file "basics/collection.ML"
 ML_file "basics/polym_table.ML"
-SML_file "basics/toplevel.ML"
+ML_file "basics/source.ML"
+ML_file "basics/json.ML"
+ML_file "basics/text_socket.ML"
+ML_file "basics/toplevel.ML"
 
 end
