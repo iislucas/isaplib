@@ -4,7 +4,6 @@ begin
 
 (* basic logging, testing and project tools. *)
 ML_file "basics/log.ML"
-ML_file "project/testing.ML"
 
 (* names *)
 ML_file "names/namer.ML"
@@ -56,8 +55,6 @@ ML_file "search/lsearch.ML"
 (* Other basic top level things *)
 ML_file "basics/collection.ML"
 ML_file "basics/polym_table.ML"
-ML_file "basics/source.ML"
-ML_file "basics/json.ML"
 ML_file "basics/text_socket.ML"
 ML_file "basics/toplevel.ML"
 
